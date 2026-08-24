@@ -1,0 +1,51 @@
+services:
+  model:
+    image: vllm/vllm-openai:latest
+    command:
+      - Qwen/Qwen3.5-9B
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --max-model-len
+      - "16384"
+      - --language-model-only
+      - --gpu-memory-utilization
+      - "0.90"
+    environment:
+      HF_HOME: /model-cache
+    volumes:
+      - qwen-model-cache:/model-cache
+    expose:
+      - "8000"
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      MODEL_BASE_URL: http://model:8000/v1
+      MODEL_API_KEY: ${MODEL_API_KEY:-private-internal-service}
+      RED_MODEL_ID: Qwen/Qwen3.5-9B
+      BLUE_MODEL_ID: Qwen/Qwen3.5-9B
+      MODEL_STRUCTURED_OUTPUT_MODE: json_schema
+      MODEL_TIMEOUT_SECONDS: 180
+      APP_HOST: 0.0.0.0
+      PORT: 8501
+    ports:
+      - "8501:8501"
+    depends_on:
+      - model
+    restart: unless-stopped
+
+volumes:
+  qwen-model-cache:

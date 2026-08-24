@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SentinelLoop adversarial payment security dashboard">
+    <title>SentinelLoop · AI Defense Lab</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="#top" aria-label="SentinelLoop dashboard home">
+        <span class="brand-mark">S</span>
+        <span><strong>SentinelLoop</strong><small>AI Defense Lab</small></span>
+      </a>
+      <nav>
+        <a class="active" href="#overview">Overview</a>
+        <a href="#arena">Red vs Blue</a>
+        <a href="#network">Mule network</a>
+        <a href="#transactions">Decisions</a>
+        <a href="#limitations">Caveats</a>
+      </nav>
+      <div class="sidebar-note">
+        <span class="status-dot"></span>
+        Synthetic data only
+      </div>
+    </aside>
+
+    <main id="top">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">MASTERCARD INNOVATION CHALLENGE 2026</p>
+          <h1>Payment defense arena</h1>
+          <p class="lede">See what the Red Team generated, what the Blue Team caught, and where the defense failed.</p>
+        </div>
+        <div class="run-badge"><span></span>Baseline run · v0.2</div>
+      </header>
+
+      <section id="overview" class="metric-grid" aria-label="Key performance metrics">
+        <article class="metric"><span>Total events</span><strong id="metric-events">—</strong><small id="metric-fraud">— fraudulent</small></article>
+        <article class="metric"><span>Precision</span><strong id="metric-precision">—</strong><small>How often alerts were right</small></article>
+        <article class="metric"><span>Recall</span><strong id="metric-recall">—</strong><small>How much fraud was caught</small></article>
+        <article class="metric warning"><span>False-positive rate</span><strong id="metric-fpr">—</strong><small>Legitimate payments flagged</small></article>
+      </section>
+
+      <section class="arena-strip" aria-label="Red and Blue Team flow">
+        <div class="team red"><span>01</span><div><small>RED TEAM</small><strong>Generates attacks</strong><p>ATO and coordinated mule campaigns</p></div></div>
+        <div class="flow-arrow">→</div>
+        <div class="team neutral"><span>02</span><div><small>ARENA</small><strong>Streams payments</strong><p>Ground truth stays hidden</p></div></div>
+        <div class="flow-arrow">→</div>
+        <div class="team blue"><span>03</span><div><small>BLUE TEAM</small><strong>Scores behavior</strong><p>Detect, explain, and mitigate</p></div></div>
+      </section>
+
+      <section id="arena" class="two-column">
+        <article class="panel chart-panel">
+          <div class="panel-heading"><div><p class="eyebrow">PAYMENT STREAM</p><h2>Legitimate vs fraud events</h2></div><div class="legend"><span class="legit"></span>Legitimate <span class="fraud"></span>Fraud</div></div>
+          <canvas id="timeline-chart" height="240" aria-label="Payment events over time"></canvas>
+        </article>
+        <article class="panel chart-panel">
+          <div class="panel-heading"><div><p class="eyebrow">BLUE TEAM CONFIDENCE</p><h2>Risk-score distribution</h2></div></div>
+          <canvas id="risk-chart" height="240" aria-label="Risk score distribution"></canvas>
+        </article>
+      </section>
+
+      <section class="two-column balanced">
+        <article class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">ATTACK COVERAGE</p><h2>Detection by family</h2></div></div>
+          <div id="attack-results" class="result-list"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">CUSTOMER FRICTION</p><h2>Legitimate look-alikes</h2></div></div>
+          <div id="legitimate-results" class="result-list"></div>
+        </article>
+      </section>
+
+      <section id="network" class="panel network-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">GRAPH VIEW</p><h2>Coordinated mule campaign</h2><p id="network-caption" class="subtle">Loading network…</p></div>
+          <div class="legend"><span class="account"></span>Sender account <span class="beneficiary"></span>Beneficiary</div>
+        </div>
+        <canvas id="network-canvas" height="430" aria-label="Mule payment network"></canvas>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">RED TEAM LIBRARY</p><h2>Generated campaigns</h2></div><span id="campaign-count" class="pill">— campaigns</span></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Scenario</th><th>Attack</th><th>Difficulty</th><th>Events</th><th>Average amount</th><th>Started</th></tr></thead><tbody id="campaign-table"></tbody></table>
+        </div>
+      </section>
+
+      <section id="transactions" class="panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">DECISION EXPLORER</p><h2>Inspect Blue Team outcomes</h2></div>
+          <div class="filter-group" role="group" aria-label="Transaction outcome filter">
+            <button class="filter active" data-kind="all">All</button>
+            <button class="filter" data-kind="detected_fraud">Caught</button>
+            <button class="filter" data-kind="missed_fraud">Missed</button>
+            <button class="filter" data-kind="false_positive">False positives</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Time</th><th>Truth</th><th>Scenario / profile</th><th>Risk</th><th>Blue decision</th></tr></thead><tbody id="transaction-table"></tbody></table>
+        </div>
+      </section>
+
+      <section id="limitations" class="caveat"><strong>Current stage</strong><p id="limitations-text">Loading evaluation notes…</p></section>
+      <footer>SentinelLoop · Safe synthetic environment · No real payment data</footer>
+    </main>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+  </body>
+</html>

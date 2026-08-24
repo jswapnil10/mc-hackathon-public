@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SentinelLoop — Red GenAI versus Blue GenAI for payment security.">
+  <title>SentinelLoop · Agent Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='lab.css') }}">
+</head>
+<body>
+  <div class="ambient ambient-red"></div>
+  <div class="ambient ambient-blue"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="SentinelLoop home">
+      <span class="brand-mark"><i></i><i></i></span>
+      <span>SentinelLoop</span>
+    </a>
+    <div class="system-state"><span class="pulse"></span><span id="systemMode">Open-model arena</span></div>
+    <a class="legacy-link" href="/legacy">View v1 archive</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">AI DEFENSE LAB · PAYMENT SECURITY</div>
+      <h1>Build the attack.<br><span>Let an agent defend it.</span></h1>
+      <p>Two isolated GenAI agents compete inside a synthetic payment world. A neutral Referee scores what happened—and releases only enough feedback for the next attack to evolve.</p>
+      <div class="model-ribbon">
+        <div><span class="agent-dot red"></span><small>RED MODEL</small><strong id="redModel">Loading…</strong></div>
+        <div><span class="agent-dot blue"></span><small>BLUE MODEL</small><strong id="blueModel">Loading…</strong></div>
+        <div><span class="agent-dot white"></span><small>REFEREE</small><strong id="refereeModel">Deterministic</strong></div>
+      </div>
+    </section>
+
+    <section class="flow-card" aria-label="Agent architecture">
+      <article class="flow-node red-node"><span>01</span><b>Red Agent</b><small>Plans & adapts</small></article>
+      <div class="flow-arrow"><i></i><em>safe plan</em></div>
+      <article class="flow-node arena-node"><span>02</span><b>Synthetic Arena</b><small>Materializes events</small></article>
+      <div class="flow-arrow"><i></i><em>observables</em></div>
+      <article class="flow-node blue-node"><span>03</span><b>Blue Agent</b><small>Investigates & acts</small></article>
+      <div class="flow-arrow"><i></i><em>decisions</em></div>
+      <article class="flow-node referee-node"><span>04</span><b>Referee</b><small>Opens sealed truth</small></article>
+      <div class="feedback-path"><span>coarse feedback only</span></div>
+    </section>
+
+    <section class="control-panel">
+      <div class="control-copy">
+        <div class="section-kicker">NEW BATTLE</div>
+        <h2>Configure the next stress test</h2>
+        <p>Red can change only bounded synthetic behavior. Blue never sees the answer key.</p>
+      </div>
+      <form id="runForm">
+        <label>Attack family<select id="attackFamily" name="attack_family"></select></label>
+        <label>Difficulty<select id="difficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label>
+        <label>Feedback rounds<select id="rounds" name="rounds"><option value="1">1 round</option><option value="2" selected>2 rounds</option><option value="3">3 rounds</option></select></label>
+        <button type="submit" id="runButton"><span>Start agent battle</span><b>→</b></button>
+      </form>
+    </section>
+
+    <section id="runState" class="run-state hidden" aria-live="polite">
+      <div class="loader"><i></i><i></i><i></i></div>
+      <div><strong>Agents are running the episode</strong><span id="runStateText">Red is planning a bounded campaign…</span></div>
+    </section>
+    <section id="errorState" class="error-state hidden" aria-live="assertive"></section>
+
+    <section id="results" class="results hidden">
+      <div class="results-heading">
+        <div><div class="section-kicker">LATEST RESULT</div><h2 id="runTitle">Battle report</h2></div>
+        <div id="roundTabs" class="round-tabs"></div>
+      </div>
+
+      <div class="score-grid">
+        <article class="score-card blue-score"><small>BLUE DEFENSE SCORE</small><strong id="blueScore">—</strong><span>/ 100</span></article>
+        <article class="score-card red-score"><small>RED EVASION SCORE</small><strong id="redScore">—</strong><span>/ 100</span></article>
+        <article class="metric-card"><small>OUTCOME</small><strong id="outcome">—</strong><span id="detectionTime">No result</span></article>
+        <article class="metric-card"><small>VALUE PROTECTED</small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></article>
+        <article class="metric-card"><small>HARD FALSE POSITIVES</small><strong id="falsePositives">—</strong><span>on look-alike controls</span></article>
+      </div>
+
+      <div class="battle-grid">
+        <article class="agent-panel red-panel">
+          <header><div><span class="agent-dot red"></span><small>RED AGENT</small><h3>Campaign strategy</h3></div><span class="model-pill" id="redModelPill">Qwen</span></header>
+          <div class="strategy-family" id="strategyFamily">—</div>
+          <p class="strategy-text" id="strategyObjective">—</p>
+          <div class="strategy-block"><small>ADAPTATION HYPOTHESIS</small><p id="adaptationHypothesis">—</p></div>
+          <div class="strategy-block"><small>BOUNDED CHANGES</small><div id="parameterChanges" class="chip-list"></div></div>
+        </article>
+
+        <article class="agent-panel blue-panel">
+          <header><div><span class="agent-dot blue"></span><small>BLUE AGENT</small><h3>Investigation timeline</h3></div><span class="model-pill" id="blueModelPill">Qwen</span></header>
+          <div id="eventTimeline" class="event-timeline"></div>
+        </article>
+      </div>
+
+      <article class="referee-panel">
+        <header><div><span class="agent-dot white"></span><small>NEUTRAL REFEREE</small><h3>What Red is allowed to learn</h3></div><span class="sealed-badge">SEALED TRUTH</span></header>
+        <div class="feedback-grid">
+          <div><small>OUTCOME RELEASED</small><strong id="feedbackOutcome">—</strong></div>
+          <div><small>DETECTION STAGE</small><strong id="feedbackStage">—</strong></div>
+          <div><small>COARSE REASONS</small><div id="feedbackReasons" class="chip-list"></div></div>
+          <div><small>PROTECTED RATIO</small><strong id="feedbackRatio">—</strong></div>
+        </div>
+        <p class="boundary-note"><span>↳</span> No Blue prompt, private evidence, thresholds or hidden reasoning crosses this boundary.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer><span>SentinelLoop · fully synthetic events · no real payment rails</span><span>Built for Mastercard Innovation Challenge 2026</span></footer>
+  <script src="{{ url_for('static', filename='lab.js') }}"></script>
+</body>
+</html>

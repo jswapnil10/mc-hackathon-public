@@ -1,0 +1,983 @@
+{
+  "catalog_version": "1.0",
+  "catalog_purpose": "Curated defensive attack cards for synthetic payment-security simulations only.",
+  "cards": [
+    {
+      "attack_family": "APP-01",
+      "name": "GenAI-amplified authorized push payment scam",
+      "observed_pattern": "A victim is manipulated into authorizing a payment to a newly introduced beneficiary. GenAI can increase personalization, language quality, channel consistency, and campaign scale, while the simulator represents only defensive metadata and payment behavior.",
+      "genai_role": [
+        "Personalizes social-engineering themes at scale",
+        "Maintains consistent personas across simulated channels",
+        "Adapts urgency and pretext categories without generating message content"
+      ],
+      "payment_surface": [
+        "REAL_TIME_ACCOUNT_TO_ACCOUNT",
+        "MOBILE_BANKING",
+        "UPI_LIKE_PUSH_PAYMENT"
+      ],
+      "source_refs": [
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "GenAI changes both fraud enablement and fraud defense across the user transaction journey."
+        },
+        {
+          "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+          "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+          "observed": "FinCEN identifies authorized push payment fraud among schemes associated with GenAI-enabled identities."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "persuasion_context",
+          "event_type": "COMMUNICATION_RISK_CONTEXT",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "declared_urgency_band",
+            "channel_switch_count",
+            "first_contact_recency"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "urgency_level": "$param.urgency_level",
+            "channel_switch_count": "$param.channel_switch_count",
+            "content_available": false
+          }
+        },
+        {
+          "stage_id": "new_beneficiary",
+          "event_type": "BENEFICIARY_ADDED",
+          "offset_seconds": 45,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "beneficiary_age_days",
+            "beneficiary_first_seen"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "beneficiary_age_days": "$param.beneficiary_age_days"
+          }
+        },
+        {
+          "stage_id": "authorized_payment",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 120,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "amount_vs_sender_baseline",
+            "beneficiary_novelty",
+            "recent_contact_risk"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "device_id": "$synthetic.device",
+            "amount_multiplier": "$param.amount_multiplier",
+            "customer_authorized": true
+          }
+        },
+        {
+          "stage_id": "payment_follow_up",
+          "event_type": "PAYMENT_REPEATED",
+          "offset_seconds": 300,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "repeat_payment_count",
+            "short_payment_interval"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "payment_count": "$param.payment_count",
+            "payment_interval_minutes": "$param.payment_interval_minutes"
+          }
+        },
+        {
+          "stage_id": "beneficiary_receipt",
+          "event_type": "FUNDS_RECEIVED",
+          "offset_seconds": 600,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "new_payee_value_received",
+            "receiver_risk_context"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "sender_account_id": "$synthetic.sender",
+            "campaign_duration_minutes": "$param.campaign_duration_minutes"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "urgency_level": 5,
+          "channel_switch_count": 4,
+          "beneficiary_age_days": 0,
+          "amount_multiplier": 9.0,
+          "payment_count": 4,
+          "payment_interval_minutes": 2,
+          "campaign_duration_minutes": 15
+        },
+        "medium": {
+          "urgency_level": 4,
+          "channel_switch_count": 3,
+          "beneficiary_age_days": 7,
+          "amount_multiplier": 5.0,
+          "payment_count": 3,
+          "payment_interval_minutes": 12,
+          "campaign_duration_minutes": 90
+        },
+        "hard": {
+          "urgency_level": 2,
+          "channel_switch_count": 1,
+          "beneficiary_age_days": 90,
+          "amount_multiplier": 1.8,
+          "payment_count": 2,
+          "payment_interval_minutes": 180,
+          "campaign_duration_minutes": 1440
+        }
+      },
+      "parameter_bounds": {
+        "urgency_level": {"min": 1, "max": 5},
+        "channel_switch_count": {"min": 0, "max": 6},
+        "beneficiary_age_days": {"min": 0, "max": 365},
+        "amount_multiplier": {"min": 1.0, "max": 12.0},
+        "payment_count": {"min": 1, "max": 6},
+        "payment_interval_minutes": {"min": 1, "max": 1440},
+        "campaign_duration_minutes": {"min": 5, "max": 4320}
+      },
+      "allowed_mutations": [
+        "urgency_level",
+        "beneficiary_age_days",
+        "amount_multiplier",
+        "payment_interval_minutes",
+        "campaign_duration_minutes"
+      ],
+      "legitimate_controls": [
+        "urgent_family_support_payment",
+        "first_payment_to_a_trusted_professional",
+        "time_sensitive_tax_or_fee_payment"
+      ]
+    },
+    {
+      "attack_family": "ATO-01",
+      "name": "GenAI-assisted account takeover and rapid transfer",
+      "observed_pattern": "An existing account develops a novel session or authentication context, adds or uses a beneficiary, and rapidly initiates transfers. The laboratory starts after compromise and never creates credentials, phishing pages, or contact content.",
+      "genai_role": [
+        "Improves impersonation consistency in the pre-transaction phase",
+        "Scales targeting and pretext variation",
+        "Adapts observable transaction timing after defensive feedback"
+      ],
+      "payment_surface": [
+        "ONLINE_BANKING",
+        "MOBILE_BANKING",
+        "REAL_TIME_TRANSFER"
+      ],
+      "source_refs": [
+        {
+          "title": "FBI IC3 — Account Takeover Fraud via Impersonation of Financial Institution Support",
+          "url": "https://www.ic3.gov/PSA/2025/PSA251125",
+          "observed": "The FBI describes support impersonation leading to unauthorized account access and rapid movement of funds."
+        },
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "Organizations should evaluate GenAI-related vulnerabilities across the user transaction journey."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "novel_session",
+          "event_type": "SESSION_STARTED",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "device_novelty",
+            "network_novelty",
+            "session_age"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "device_id": "$synthetic.device",
+            "network_id": "$synthetic.network",
+            "new_device_probability": "$param.new_device_probability",
+            "new_network_probability": "$param.new_network_probability",
+            "session_age_seconds": "$param.session_age_seconds"
+          }
+        },
+        {
+          "stage_id": "authentication_change",
+          "event_type": "AUTHENTICATION_CONTEXT_CHANGED",
+          "offset_seconds": 20,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "recent_security_change",
+            "session_to_change_latency"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "device_id": "$synthetic.device",
+            "change_risk_band": "$param.authentication_change_risk_band"
+          }
+        },
+        {
+          "stage_id": "beneficiary_setup",
+          "event_type": "BENEFICIARY_ADDED",
+          "offset_seconds": 60,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "beneficiary_age_days",
+            "same_session_add_and_pay"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "beneficiary_age_days": "$param.beneficiary_age_days"
+          }
+        },
+        {
+          "stage_id": "test_transfer",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 110,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "small_test_payment",
+            "new_beneficiary"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "device_id": "$synthetic.device",
+            "amount_multiplier": "$param.test_payment_multiplier"
+          }
+        },
+        {
+          "stage_id": "primary_transfer",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 240,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "amount_vs_sender_baseline",
+            "rapid_value_escalation",
+            "novel_session_payment"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "device_id": "$synthetic.device",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        },
+        {
+          "stage_id": "receiver_control",
+          "event_type": "FUNDS_RECEIVED",
+          "offset_seconds": 360,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "fresh_sender_receiver_edge",
+            "receiver_value_velocity"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "sender_account_id": "$synthetic.sender"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "new_device_probability": 1.0,
+          "new_network_probability": 1.0,
+          "session_age_seconds": 20,
+          "authentication_change_risk_band": 5,
+          "beneficiary_age_days": 0,
+          "test_payment_multiplier": 0.1,
+          "amount_multiplier": 10.0
+        },
+        "medium": {
+          "new_device_probability": 0.8,
+          "new_network_probability": 0.7,
+          "session_age_seconds": 180,
+          "authentication_change_risk_band": 4,
+          "beneficiary_age_days": 5,
+          "test_payment_multiplier": 0.4,
+          "amount_multiplier": 5.0
+        },
+        "hard": {
+          "new_device_probability": 0.25,
+          "new_network_probability": 0.2,
+          "session_age_seconds": 3600,
+          "authentication_change_risk_band": 2,
+          "beneficiary_age_days": 120,
+          "test_payment_multiplier": 0.9,
+          "amount_multiplier": 1.7
+        }
+      },
+      "parameter_bounds": {
+        "new_device_probability": {"min": 0.0, "max": 1.0},
+        "new_network_probability": {"min": 0.0, "max": 1.0},
+        "session_age_seconds": {"min": 1, "max": 86400},
+        "authentication_change_risk_band": {"min": 1, "max": 5},
+        "beneficiary_age_days": {"min": 0, "max": 365},
+        "test_payment_multiplier": {"min": 0.05, "max": 1.0},
+        "amount_multiplier": {"min": 1.0, "max": 12.0}
+      },
+      "allowed_mutations": [
+        "new_device_probability",
+        "new_network_probability",
+        "beneficiary_age_days",
+        "amount_multiplier"
+      ],
+      "legitimate_controls": [
+        "customer_travelling_with_new_device",
+        "customer_replaced_phone_and_security_settings",
+        "genuine_payment_to_new_beneficiary"
+      ]
+    },
+    {
+      "attack_family": "BEC-01",
+      "name": "GenAI-enhanced supplier impersonation payment diversion",
+      "observed_pattern": "A business payment is redirected after an apparent supplier-profile change and an urgent invoice request. The simulator stores only channel-risk summaries and transactional observables, never emails, voices, or impersonation content.",
+      "genai_role": [
+        "Makes simulated business personas and tone more consistent",
+        "Supports multilingual pretext categories",
+        "Varies urgency and relationship context at campaign scale"
+      ],
+      "payment_surface": [
+        "CORPORATE_BANKING",
+        "WIRE_TRANSFER",
+        "ACCOUNTS_PAYABLE"
+      ],
+      "source_refs": [
+        {
+          "title": "FBI IC3 — Business Email Compromise: The $55 Billion Scam",
+          "url": "https://www.ic3.gov/PSA/2024/PSA240911",
+          "observed": "BEC schemes compromise or impersonate business communications to conduct unauthorized transfers of funds."
+        },
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "GenAI can empower fraudsters and also support defenses across payment journeys."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "supplier_contact_context",
+          "event_type": "COMMUNICATION_RISK_CONTEXT",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "supplier_channel_novelty",
+            "declared_urgency_band"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "supplier_id": "$synthetic.supplier",
+            "urgency_level": "$param.urgency_level",
+            "content_available": false
+          }
+        },
+        {
+          "stage_id": "supplier_profile_change",
+          "event_type": "SUPPLIER_PROFILE_CHANGED",
+          "offset_seconds": 90,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "supplier_relationship_days",
+            "recent_settlement_change"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "supplier_id": "$synthetic.supplier",
+            "supplier_relationship_days": "$param.supplier_relationship_days",
+            "approval_step_count": "$param.approval_step_count"
+          }
+        },
+        {
+          "stage_id": "replacement_beneficiary",
+          "event_type": "BENEFICIARY_ADDED",
+          "offset_seconds": 180,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "beneficiary_age_days",
+            "supplier_to_beneficiary_change"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "supplier_id": "$synthetic.supplier",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "beneficiary_age_days": "$param.beneficiary_age_days"
+          }
+        },
+        {
+          "stage_id": "diverted_invoice_payment",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 300,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "invoice_amount_deviation",
+            "recent_supplier_profile_change",
+            "new_settlement_destination"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "supplier_id": "$synthetic.supplier",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        },
+        {
+          "stage_id": "destination_receipt",
+          "event_type": "FUNDS_RECEIVED",
+          "offset_seconds": 480,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "first_supplier_payment_to_destination",
+            "receiver_risk_context"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "sender_account_id": "$synthetic.sender"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "urgency_level": 5,
+          "supplier_relationship_days": 30,
+          "approval_step_count": 1,
+          "beneficiary_age_days": 0,
+          "amount_multiplier": 12.0
+        },
+        "medium": {
+          "urgency_level": 4,
+          "supplier_relationship_days": 365,
+          "approval_step_count": 2,
+          "beneficiary_age_days": 14,
+          "amount_multiplier": 6.0
+        },
+        "hard": {
+          "urgency_level": 2,
+          "supplier_relationship_days": 1800,
+          "approval_step_count": 4,
+          "beneficiary_age_days": 180,
+          "amount_multiplier": 1.5
+        }
+      },
+      "parameter_bounds": {
+        "urgency_level": {"min": 1, "max": 5},
+        "supplier_relationship_days": {"min": 1, "max": 3650},
+        "approval_step_count": {"min": 1, "max": 5},
+        "beneficiary_age_days": {"min": 0, "max": 365},
+        "amount_multiplier": {"min": 1.0, "max": 15.0}
+      },
+      "allowed_mutations": [
+        "urgency_level",
+        "beneficiary_age_days",
+        "amount_multiplier"
+      ],
+      "legitimate_controls": [
+        "verified_supplier_bank_change",
+        "urgent_payroll_or_tax_run",
+        "scheduled_large_invoice"
+      ]
+    },
+    {
+      "attack_family": "MULE-01",
+      "name": "AI-coordinated mule-network fan-in and dispersal",
+      "observed_pattern": "Multiple synthetic accounts receive funds and redistribute value in a short period, creating graph and velocity patterns associated with funnel or mule activity. No real accounts, recruitment content, or payment rails are used.",
+      "genai_role": [
+        "Coordinates diverse synthetic account-behavior profiles",
+        "Varies campaign timing and graph shape",
+        "Uses Referee feedback to mutate bounded graph observables"
+      ],
+      "payment_surface": [
+        "REAL_TIME_TRANSFER",
+        "WALLET_NETWORK",
+        "ACCOUNT_TO_ACCOUNT"
+      ],
+      "source_refs": [
+        {
+          "title": "Reserve Bank of India Bulletin — MuleHunter.ai",
+          "url": "https://www.rbi.org.in/Scripts/BS_ViewBulletin.aspx?Id=23057",
+          "observed": "RBI describes an AI and machine-learning approach for identifying mule bank accounts using account and transaction patterns."
+        },
+        {
+          "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+          "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+          "observed": "FinCEN describes fraudulent accounts and funnel accounts receiving and laundering fraud proceeds."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "account_warmup",
+          "event_type": "ACCOUNT_WARMUP_ACTIVITY",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "low_history_account",
+            "shared_device_probability",
+            "shared_network_probability"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "device_id": "$synthetic.device",
+            "network_id": "$synthetic.network",
+            "warmup_event_count": "$param.warmup_event_count",
+            "shared_device_probability": "$param.shared_device_probability",
+            "shared_network_probability": "$param.shared_network_probability"
+          }
+        },
+        {
+          "stage_id": "fan_in",
+          "event_type": "FUNDS_RECEIVED",
+          "offset_seconds": 3600,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "sender_count",
+            "beneficiary_concentration",
+            "receive_velocity"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "sender_account_id": "$synthetic.sender",
+            "sender_count": "$param.sender_count",
+            "beneficiary_count": "$param.beneficiary_count",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        },
+        {
+          "stage_id": "coordinated_receipts",
+          "event_type": "PAYMENT_REPEATED",
+          "offset_seconds": 3720,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "mule_cluster_size",
+            "campaign_duration",
+            "repeated_amount_shape"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "mule_count": "$param.mule_count",
+            "campaign_duration_minutes": "$param.campaign_duration_minutes"
+          }
+        },
+        {
+          "stage_id": "rapid_dispersal",
+          "event_type": "FUNDS_DISPERSED",
+          "offset_seconds": 3900,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "time_to_outflow",
+            "outflow_ratio",
+            "multi_destination_dispersal"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "merchant_id": "$synthetic.merchant",
+            "outflow_ratio": "$param.outflow_ratio",
+            "payment_interval_minutes": "$param.payment_interval_minutes"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "warmup_event_count": 0,
+          "shared_device_probability": 1.0,
+          "shared_network_probability": 1.0,
+          "sender_count": 20,
+          "beneficiary_count": 2,
+          "mule_count": 16,
+          "amount_multiplier": 8.0,
+          "campaign_duration_minutes": 10,
+          "outflow_ratio": 0.98,
+          "payment_interval_minutes": 1
+        },
+        "medium": {
+          "warmup_event_count": 3,
+          "shared_device_probability": 0.7,
+          "shared_network_probability": 0.6,
+          "sender_count": 10,
+          "beneficiary_count": 5,
+          "mule_count": 9,
+          "amount_multiplier": 4.0,
+          "campaign_duration_minutes": 90,
+          "outflow_ratio": 0.8,
+          "payment_interval_minutes": 10
+        },
+        "hard": {
+          "warmup_event_count": 10,
+          "shared_device_probability": 0.15,
+          "shared_network_probability": 0.1,
+          "sender_count": 4,
+          "beneficiary_count": 12,
+          "mule_count": 4,
+          "amount_multiplier": 1.4,
+          "campaign_duration_minutes": 1440,
+          "outflow_ratio": 0.45,
+          "payment_interval_minutes": 240
+        }
+      },
+      "parameter_bounds": {
+        "warmup_event_count": {"min": 0, "max": 20},
+        "shared_device_probability": {"min": 0.0, "max": 1.0},
+        "shared_network_probability": {"min": 0.0, "max": 1.0},
+        "sender_count": {"min": 2, "max": 30},
+        "beneficiary_count": {"min": 1, "max": 20},
+        "mule_count": {"min": 2, "max": 20},
+        "amount_multiplier": {"min": 1.0, "max": 10.0},
+        "campaign_duration_minutes": {"min": 5, "max": 2880},
+        "outflow_ratio": {"min": 0.1, "max": 1.0},
+        "payment_interval_minutes": {"min": 1, "max": 1440}
+      },
+      "allowed_mutations": [
+        "shared_device_probability",
+        "shared_network_probability",
+        "beneficiary_count",
+        "mule_count",
+        "amount_multiplier",
+        "campaign_duration_minutes",
+        "payment_interval_minutes"
+      ],
+      "legitimate_controls": [
+        "shared_household_or_small_business_device",
+        "crowdfunding_or_disaster_relief_burst",
+        "popular_merchant_or_platform_aggregation"
+      ]
+    },
+    {
+      "attack_family": "SYNID-01",
+      "name": "GenAI synthetic-identity onboarding and payment activation",
+      "observed_pattern": "A synthetic applicant attempts identity verification, opens an account, builds limited history, and later initiates payment activity. The lab emits only numerical consistency, linkage, liveness, and behavior indicators—never identity documents or personal data.",
+      "genai_role": [
+        "Creates variation in synthetic identity consistency signals",
+        "Scales onboarding attempts in a closed laboratory",
+        "Adapts account-aging and activity patterns within approved bounds"
+      ],
+      "payment_surface": [
+        "DIGITAL_ONBOARDING",
+        "NEW_ACCOUNT_PAYMENTS",
+        "ACCOUNT_TO_ACCOUNT"
+      ],
+      "source_refs": [
+        {
+          "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+          "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+          "observed": "FinCEN reports GenAI-altered identity media, synthetic identities, fraudulent account opening, coordinated accounts, and rapid transactions."
+        },
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "GenAI introduces risks and defensive opportunities throughout customer and transaction journeys."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "identity_application",
+          "event_type": "IDENTITY_APPLICATION_SUBMITTED",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "profile_consistency_score",
+            "linked_attribute_count",
+            "application_velocity"
+          ],
+          "attributes": {
+            "identity_id": "$synthetic.identity",
+            "profile_consistency_score": "$param.profile_consistency_score",
+            "linked_attribute_count": "$param.linked_attribute_count"
+          }
+        },
+        {
+          "stage_id": "verification_attempt",
+          "event_type": "IDENTITY_VERIFICATION_ATTEMPTED",
+          "offset_seconds": 90,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "document_consistency_score",
+            "liveness_confidence",
+            "verification_retry_count"
+          ],
+          "attributes": {
+            "identity_id": "$synthetic.identity",
+            "device_id": "$synthetic.device",
+            "document_consistency_score": "$param.document_consistency_score",
+            "liveness_confidence": "$param.liveness_confidence",
+            "verification_retry_count": "$param.verification_retry_count"
+          }
+        },
+        {
+          "stage_id": "account_creation",
+          "event_type": "ACCOUNT_OPENED",
+          "offset_seconds": 240,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "identity_linkage_density",
+            "device_reuse_probability"
+          ],
+          "attributes": {
+            "identity_id": "$synthetic.identity",
+            "sender_account_id": "$synthetic.sender",
+            "device_id": "$synthetic.device",
+            "device_reuse_probability": "$param.device_reuse_probability"
+          }
+        },
+        {
+          "stage_id": "history_building",
+          "event_type": "ACCOUNT_WARMUP_ACTIVITY",
+          "offset_seconds": 86400,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "account_age_days",
+            "warmup_event_count",
+            "behavior_diversity"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "account_age_days": "$param.account_age_days",
+            "warmup_event_count": "$param.warmup_event_count"
+          }
+        },
+        {
+          "stage_id": "payment_activation",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 172800,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "new_account_value_velocity",
+            "amount_vs_thin_history",
+            "beneficiary_novelty"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "profile_consistency_score": 0.3,
+          "linked_attribute_count": 8,
+          "document_consistency_score": 0.35,
+          "liveness_confidence": 0.25,
+          "verification_retry_count": 5,
+          "device_reuse_probability": 1.0,
+          "account_age_days": 0,
+          "warmup_event_count": 0,
+          "amount_multiplier": 9.0
+        },
+        "medium": {
+          "profile_consistency_score": 0.65,
+          "linked_attribute_count": 4,
+          "document_consistency_score": 0.7,
+          "liveness_confidence": 0.6,
+          "verification_retry_count": 2,
+          "device_reuse_probability": 0.55,
+          "account_age_days": 14,
+          "warmup_event_count": 4,
+          "amount_multiplier": 4.0
+        },
+        "hard": {
+          "profile_consistency_score": 0.92,
+          "linked_attribute_count": 1,
+          "document_consistency_score": 0.95,
+          "liveness_confidence": 0.9,
+          "verification_retry_count": 0,
+          "device_reuse_probability": 0.1,
+          "account_age_days": 120,
+          "warmup_event_count": 15,
+          "amount_multiplier": 1.4
+        }
+      },
+      "parameter_bounds": {
+        "profile_consistency_score": {"min": 0.0, "max": 1.0},
+        "linked_attribute_count": {"min": 0, "max": 10},
+        "document_consistency_score": {"min": 0.0, "max": 1.0},
+        "liveness_confidence": {"min": 0.0, "max": 1.0},
+        "verification_retry_count": {"min": 0, "max": 6},
+        "device_reuse_probability": {"min": 0.0, "max": 1.0},
+        "account_age_days": {"min": 0, "max": 365},
+        "warmup_event_count": {"min": 0, "max": 20},
+        "amount_multiplier": {"min": 1.0, "max": 10.0}
+      },
+      "allowed_mutations": [
+        "linked_attribute_count",
+        "document_consistency_score",
+        "liveness_confidence",
+        "device_reuse_probability",
+        "account_age_days",
+        "warmup_event_count",
+        "amount_multiplier"
+      ],
+      "legitimate_controls": [
+        "thin_file_customer",
+        "student_or_new_to_credit_applicant",
+        "accessibility_related_verification_retry"
+      ]
+    },
+    {
+      "attack_family": "EVADE-01",
+      "name": "Feedback-guided low-and-slow payment evasion",
+      "observed_pattern": "A previously generated synthetic campaign is replayed with only approved parameters changed in response to coarse Referee feedback. It tests whether defenses recognize the underlying behavior as obvious indicators are reduced.",
+      "genai_role": [
+        "Selects a bounded campaign objective and stage emphasis",
+        "Interprets coarse non-sensitive Referee categories",
+        "Proposes variants that the deterministic mutation controller constrains"
+      ],
+      "payment_surface": [
+        "REAL_TIME_TRANSFER",
+        "CARD_NOT_PRESENT_LIKE_EVENTS",
+        "ACCOUNT_TO_ACCOUNT"
+      ],
+      "source_refs": [
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "Fraud organizations should continuously adapt as GenAI changes both attack and defense capabilities."
+        },
+        {
+          "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+          "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+          "observed": "FinCEN lists coordinated activity, transaction velocity, payee risk, and rapid outflow as useful risk indicators."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "bounded_replay",
+          "event_type": "CAMPAIGN_REPLAYED",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "scenario_lineage",
+            "bounded_parameter_delta"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "campaign_duration_minutes": "$param.campaign_duration_minutes"
+          }
+        },
+        {
+          "stage_id": "familiarized_session",
+          "event_type": "SESSION_STARTED",
+          "offset_seconds": 900,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "device_novelty",
+            "session_history_depth"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "device_id": "$synthetic.device",
+            "new_device_probability": "$param.new_device_probability",
+            "session_history_depth": "$param.session_history_depth"
+          }
+        },
+        {
+          "stage_id": "aged_beneficiary_payment",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 1800,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "beneficiary_age_days",
+            "amount_vs_baseline"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "beneficiary_age_days": "$param.beneficiary_age_days",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        },
+        {
+          "stage_id": "spaced_payments",
+          "event_type": "PAYMENT_REPEATED",
+          "offset_seconds": 3600,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "payment_interval",
+            "cumulative_value"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "payment_count": "$param.payment_count",
+            "payment_interval_minutes": "$param.payment_interval_minutes"
+          }
+        },
+        {
+          "stage_id": "delayed_dispersal",
+          "event_type": "FUNDS_DISPERSED",
+          "offset_seconds": 7200,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "delayed_outflow",
+            "destination_count"
+          ],
+          "attributes": {
+            "beneficiary_id": "$synthetic.beneficiary",
+            "merchant_id": "$synthetic.merchant",
+            "outflow_ratio": "$param.outflow_ratio"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "campaign_duration_minutes": 15,
+          "new_device_probability": 1.0,
+          "session_history_depth": 0,
+          "beneficiary_age_days": 0,
+          "amount_multiplier": 8.0,
+          "payment_count": 5,
+          "payment_interval_minutes": 2,
+          "outflow_ratio": 0.95
+        },
+        "medium": {
+          "campaign_duration_minutes": 240,
+          "new_device_probability": 0.6,
+          "session_history_depth": 3,
+          "beneficiary_age_days": 30,
+          "amount_multiplier": 3.0,
+          "payment_count": 3,
+          "payment_interval_minutes": 60,
+          "outflow_ratio": 0.7
+        },
+        "hard": {
+          "campaign_duration_minutes": 2880,
+          "new_device_probability": 0.1,
+          "session_history_depth": 12,
+          "beneficiary_age_days": 240,
+          "amount_multiplier": 1.2,
+          "payment_count": 2,
+          "payment_interval_minutes": 720,
+          "outflow_ratio": 0.35
+        }
+      },
+      "parameter_bounds": {
+        "campaign_duration_minutes": {"min": 5, "max": 4320},
+        "new_device_probability": {"min": 0.0, "max": 1.0},
+        "session_history_depth": {"min": 0, "max": 30},
+        "beneficiary_age_days": {"min": 0, "max": 365},
+        "amount_multiplier": {"min": 1.0, "max": 10.0},
+        "payment_count": {"min": 1, "max": 8},
+        "payment_interval_minutes": {"min": 1, "max": 1440},
+        "outflow_ratio": {"min": 0.1, "max": 1.0}
+      },
+      "allowed_mutations": [
+        "campaign_duration_minutes",
+        "new_device_probability",
+        "beneficiary_age_days",
+        "amount_multiplier",
+        "payment_interval_minutes",
+        "outflow_ratio"
+      ],
+      "legitimate_controls": [
+        "gradual_customer_behavior_change",
+        "recurring_installment_payments",
+        "legitimate_account_or_device_migration"
+      ]
+    }
+  ]
+}

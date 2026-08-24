@@ -1,0 +1,27 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+.tmp/
+.tmp_docs/
+.tmp_slides/
+.pytest_cache/
+.coverage
+htmlcov/
+tmp/
+
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Generated local data and run artifacts
+data/processed/*.csv
+data/processed/*.json
+runs/
+
+# Local document-rendering and office artifacts
+*.inspect.ndjson
+~$*
+red_team_agent.zip
+Red_Team_Agent_ATO_Scenario_Deck/

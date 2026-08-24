@@ -1,0 +1,11 @@
+{
+  "outcome": "detected",
+  "detected_stage_id": "novel_session",
+  "value_prevented_ratio": 1.0,
+  "time_to_detect_seconds": 12,
+  "coarse_reason_categories": [
+    "device_novelty",
+    "network_novelty"
+  ],
+  "false_positive_rate": 0.01
+}

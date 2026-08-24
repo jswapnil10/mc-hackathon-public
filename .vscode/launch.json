@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "SentinelLoop Web — Guided Debug",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.server",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "subProcess": false,
+      "env": {
+        "FLASK_DEBUG": "0",
+        "SENTINELLOOP_TRACE": "1",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  ]
+}
