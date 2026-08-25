@@ -29,3 +29,9 @@ runs/
 ~$*
 red_team_agent.zip
 Red_Team_Agent_ATO_Scenario_Deck/
+
+# Generated ML data + model artifacts (regenerable; keep out of git)
+data/loop/*.csv
+data/loop/**/*.joblib
+data/loop/*.jsonl
+data/loop/*.json

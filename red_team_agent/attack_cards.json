@@ -58,7 +58,9 @@
           "attributes": {
             "sender_account_id": "$synthetic.sender",
             "beneficiary_id": "$synthetic.beneficiary",
-            "beneficiary_age_days": "$param.beneficiary_age_days"
+            "beneficiary_age_days": "$param.beneficiary_age_days",
+            "beneficiary_kyc_tier": "$param.beneficiary_kyc_tier",
+            "beneficiary_name_match_score": "$param.beneficiary_name_match_score"
           }
         },
         {
@@ -76,7 +78,9 @@
             "beneficiary_id": "$synthetic.beneficiary",
             "device_id": "$synthetic.device",
             "amount_multiplier": "$param.amount_multiplier",
-            "customer_authorized": true
+            "customer_authorized": true,
+            "balance_drain_ratio": "$param.balance_drain_ratio",
+            "add_to_payment_seconds": "$param.add_to_payment_seconds"
           }
         },
         {
@@ -107,7 +111,9 @@
           "attributes": {
             "beneficiary_id": "$synthetic.beneficiary",
             "sender_account_id": "$synthetic.sender",
-            "campaign_duration_minutes": "$param.campaign_duration_minutes"
+            "campaign_duration_minutes": "$param.campaign_duration_minutes",
+            "receiver_inbound_sender_count": "$param.receiver_inbound_sender_count",
+            "funds_dwell_time_seconds": "$param.funds_dwell_time_seconds"
           }
         }
       ],
@@ -119,7 +125,13 @@
           "amount_multiplier": 9.0,
           "payment_count": 4,
           "payment_interval_minutes": 2,
-          "campaign_duration_minutes": 15
+          "campaign_duration_minutes": 15,
+          "beneficiary_kyc_tier": "min_kyc",
+          "funds_dwell_time_seconds": 15,
+          "add_to_payment_seconds": 20,
+          "receiver_inbound_sender_count": 220,
+          "balance_drain_ratio": 0.95,
+          "beneficiary_name_match_score": 0.15
         },
         "medium": {
           "urgency_level": 4,
@@ -128,7 +140,13 @@
           "amount_multiplier": 5.0,
           "payment_count": 3,
           "payment_interval_minutes": 12,
-          "campaign_duration_minutes": 90
+          "campaign_duration_minutes": 90,
+          "beneficiary_kyc_tier": "min_kyc",
+          "funds_dwell_time_seconds": 180,
+          "add_to_payment_seconds": 300,
+          "receiver_inbound_sender_count": 90,
+          "balance_drain_ratio": 0.8,
+          "beneficiary_name_match_score": 0.45
         },
         "hard": {
           "urgency_level": 2,
@@ -137,24 +155,82 @@
           "amount_multiplier": 1.8,
           "payment_count": 2,
           "payment_interval_minutes": 180,
-          "campaign_duration_minutes": 1440
+          "campaign_duration_minutes": 1440,
+          "beneficiary_kyc_tier": "full_kyc",
+          "funds_dwell_time_seconds": 2400,
+          "add_to_payment_seconds": 3600,
+          "receiver_inbound_sender_count": 30,
+          "balance_drain_ratio": 0.55,
+          "beneficiary_name_match_score": 0.85
         }
       },
       "parameter_bounds": {
-        "urgency_level": {"min": 1, "max": 5},
-        "channel_switch_count": {"min": 0, "max": 6},
-        "beneficiary_age_days": {"min": 0, "max": 365},
-        "amount_multiplier": {"min": 1.0, "max": 12.0},
-        "payment_count": {"min": 1, "max": 6},
-        "payment_interval_minutes": {"min": 1, "max": 1440},
-        "campaign_duration_minutes": {"min": 5, "max": 4320}
+        "urgency_level": {
+          "min": 1,
+          "max": 5
+        },
+        "channel_switch_count": {
+          "min": 0,
+          "max": 6
+        },
+        "beneficiary_age_days": {
+          "min": 0,
+          "max": 365
+        },
+        "amount_multiplier": {
+          "min": 1.0,
+          "max": 12.0
+        },
+        "payment_count": {
+          "min": 1,
+          "max": 6
+        },
+        "payment_interval_minutes": {
+          "min": 1,
+          "max": 1440
+        },
+        "campaign_duration_minutes": {
+          "min": 5,
+          "max": 4320
+        },
+        "beneficiary_kyc_tier": {
+          "allowed": [
+            "min_kyc",
+            "full_kyc",
+            "business_kyc"
+          ]
+        },
+        "funds_dwell_time_seconds": {
+          "min": 0,
+          "max": 604800
+        },
+        "add_to_payment_seconds": {
+          "min": 0,
+          "max": 86400
+        },
+        "receiver_inbound_sender_count": {
+          "min": 0,
+          "max": 5000
+        },
+        "balance_drain_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "beneficiary_name_match_score": {
+          "min": 0.0,
+          "max": 1.0
+        }
       },
       "allowed_mutations": [
         "urgency_level",
         "beneficiary_age_days",
         "amount_multiplier",
         "payment_interval_minutes",
-        "campaign_duration_minutes"
+        "campaign_duration_minutes",
+        "balance_drain_ratio",
+        "add_to_payment_seconds",
+        "beneficiary_name_match_score",
+        "funds_dwell_time_seconds"
       ],
       "legitimate_controls": [
         "urgent_family_support_payment",
@@ -205,7 +281,9 @@
             "network_id": "$synthetic.network",
             "new_device_probability": "$param.new_device_probability",
             "new_network_probability": "$param.new_network_probability",
-            "session_age_seconds": "$param.session_age_seconds"
+            "session_age_seconds": "$param.session_age_seconds",
+            "device_binding_age_days": "$param.device_binding_age_days",
+            "dormancy_days_before_activity": "$param.dormancy_days_before_activity"
           }
         },
         {
@@ -235,7 +313,8 @@
           "attributes": {
             "sender_account_id": "$synthetic.sender",
             "beneficiary_id": "$synthetic.beneficiary",
-            "beneficiary_age_days": "$param.beneficiary_age_days"
+            "beneficiary_age_days": "$param.beneficiary_age_days",
+            "beneficiary_kyc_tier": "$param.beneficiary_kyc_tier"
           }
         },
         {
@@ -268,7 +347,9 @@
             "sender_account_id": "$synthetic.sender",
             "beneficiary_id": "$synthetic.beneficiary",
             "device_id": "$synthetic.device",
-            "amount_multiplier": "$param.amount_multiplier"
+            "amount_multiplier": "$param.amount_multiplier",
+            "balance_drain_ratio": "$param.balance_drain_ratio",
+            "add_to_payment_seconds": "$param.add_to_payment_seconds"
           }
         },
         {
@@ -282,7 +363,9 @@
           ],
           "attributes": {
             "beneficiary_id": "$synthetic.beneficiary",
-            "sender_account_id": "$synthetic.sender"
+            "sender_account_id": "$synthetic.sender",
+            "receiver_inbound_sender_count": "$param.receiver_inbound_sender_count",
+            "funds_dwell_time_seconds": "$param.funds_dwell_time_seconds"
           }
         }
       ],
@@ -294,7 +377,14 @@
           "authentication_change_risk_band": 5,
           "beneficiary_age_days": 0,
           "test_payment_multiplier": 0.1,
-          "amount_multiplier": 10.0
+          "amount_multiplier": 10.0,
+          "beneficiary_kyc_tier": "min_kyc",
+          "funds_dwell_time_seconds": 15,
+          "add_to_payment_seconds": 20,
+          "receiver_inbound_sender_count": 220,
+          "balance_drain_ratio": 0.95,
+          "device_binding_age_days": 0,
+          "dormancy_days_before_activity": 400
         },
         "medium": {
           "new_device_probability": 0.8,
@@ -303,7 +393,14 @@
           "authentication_change_risk_band": 4,
           "beneficiary_age_days": 5,
           "test_payment_multiplier": 0.4,
-          "amount_multiplier": 5.0
+          "amount_multiplier": 5.0,
+          "beneficiary_kyc_tier": "min_kyc",
+          "funds_dwell_time_seconds": 180,
+          "add_to_payment_seconds": 300,
+          "receiver_inbound_sender_count": 90,
+          "balance_drain_ratio": 0.8,
+          "device_binding_age_days": 2,
+          "dormancy_days_before_activity": 180
         },
         "hard": {
           "new_device_probability": 0.25,
@@ -312,23 +409,87 @@
           "authentication_change_risk_band": 2,
           "beneficiary_age_days": 120,
           "test_payment_multiplier": 0.9,
-          "amount_multiplier": 1.7
+          "amount_multiplier": 1.7,
+          "beneficiary_kyc_tier": "full_kyc",
+          "funds_dwell_time_seconds": 2400,
+          "add_to_payment_seconds": 3600,
+          "receiver_inbound_sender_count": 30,
+          "balance_drain_ratio": 0.55,
+          "device_binding_age_days": 30,
+          "dormancy_days_before_activity": 45
         }
       },
       "parameter_bounds": {
-        "new_device_probability": {"min": 0.0, "max": 1.0},
-        "new_network_probability": {"min": 0.0, "max": 1.0},
-        "session_age_seconds": {"min": 1, "max": 86400},
-        "authentication_change_risk_band": {"min": 1, "max": 5},
-        "beneficiary_age_days": {"min": 0, "max": 365},
-        "test_payment_multiplier": {"min": 0.05, "max": 1.0},
-        "amount_multiplier": {"min": 1.0, "max": 12.0}
+        "new_device_probability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "new_network_probability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "session_age_seconds": {
+          "min": 1,
+          "max": 86400
+        },
+        "authentication_change_risk_band": {
+          "min": 1,
+          "max": 5
+        },
+        "beneficiary_age_days": {
+          "min": 0,
+          "max": 365
+        },
+        "test_payment_multiplier": {
+          "min": 0.05,
+          "max": 1.0
+        },
+        "amount_multiplier": {
+          "min": 1.0,
+          "max": 12.0
+        },
+        "beneficiary_kyc_tier": {
+          "allowed": [
+            "min_kyc",
+            "full_kyc",
+            "business_kyc"
+          ]
+        },
+        "funds_dwell_time_seconds": {
+          "min": 0,
+          "max": 604800
+        },
+        "add_to_payment_seconds": {
+          "min": 0,
+          "max": 86400
+        },
+        "receiver_inbound_sender_count": {
+          "min": 0,
+          "max": 5000
+        },
+        "balance_drain_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "device_binding_age_days": {
+          "min": 0,
+          "max": 3650
+        },
+        "dormancy_days_before_activity": {
+          "min": 0,
+          "max": 1095
+        }
       },
       "allowed_mutations": [
         "new_device_probability",
         "new_network_probability",
         "beneficiary_age_days",
-        "amount_multiplier"
+        "amount_multiplier",
+        "balance_drain_ratio",
+        "add_to_payment_seconds",
+        "device_binding_age_days",
+        "dormancy_days_before_activity",
+        "funds_dwell_time_seconds"
       ],
       "legitimate_controls": [
         "customer_travelling_with_new_device",
@@ -408,7 +569,9 @@
             "sender_account_id": "$synthetic.sender",
             "supplier_id": "$synthetic.supplier",
             "beneficiary_id": "$synthetic.beneficiary",
-            "beneficiary_age_days": "$param.beneficiary_age_days"
+            "beneficiary_age_days": "$param.beneficiary_age_days",
+            "beneficiary_kyc_tier": "$param.beneficiary_kyc_tier",
+            "beneficiary_name_match_score": "$param.beneficiary_name_match_score"
           }
         },
         {
@@ -425,7 +588,10 @@
             "sender_account_id": "$synthetic.sender",
             "supplier_id": "$synthetic.supplier",
             "beneficiary_id": "$synthetic.beneficiary",
-            "amount_multiplier": "$param.amount_multiplier"
+            "amount_multiplier": "$param.amount_multiplier",
+            "balance_drain_ratio": "$param.balance_drain_ratio",
+            "add_to_payment_seconds": "$param.add_to_payment_seconds",
+            "round_amount_ratio": "$param.round_amount_ratio"
           }
         },
         {
@@ -439,7 +605,9 @@
           ],
           "attributes": {
             "beneficiary_id": "$synthetic.beneficiary",
-            "sender_account_id": "$synthetic.sender"
+            "sender_account_id": "$synthetic.sender",
+            "receiver_inbound_sender_count": "$param.receiver_inbound_sender_count",
+            "funds_dwell_time_seconds": "$param.funds_dwell_time_seconds"
           }
         }
       ],
@@ -449,34 +617,105 @@
           "supplier_relationship_days": 30,
           "approval_step_count": 1,
           "beneficiary_age_days": 0,
-          "amount_multiplier": 12.0
+          "amount_multiplier": 12.0,
+          "beneficiary_kyc_tier": "min_kyc",
+          "funds_dwell_time_seconds": 15,
+          "add_to_payment_seconds": 20,
+          "receiver_inbound_sender_count": 220,
+          "balance_drain_ratio": 0.95,
+          "beneficiary_name_match_score": 0.15,
+          "round_amount_ratio": 0.9
         },
         "medium": {
           "urgency_level": 4,
           "supplier_relationship_days": 365,
           "approval_step_count": 2,
           "beneficiary_age_days": 14,
-          "amount_multiplier": 6.0
+          "amount_multiplier": 6.0,
+          "beneficiary_kyc_tier": "min_kyc",
+          "funds_dwell_time_seconds": 180,
+          "add_to_payment_seconds": 300,
+          "receiver_inbound_sender_count": 90,
+          "balance_drain_ratio": 0.8,
+          "beneficiary_name_match_score": 0.45,
+          "round_amount_ratio": 0.7
         },
         "hard": {
           "urgency_level": 2,
           "supplier_relationship_days": 1800,
           "approval_step_count": 4,
           "beneficiary_age_days": 180,
-          "amount_multiplier": 1.5
+          "amount_multiplier": 1.5,
+          "beneficiary_kyc_tier": "full_kyc",
+          "funds_dwell_time_seconds": 2400,
+          "add_to_payment_seconds": 3600,
+          "receiver_inbound_sender_count": 30,
+          "balance_drain_ratio": 0.55,
+          "beneficiary_name_match_score": 0.85,
+          "round_amount_ratio": 0.4
         }
       },
       "parameter_bounds": {
-        "urgency_level": {"min": 1, "max": 5},
-        "supplier_relationship_days": {"min": 1, "max": 3650},
-        "approval_step_count": {"min": 1, "max": 5},
-        "beneficiary_age_days": {"min": 0, "max": 365},
-        "amount_multiplier": {"min": 1.0, "max": 15.0}
+        "urgency_level": {
+          "min": 1,
+          "max": 5
+        },
+        "supplier_relationship_days": {
+          "min": 1,
+          "max": 3650
+        },
+        "approval_step_count": {
+          "min": 1,
+          "max": 5
+        },
+        "beneficiary_age_days": {
+          "min": 0,
+          "max": 365
+        },
+        "amount_multiplier": {
+          "min": 1.0,
+          "max": 15.0
+        },
+        "beneficiary_kyc_tier": {
+          "allowed": [
+            "min_kyc",
+            "full_kyc",
+            "business_kyc"
+          ]
+        },
+        "funds_dwell_time_seconds": {
+          "min": 0,
+          "max": 604800
+        },
+        "add_to_payment_seconds": {
+          "min": 0,
+          "max": 86400
+        },
+        "receiver_inbound_sender_count": {
+          "min": 0,
+          "max": 5000
+        },
+        "balance_drain_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "beneficiary_name_match_score": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "round_amount_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        }
       },
       "allowed_mutations": [
         "urgency_level",
         "beneficiary_age_days",
-        "amount_multiplier"
+        "amount_multiplier",
+        "balance_drain_ratio",
+        "add_to_payment_seconds",
+        "beneficiary_name_match_score",
+        "funds_dwell_time_seconds"
       ],
       "legitimate_controls": [
         "verified_supplier_bank_change",
@@ -527,7 +766,9 @@
             "network_id": "$synthetic.network",
             "warmup_event_count": "$param.warmup_event_count",
             "shared_device_probability": "$param.shared_device_probability",
-            "shared_network_probability": "$param.shared_network_probability"
+            "shared_network_probability": "$param.shared_network_probability",
+            "device_binding_age_days": "$param.device_binding_age_days",
+            "dormancy_days_before_activity": "$param.dormancy_days_before_activity"
           }
         },
         {
@@ -545,7 +786,10 @@
             "sender_account_id": "$synthetic.sender",
             "sender_count": "$param.sender_count",
             "beneficiary_count": "$param.beneficiary_count",
-            "amount_multiplier": "$param.amount_multiplier"
+            "amount_multiplier": "$param.amount_multiplier",
+            "receiver_inbound_sender_count": "$param.receiver_inbound_sender_count",
+            "beneficiary_kyc_tier": "$param.beneficiary_kyc_tier",
+            "round_amount_ratio": "$param.round_amount_ratio"
           }
         },
         {
@@ -578,7 +822,8 @@
             "beneficiary_id": "$synthetic.beneficiary",
             "merchant_id": "$synthetic.merchant",
             "outflow_ratio": "$param.outflow_ratio",
-            "payment_interval_minutes": "$param.payment_interval_minutes"
+            "payment_interval_minutes": "$param.payment_interval_minutes",
+            "funds_dwell_time_seconds": "$param.funds_dwell_time_seconds"
           }
         }
       ],
@@ -593,7 +838,13 @@
           "amount_multiplier": 8.0,
           "campaign_duration_minutes": 10,
           "outflow_ratio": 0.98,
-          "payment_interval_minutes": 1
+          "payment_interval_minutes": 1,
+          "funds_dwell_time_seconds": 15,
+          "receiver_inbound_sender_count": 220,
+          "beneficiary_kyc_tier": "min_kyc",
+          "device_binding_age_days": 0,
+          "dormancy_days_before_activity": 400,
+          "round_amount_ratio": 0.9
         },
         "medium": {
           "warmup_event_count": 3,
@@ -605,7 +856,13 @@
           "amount_multiplier": 4.0,
           "campaign_duration_minutes": 90,
           "outflow_ratio": 0.8,
-          "payment_interval_minutes": 10
+          "payment_interval_minutes": 10,
+          "funds_dwell_time_seconds": 180,
+          "receiver_inbound_sender_count": 90,
+          "beneficiary_kyc_tier": "min_kyc",
+          "device_binding_age_days": 2,
+          "dormancy_days_before_activity": 180,
+          "round_amount_ratio": 0.7
         },
         "hard": {
           "warmup_event_count": 10,
@@ -617,20 +874,83 @@
           "amount_multiplier": 1.4,
           "campaign_duration_minutes": 1440,
           "outflow_ratio": 0.45,
-          "payment_interval_minutes": 240
+          "payment_interval_minutes": 240,
+          "funds_dwell_time_seconds": 2400,
+          "receiver_inbound_sender_count": 30,
+          "beneficiary_kyc_tier": "full_kyc",
+          "device_binding_age_days": 30,
+          "dormancy_days_before_activity": 45,
+          "round_amount_ratio": 0.4
         }
       },
       "parameter_bounds": {
-        "warmup_event_count": {"min": 0, "max": 20},
-        "shared_device_probability": {"min": 0.0, "max": 1.0},
-        "shared_network_probability": {"min": 0.0, "max": 1.0},
-        "sender_count": {"min": 2, "max": 30},
-        "beneficiary_count": {"min": 1, "max": 20},
-        "mule_count": {"min": 2, "max": 20},
-        "amount_multiplier": {"min": 1.0, "max": 10.0},
-        "campaign_duration_minutes": {"min": 5, "max": 2880},
-        "outflow_ratio": {"min": 0.1, "max": 1.0},
-        "payment_interval_minutes": {"min": 1, "max": 1440}
+        "warmup_event_count": {
+          "min": 0,
+          "max": 20
+        },
+        "shared_device_probability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "shared_network_probability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "sender_count": {
+          "min": 2,
+          "max": 30
+        },
+        "beneficiary_count": {
+          "min": 1,
+          "max": 20
+        },
+        "mule_count": {
+          "min": 2,
+          "max": 20
+        },
+        "amount_multiplier": {
+          "min": 1.0,
+          "max": 10.0
+        },
+        "campaign_duration_minutes": {
+          "min": 5,
+          "max": 2880
+        },
+        "outflow_ratio": {
+          "min": 0.1,
+          "max": 1.0
+        },
+        "payment_interval_minutes": {
+          "min": 1,
+          "max": 1440
+        },
+        "funds_dwell_time_seconds": {
+          "min": 0,
+          "max": 604800
+        },
+        "receiver_inbound_sender_count": {
+          "min": 0,
+          "max": 5000
+        },
+        "beneficiary_kyc_tier": {
+          "allowed": [
+            "min_kyc",
+            "full_kyc",
+            "business_kyc"
+          ]
+        },
+        "device_binding_age_days": {
+          "min": 0,
+          "max": 3650
+        },
+        "dormancy_days_before_activity": {
+          "min": 0,
+          "max": 1095
+        },
+        "round_amount_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        }
       },
       "allowed_mutations": [
         "shared_device_probability",
@@ -639,7 +959,11 @@
         "mule_count",
         "amount_multiplier",
         "campaign_duration_minutes",
-        "payment_interval_minutes"
+        "payment_interval_minutes",
+        "funds_dwell_time_seconds",
+        "dormancy_days_before_activity",
+        "device_binding_age_days",
+        "receiver_inbound_sender_count"
       ],
       "legitimate_controls": [
         "shared_household_or_small_business_device",
@@ -753,7 +1077,8 @@
           "attributes": {
             "sender_account_id": "$synthetic.sender",
             "beneficiary_id": "$synthetic.beneficiary",
-            "amount_multiplier": "$param.amount_multiplier"
+            "amount_multiplier": "$param.amount_multiplier",
+            "balance_drain_ratio": "$param.balance_drain_ratio"
           }
         }
       ],
@@ -767,7 +1092,8 @@
           "device_reuse_probability": 1.0,
           "account_age_days": 0,
           "warmup_event_count": 0,
-          "amount_multiplier": 9.0
+          "amount_multiplier": 9.0,
+          "balance_drain_ratio": 0.95
         },
         "medium": {
           "profile_consistency_score": 0.65,
@@ -778,7 +1104,8 @@
           "device_reuse_probability": 0.55,
           "account_age_days": 14,
           "warmup_event_count": 4,
-          "amount_multiplier": 4.0
+          "amount_multiplier": 4.0,
+          "balance_drain_ratio": 0.8
         },
         "hard": {
           "profile_consistency_score": 0.92,
@@ -789,19 +1116,51 @@
           "device_reuse_probability": 0.1,
           "account_age_days": 120,
           "warmup_event_count": 15,
-          "amount_multiplier": 1.4
+          "amount_multiplier": 1.4,
+          "balance_drain_ratio": 0.55
         }
       },
       "parameter_bounds": {
-        "profile_consistency_score": {"min": 0.0, "max": 1.0},
-        "linked_attribute_count": {"min": 0, "max": 10},
-        "document_consistency_score": {"min": 0.0, "max": 1.0},
-        "liveness_confidence": {"min": 0.0, "max": 1.0},
-        "verification_retry_count": {"min": 0, "max": 6},
-        "device_reuse_probability": {"min": 0.0, "max": 1.0},
-        "account_age_days": {"min": 0, "max": 365},
-        "warmup_event_count": {"min": 0, "max": 20},
-        "amount_multiplier": {"min": 1.0, "max": 10.0}
+        "profile_consistency_score": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "linked_attribute_count": {
+          "min": 0,
+          "max": 10
+        },
+        "document_consistency_score": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "liveness_confidence": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "verification_retry_count": {
+          "min": 0,
+          "max": 6
+        },
+        "device_reuse_probability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "account_age_days": {
+          "min": 0,
+          "max": 365
+        },
+        "warmup_event_count": {
+          "min": 0,
+          "max": 20
+        },
+        "amount_multiplier": {
+          "min": 1.0,
+          "max": 10.0
+        },
+        "balance_drain_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        }
       },
       "allowed_mutations": [
         "linked_attribute_count",
@@ -873,7 +1232,9 @@
             "sender_account_id": "$synthetic.sender",
             "device_id": "$synthetic.device",
             "new_device_probability": "$param.new_device_probability",
-            "session_history_depth": "$param.session_history_depth"
+            "session_history_depth": "$param.session_history_depth",
+            "device_binding_age_days": "$param.device_binding_age_days",
+            "dormancy_days_before_activity": "$param.dormancy_days_before_activity"
           }
         },
         {
@@ -889,7 +1250,9 @@
             "sender_account_id": "$synthetic.sender",
             "beneficiary_id": "$synthetic.beneficiary",
             "beneficiary_age_days": "$param.beneficiary_age_days",
-            "amount_multiplier": "$param.amount_multiplier"
+            "amount_multiplier": "$param.amount_multiplier",
+            "balance_drain_ratio": "$param.balance_drain_ratio",
+            "beneficiary_kyc_tier": "$param.beneficiary_kyc_tier"
           }
         },
         {
@@ -920,7 +1283,8 @@
           "attributes": {
             "beneficiary_id": "$synthetic.beneficiary",
             "merchant_id": "$synthetic.merchant",
-            "outflow_ratio": "$param.outflow_ratio"
+            "outflow_ratio": "$param.outflow_ratio",
+            "funds_dwell_time_seconds": "$param.funds_dwell_time_seconds"
           }
         }
       ],
@@ -933,7 +1297,12 @@
           "amount_multiplier": 8.0,
           "payment_count": 5,
           "payment_interval_minutes": 2,
-          "outflow_ratio": 0.95
+          "outflow_ratio": 0.95,
+          "funds_dwell_time_seconds": 15,
+          "beneficiary_kyc_tier": "min_kyc",
+          "balance_drain_ratio": 0.95,
+          "device_binding_age_days": 0,
+          "dormancy_days_before_activity": 400
         },
         "medium": {
           "campaign_duration_minutes": 240,
@@ -943,7 +1312,12 @@
           "amount_multiplier": 3.0,
           "payment_count": 3,
           "payment_interval_minutes": 60,
-          "outflow_ratio": 0.7
+          "outflow_ratio": 0.7,
+          "funds_dwell_time_seconds": 180,
+          "beneficiary_kyc_tier": "min_kyc",
+          "balance_drain_ratio": 0.8,
+          "device_binding_age_days": 2,
+          "dormancy_days_before_activity": 180
         },
         "hard": {
           "campaign_duration_minutes": 2880,
@@ -953,18 +1327,70 @@
           "amount_multiplier": 1.2,
           "payment_count": 2,
           "payment_interval_minutes": 720,
-          "outflow_ratio": 0.35
+          "outflow_ratio": 0.35,
+          "funds_dwell_time_seconds": 2400,
+          "beneficiary_kyc_tier": "full_kyc",
+          "balance_drain_ratio": 0.55,
+          "device_binding_age_days": 30,
+          "dormancy_days_before_activity": 45
         }
       },
       "parameter_bounds": {
-        "campaign_duration_minutes": {"min": 5, "max": 4320},
-        "new_device_probability": {"min": 0.0, "max": 1.0},
-        "session_history_depth": {"min": 0, "max": 30},
-        "beneficiary_age_days": {"min": 0, "max": 365},
-        "amount_multiplier": {"min": 1.0, "max": 10.0},
-        "payment_count": {"min": 1, "max": 8},
-        "payment_interval_minutes": {"min": 1, "max": 1440},
-        "outflow_ratio": {"min": 0.1, "max": 1.0}
+        "campaign_duration_minutes": {
+          "min": 5,
+          "max": 4320
+        },
+        "new_device_probability": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "session_history_depth": {
+          "min": 0,
+          "max": 30
+        },
+        "beneficiary_age_days": {
+          "min": 0,
+          "max": 365
+        },
+        "amount_multiplier": {
+          "min": 1.0,
+          "max": 10.0
+        },
+        "payment_count": {
+          "min": 1,
+          "max": 8
+        },
+        "payment_interval_minutes": {
+          "min": 1,
+          "max": 1440
+        },
+        "outflow_ratio": {
+          "min": 0.1,
+          "max": 1.0
+        },
+        "funds_dwell_time_seconds": {
+          "min": 0,
+          "max": 604800
+        },
+        "beneficiary_kyc_tier": {
+          "allowed": [
+            "min_kyc",
+            "full_kyc",
+            "business_kyc"
+          ]
+        },
+        "balance_drain_ratio": {
+          "min": 0.0,
+          "max": 1.0
+        },
+        "device_binding_age_days": {
+          "min": 0,
+          "max": 3650
+        },
+        "dormancy_days_before_activity": {
+          "min": 0,
+          "max": 1095
+        }
       },
       "allowed_mutations": [
         "campaign_duration_minutes",
@@ -972,7 +1398,11 @@
         "beneficiary_age_days",
         "amount_multiplier",
         "payment_interval_minutes",
-        "outflow_ratio"
+        "outflow_ratio",
+        "funds_dwell_time_seconds",
+        "balance_drain_ratio",
+        "device_binding_age_days",
+        "dormancy_days_before_activity"
       ],
       "legitimate_controls": [
         "gradual_customer_behavior_change",

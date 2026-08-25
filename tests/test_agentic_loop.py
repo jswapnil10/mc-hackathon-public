@@ -269,9 +269,14 @@ class ClosedLoopTests(unittest.TestCase):
             for turn in turns
         )
         self.assertEqual(len(blue_calls), model_evaluated_events)
+        # NOTE (merge: ML-branch mirror controls): controls now MIRROR the attack chain (same
+        # stages/keys, benign overlapping values) as hard ML negatives, so they no longer carry
+        # deterministic verified-legitimacy markers and are scrutinized by the model. A hard
+        # look-alike may incur step_up/monitor friction, but a legitimate customer must never be
+        # money-blocked. We assert the no-hard-block property (hold/block are disallowed on controls).
         self.assertTrue(
             all(
-                not turn.model_calls and turn.decision.action == "allow"
+                turn.decision.action not in {"hold", "block"}
                 for _, turns in round_result.control_results
                 for turn in turns
             )

@@ -17,7 +17,12 @@ from .evaluation import catalog_submission_profile, round_submission_evaluation
 from .model_gateway import OpenAICompatibleGateway, StructuredModelGateway
 from .red_agent import GenAIRedAgent, RedTurn
 from .referee import DeterministicReferee
-from .simulation import simulate_attack, simulate_legitimate_controls
+from .simulation import (
+    simulate_ambient_cases,
+    simulate_attack,
+    simulate_legitimate_controls,
+    simulate_trap_cases,
+)
 from .trace import trace
 
 
@@ -63,6 +68,7 @@ class RoundResult:
     blue_adaptation: BlueAdaptationResult | None = None
     submission_evaluation: dict[str, Any] = field(default_factory=dict)
     duration_ms: int = 0
+    ambient_results: list[tuple[SimulationCase, list[BlueTurn]]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,6 +83,7 @@ class RoundResult:
                     ],
                 },
                 "legitimate_control_count": len(self.control_results),
+                "ambient_case_count": len(self.ambient_results),
             },
             "blue": {
                 "active_playbook": self.active_blue_playbook.to_dict(),
@@ -88,6 +95,14 @@ class RoundResult:
                         "decisions": [turn.decision.to_dict() for turn in turns],
                     }
                     for case, turns in self.control_results
+                ],
+                "ambient_summaries": [
+                    {
+                        "case_id": case.case_id,
+                        "kind_revealed_after_scoring": case.case_id.split("-")[0],
+                        "decisions": [turn.decision.to_dict() for turn in turns],
+                    }
+                    for case, turns in self.ambient_results
                 ],
             },
             "referee": self.referee_report.to_dict(),
@@ -232,6 +247,11 @@ class SentinelLoopOrchestrator:
         rounds: int = 2,
         seed: int = 20260824,
         include_legitimate_controls: bool = True,
+        include_ambient: bool = False,  # opt-in: keeps default runs aligned with MasterGuard's tests
+        ambient_sample: int = 20,
+        trap_sample_each: int = 5,
+        training_log_path: str | None = None,
+        retrain_every: int | None = None,
     ) -> LabRun:
         lab_started = time.monotonic()
         trace(
@@ -244,8 +264,9 @@ class SentinelLoopOrchestrator:
             red_model=self.config.red_model_id,
             blue_model=self.config.blue_model_id,
         )
-        if rounds < 1 or rounds > 5:
-            raise ValueError("A lab run must contain between 1 and 5 rounds.")
+        # Cap lifted to 200 so the generational retraining loop (Phase 3) can run many rounds.
+        if rounds < 1 or rounds > 200:
+            raise ValueError("A lab run must contain between 1 and 200 rounds.")
         if difficulty not in {"easy", "medium", "hard"}:
             raise ValueError("Difficulty must be easy, medium, or hard.")
         previous: ScenarioSpec | None = None
@@ -301,10 +322,29 @@ class SentinelLoopOrchestrator:
                 processed_event_count=len(attack_turns),
                 actions=[turn.decision.action for turn in attack_turns],
             )
+            # Controls were already scored by _run_blue_cases above; add the ambient/trap pass here
+            # (realistic false-positive denominator) so the referee can report ambient friction.
+            ambient_results: list[tuple[SimulationCase, list[BlueTurn]]] = []
+            if include_ambient:
+                ambient_cases = simulate_ambient_cases(seed=round_seed, count=ambient_sample)
+                ambient_cases += simulate_trap_cases(seed=round_seed, count_each=trap_sample_each)
+                for ambient_index, ambient_case in enumerate(ambient_cases):
+                    turns = self.blue.run_case(
+                        ambient_case.events,
+                        seed=round_seed * 10000 + ambient_index * 10,
+                        stop_on_decisive_action=True,
+                    )
+                    ambient_results.append((ambient_case, turns))
+                trace(
+                    "ambient.completed",
+                    "Blue processed standalone legit + trap traffic (realistic FP denominator).",
+                    ambient_case_count=len(ambient_results),
+                )
             report = self.referee.score(
                 attack_case=attack_case,
                 attack_turns=attack_turns,
                 control_results=control_results,
+                ambient_results=ambient_results,
             )
             feedback = self.referee.feedback_for_red(report)
             trace(
@@ -321,6 +361,13 @@ class SentinelLoopOrchestrator:
                 "Only the declassified feedback packet was released to Red.",
                 feedback=feedback,
             )
+            if training_log_path:
+                # Log every materialised stage (attack chain + controls) for the retraining loop.
+                from .blue_ml.labeling import log_round
+
+                logged = log_round(attack_case, [case for case, _ in control_results], training_log_path)
+                trace("labeling.round_logged", "Appended round rows to the training log.",
+                      rows=logged, path=training_log_path)
             blue_adaptation: BlueAdaptationResult | None = None
             if index < rounds - 1:
                 post_episode_packet = self.referee.feedback_for_blue(
@@ -389,9 +436,33 @@ class SentinelLoopOrchestrator:
                         case_parallelism=self.config.case_parallelism,
                     ),
                     duration_ms=round_duration_ms,
+                    ambient_results=ambient_results,
                 )
             )
             previous = red_turn.scenario
+
+            # End of a generation: retrain the challenger and hot-reload if it beats the champion.
+            if retrain_every and training_log_path and (index + 1) % retrain_every == 0:
+                from .blue_ml.retrain import retrain as _retrain
+
+                generation = (index + 1) // retrain_every
+                trace("retrain.started", "Generation boundary reached; retraining challenger.",
+                      generation=generation, after_round=index + 1)
+                try:
+                    decision = _retrain(
+                        training_log_path,
+                        champion_dir=self.config.ml_model_dir,
+                        generation=generation,
+                    )
+                    if decision.get("promoted") and self.blue.reload_detector():
+                        trace("retrain.promoted", "Challenger promoted; Blue hot-reloaded the new champion.",
+                              generation=generation, challenger=decision["challenger"], model_hash=self.blue.model_hash)
+                    else:
+                        trace("retrain.rejected", "Challenger did not beat the incumbent; champion unchanged.",
+                              generation=generation, challenger=decision["challenger"], incumbent=decision["incumbent"])
+                except Exception as exc:  # noqa: BLE001 - retraining must never crash a live run
+                    trace("retrain.failed", "Retraining raised; continuing with the current champion.",
+                          generation=generation, error=str(exc))
         lab_duration_ms = round((time.monotonic() - lab_started) * 1000)
         result = LabRun(
             run_id=f"LAB-{seed}-{bounded_family or 'AUTO'}",

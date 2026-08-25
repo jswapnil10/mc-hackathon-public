@@ -259,6 +259,12 @@ class TruthRecord:
     is_attack: bool
     value_at_risk_inr: float
     offset_seconds: int
+    # Whether this stage is genuinely malicious. Some attack stages are benign in
+    # isolation (e.g. ATO novel_session, MULE account_warmup, victim-authorised
+    # context): they belong to the kill chain but are labelled non-contributing so a
+    # future classifier does not learn "this event_type exists => fraud". Defaults
+    # True so existing LLM/referee behaviour is unchanged (nothing in that path reads it).
+    fraud_contributing: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -327,6 +333,9 @@ class BlueTurn:
     risk_synthesis: dict[str, Any] = field(default_factory=dict)
     model_calls: list[dict[str, Any]] = field(default_factory=list)
     policy_adjustments: list[str] = field(default_factory=list)
+    # Optional ML detector telemetry (None when ML_DETECTOR_ENABLED is off). Holds
+    # {per_event_risk, cumulative_session_risk, alert_threshold, above_threshold, model_hash}.
+    ml_risk: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -337,6 +346,7 @@ class BlueTurn:
             "risk_synthesis": self.risk_synthesis,
             "model_calls": self.model_calls,
             "policy_adjustments": self.policy_adjustments,
+            "ml_risk": self.ml_risk,
         }
 
 
@@ -393,6 +403,11 @@ class RefereeReport:
     blue_score: float
     red_score: float
     coarse_reason_categories: list[str]
+    # False-positive / friction on ordinary standalone legit traffic + hard-negative traps
+    # (the realistic FP denominator, distinct from the hard look-alike controls). Defaults 0.0
+    # so existing callers that pass no ambient cases are unaffected.
+    ambient_false_positive_rate: float = 0.0
+    ambient_friction_rate: float = 0.0
     scoring_notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

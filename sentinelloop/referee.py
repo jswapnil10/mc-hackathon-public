@@ -6,6 +6,7 @@ from .contracts import EVIDENCE_TOOLS, BlueTurn, RefereeReport, SimulationCase
 
 
 ALERT_ACTIONS = {"step_up", "hold", "block"}
+DECISIVE_ACTIONS = {"hold", "block"}  # money-stopping actions: ambient hard-FP denominator
 LIFECYCLE_PHASES = ("pre_transaction", "transaction", "post_transaction")
 ACTION_FRICTION = {
     "allow": 0.0,
@@ -295,6 +296,7 @@ class DeterministicReferee:
         attack_case: SimulationCase,
         attack_turns: list[BlueTurn],
         control_results: list[tuple[SimulationCase, list[BlueTurn]]],
+        ambient_results: list[tuple[SimulationCase, list[BlueTurn]]] | None = None,
     ) -> RefereeReport:
         truth_by_event = self._truth_by_event(attack_case)
         alert_turn = next(
@@ -369,6 +371,22 @@ class DeterministicReferee:
             round(realized_impact / total_value, 4) if total_value else 0.0
         )
 
+        # Ordinary standalone legit traffic + traps: the realistic FP denominator, tracked
+        # separately from the hard look-alike controls (recorded, not folded into blue_score,
+        # so the existing scoring formula is unchanged).
+        ambient_results = ambient_results or []
+        ambient_count = len(ambient_results)
+        ambient_false_positives = sum(
+            any(turn.decision.action in DECISIVE_ACTIONS for turn in turns)
+            for _, turns in ambient_results
+        )
+        ambient_friction = sum(
+            any(turn.decision.action in ALERT_ACTIONS for turn in turns)
+            for _, turns in ambient_results
+        )
+        ambient_fp_rate = ambient_false_positives / ambient_count if ambient_count else 0.0
+        ambient_friction_rate = ambient_friction / ambient_count if ambient_count else 0.0
+
         if detected_truth is None:
             early_credit = 0.0
             time_to_detect = None
@@ -426,6 +444,8 @@ class DeterministicReferee:
             blue_score=blue_score,
             red_score=round(100.0 - blue_score, 2),
             coarse_reason_categories=reason_codes,
+            ambient_false_positive_rate=round(ambient_fp_rate, 4),
+            ambient_friction_rate=round(ambient_friction_rate, 4),
             scoring_notes=notes,
         )
 
