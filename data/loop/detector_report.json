@@ -1,0 +1,140 @@
+{
+  "seed": 42,
+  "alert_rate": 0.01,
+  "test_share": 0.3,
+  "n_splits": 3,
+  "total_rows": 73600,
+  "total_fraud": 552,
+  "cv_summary": {
+    "chain_recall": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "prevented_share": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "chain_precision": {
+      "mean": 0.4404,
+      "std": 0.0033
+    },
+    "row_recall": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "row_precision": {
+      "mean": 0.75,
+      "std": 0.0014
+    },
+    "hard_false_positive_rate": {
+      "mean": 0.0082,
+      "std": 0.0062
+    },
+    "ambient_friction_rate": {
+      "mean": 0.0024,
+      "std": 0.0002
+    },
+    "threshold": {
+      "mean": 0.0028,
+      "std": 0.0025
+    },
+    "mean_caught_at_stage": {
+      "mean": 2.0,
+      "std": 0.0
+    },
+    "chain_recall_by_family_mean": {
+      "APP-01": 1.0,
+      "ATO-01": 1.0,
+      "BEC-01": 1.0,
+      "EVADE-01": 1.0,
+      "MULE-01": 1.0,
+      "SYNID-01": 1.0
+    },
+    "chains_caught_total": 144,
+    "chains_total": 144
+  },
+  "folds": [
+    {
+      "rows_test": 24535,
+      "fraud_rows": 184,
+      "alerts": 245,
+      "threshold": 0.00083,
+      "chain_recall": 1.0,
+      "chains_caught": 48,
+      "chains_total": 48,
+      "chain_recall_by_family": {
+        "APP-01": 1.0,
+        "ATO-01": 1.0,
+        "BEC-01": 1.0,
+        "EVADE-01": 1.0,
+        "MULE-01": 1.0,
+        "SYNID-01": 1.0
+      },
+      "prevented_share": 1.0,
+      "mean_caught_at_stage": 2.0,
+      "chain_precision": 0.4404,
+      "legit_chains_alerted": 61,
+      "row_recall": 1.0,
+      "row_precision": 0.751,
+      "hard_false_positive_rate": 0.01515,
+      "ambient_friction_rate": 0.00216,
+      "fold": 1,
+      "train_rows": 49065
+    },
+    {
+      "rows_test": 24531,
+      "fraud_rows": 184,
+      "alerts": 246,
+      "threshold": 0.001295,
+      "chain_recall": 1.0,
+      "chains_caught": 48,
+      "chains_total": 48,
+      "chain_recall_by_family": {
+        "APP-01": 1.0,
+        "ATO-01": 1.0,
+        "BEC-01": 1.0,
+        "EVADE-01": 1.0,
+        "MULE-01": 1.0,
+        "SYNID-01": 1.0
+      },
+      "prevented_share": 1.0,
+      "mean_caught_at_stage": 2.0,
+      "chain_precision": 0.4364,
+      "legit_chains_alerted": 62,
+      "row_recall": 1.0,
+      "row_precision": 0.748,
+      "hard_false_positive_rate": 0.00933,
+      "ambient_friction_rate": 0.00234,
+      "fold": 2,
+      "train_rows": 49069
+    },
+    {
+      "rows_test": 24534,
+      "fraud_rows": 184,
+      "alerts": 245,
+      "threshold": 0.006265,
+      "chain_recall": 1.0,
+      "chains_caught": 48,
+      "chains_total": 48,
+      "chain_recall_by_family": {
+        "APP-01": 1.0,
+        "ATO-01": 1.0,
+        "BEC-01": 1.0,
+        "EVADE-01": 1.0,
+        "MULE-01": 1.0,
+        "SYNID-01": 1.0
+      },
+      "prevented_share": 1.0,
+      "mean_caught_at_stage": 2.0,
+      "chain_precision": 0.4444,
+      "legit_chains_alerted": 60,
+      "row_recall": 1.0,
+      "row_precision": 0.751,
+      "hard_false_positive_rate": 0.0,
+      "ambient_friction_rate": 0.00259,
+      "fold": 3,
+      "train_rows": 49066
+    }
+  ],
+  "champion_threshold": 0.002796
+}

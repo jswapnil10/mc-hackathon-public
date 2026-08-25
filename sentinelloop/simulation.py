@@ -111,7 +111,10 @@ def _value_at_risk(scenario: ScenarioSpec, stage_id: str, event_type: str, attri
 
 def simulate_attack(scenario: ScenarioSpec) -> SimulationCase:
     rng = random.Random(scenario.seed)
-    start = datetime(2026, 8, 1, 9, 0, tzinfo=timezone.utc) + timedelta(minutes=scenario.seed % 1440)
+    # Spread attack start times across the full 90-day window (and thus across weekdays/hours), the
+    # same span ambient traffic uses, so hour_of_day/day_of_week carry no attack signal (was clustered
+    # on ~one day because the offset was seed % 1440 minutes).
+    start = datetime(2026, 6, 1, tzinfo=timezone.utc) + timedelta(minutes=scenario.seed % (90 * 24 * 60))
     events: list[ObservedEvent] = []
     truth: list[TruthRecord] = []
     for stage in scenario.stages:

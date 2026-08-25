@@ -226,7 +226,11 @@
         "beneficiary_age_days",
         "amount_multiplier",
         "payment_interval_minutes",
-        "campaign_duration_minutes"
+        "campaign_duration_minutes",
+        "balance_drain_ratio",
+        "add_to_payment_seconds",
+        "beneficiary_name_match_score",
+        "funds_dwell_time_seconds"
       ],
       "legitimate_controls": [
         "urgent_family_support_payment",
@@ -480,7 +484,12 @@
         "new_device_probability",
         "new_network_probability",
         "beneficiary_age_days",
-        "amount_multiplier"
+        "amount_multiplier",
+        "balance_drain_ratio",
+        "add_to_payment_seconds",
+        "device_binding_age_days",
+        "dormancy_days_before_activity",
+        "funds_dwell_time_seconds"
       ],
       "legitimate_controls": [
         "customer_travelling_with_new_device",
@@ -702,7 +711,11 @@
       "allowed_mutations": [
         "urgency_level",
         "beneficiary_age_days",
-        "amount_multiplier"
+        "amount_multiplier",
+        "balance_drain_ratio",
+        "add_to_payment_seconds",
+        "beneficiary_name_match_score",
+        "funds_dwell_time_seconds"
       ],
       "legitimate_controls": [
         "verified_supplier_bank_change",
@@ -946,7 +959,11 @@
         "mule_count",
         "amount_multiplier",
         "campaign_duration_minutes",
-        "payment_interval_minutes"
+        "payment_interval_minutes",
+        "funds_dwell_time_seconds",
+        "dormancy_days_before_activity",
+        "device_binding_age_days",
+        "receiver_inbound_sender_count"
       ],
       "legitimate_controls": [
         "shared_household_or_small_business_device",
@@ -1380,7 +1397,11 @@
         "beneficiary_age_days",
         "amount_multiplier",
         "payment_interval_minutes",
-        "outflow_ratio"
+        "outflow_ratio",
+        "funds_dwell_time_seconds",
+        "balance_drain_ratio",
+        "device_binding_age_days",
+        "dormancy_days_before_activity"
       ],
       "legitimate_controls": [
         "gradual_customer_behavior_change",

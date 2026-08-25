@@ -15,6 +15,7 @@ from .contracts import (
     RISK_LEVELS,
     BlueDecision,
     BlueTurn,
+    EvidencePacket,
     InvestigationRequest,
     ObservedEvent,
 )
@@ -22,6 +23,29 @@ from .evidence import EvidenceWorkbench
 from .model_gateway import StructuredModelGateway
 from .prompts import BLUE_DECIDER_SYSTEM_PROMPT, BLUE_INVESTIGATOR_SYSTEM_PROMPT
 from .trace import trace
+
+
+def _load_detector(config: AgentLabConfig):
+    """Load the champion detector if ML fusion is enabled; return (detector, model_hash) or (None, None).
+
+    Never fatal: a missing/unloadable model just falls back to LLM-only Blue with a trace note."""
+    if not getattr(config, "ml_detector_enabled", False):
+        return None, None
+    try:
+        import hashlib
+        from pathlib import Path
+
+        from .blue_ml.detector import FraudDetector
+
+        detector = FraudDetector.load(config.ml_model_dir)
+        model_file = Path(config.ml_model_dir) / "model.joblib"
+        model_hash = hashlib.md5(model_file.read_bytes()).hexdigest()[:12] if model_file.exists() else None
+        trace("blue.ml.loaded", "ML detector loaded for hybrid fusion.",
+              model_dir=str(config.ml_model_dir), threshold=detector.threshold, model_hash=model_hash)
+        return detector, model_hash
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully to LLM-only
+        trace("blue.ml.load_failed", "ML detector could not be loaded; Blue stays LLM-only.", error=str(exc))
+        return None, None
 
 
 class GenAIBlueAgent:
@@ -35,6 +59,44 @@ class GenAIBlueAgent:
         self.gateway = gateway
         self.config = config
         self.workbench = workbench or EvidenceWorkbench()
+        self.detector, self.model_hash = _load_detector(config)
+
+    def reload_detector(self) -> bool:
+        """Re-load the champion from disk (used after a mid-run retrain promotes a new model).
+        Returns True if a detector is now active."""
+        self.detector, self.model_hash = _load_detector(self.config)
+        return self.detector is not None
+
+    def _ml_evidence(
+        self, event: ObservedEvent, visible_history: list[ObservedEvent], prior_turns: list[BlueTurn]
+    ) -> tuple[EvidencePacket | None, dict[str, Any] | None]:
+        """Deterministic ML risk packet for this event: p_t + running-max session risk + threshold.
+        Injected as evidence the LLM decider CONSUMES; it never forces the action (evidence-only fusion)."""
+        if self.detector is None:
+            return None, None
+        import pandas as pd
+
+        from .blue_ml.features import FEATURES, build_features
+        from .blue_ml.session import cumulative_session_risk
+
+        prior_events = [item.to_dict() for item in visible_history[:-1]]  # strictly-prior
+        feats = build_features(event.to_dict(), prior_events)
+        p_t = float(self.detector.score(pd.DataFrame([feats], columns=FEATURES))[0])
+        cumulative = cumulative_session_risk(p_t, prior_turns)
+        threshold = self.detector.threshold
+        above = bool(threshold is not None and cumulative >= threshold)
+        facts = {
+            "per_event_risk": round(p_t, 6),
+            "cumulative_session_risk": round(cumulative, 6),
+            "alert_threshold": round(float(threshold), 6) if threshold is not None else None,
+            "above_threshold": above,
+            "model_hash": self.model_hash,
+            "note": "Calibrated model risk in [0,1]; treat as evidence, not a truth label.",
+        }
+        packet = EvidencePacket(
+            evidence_id=f"ml_risk_{event.event_id[-8:]}", tool_name="ml_risk_score", facts=facts
+        )
+        return packet, facts
 
     @staticmethod
     def _prior_decision_view(turns: list[BlueTurn]) -> list[dict[str, Any]]:
@@ -205,6 +267,19 @@ class GenAIBlueAgent:
         )
 
         evidence = self.workbench.run(investigation.requested_tools, visible_history)
+        # Always-on ML risk (when enabled): injected as evidence the decider reads, regardless of
+        # which tools the investigator requested. Deterministic, so it is comparable round-over-round.
+        ml_packet, ml_risk_info = self._ml_evidence(event, visible_history, prior_turns)
+        if ml_packet is not None:
+            evidence.append(ml_packet)
+            trace(
+                "blue.ml.scored",
+                "ML detector produced a per-event and cumulative session risk.",
+                event_id=event.event_id,
+                per_event_risk=ml_risk_info["per_event_risk"],
+                cumulative_session_risk=ml_risk_info["cumulative_session_risk"],
+                above_threshold=ml_risk_info["above_threshold"],
+            )
         trace(
             "blue.tools.completed",
             "Deterministic evidence tools returned factual case context.",
@@ -223,6 +298,11 @@ class GenAIBlueAgent:
                 "risk_continuity": (
                     "Do not downgrade an unresolved prior alert without positive legitimate context. "
                     "Escalate unresolved step-up to hold or block before value moves."
+                ),
+                "ml_risk_score": (
+                    "If an ml_risk_score evidence item is present, weigh its per_event_risk and "
+                    "cumulative_session_risk as a calibrated model signal, but corroborate with other "
+                    "evidence; it is input, not a truth label, and never by itself forces an action."
                 ),
             },
         }
@@ -323,6 +403,7 @@ class GenAIBlueAgent:
             decision=decision,
             model_calls=model_calls,
             policy_adjustments=policy_adjustments,
+            ml_risk=ml_risk_info,
         )
 
     def run_case(

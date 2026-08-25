@@ -68,6 +68,8 @@ class AgentLabConfig:
     red_temperature: float = 0.65
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
+    ml_detector_enabled: bool = False           # off by default: Blue stays LLM-only unless enabled
+    ml_model_dir: str = "data/loop/models/champion"
 
     @classmethod
     def from_env(cls) -> "AgentLabConfig":
@@ -90,6 +92,8 @@ class AgentLabConfig:
             red_temperature=_float_env("RED_AGENT_TEMPERATURE", cls.red_temperature),
             blue_temperature=_float_env("BLUE_AGENT_TEMPERATURE", cls.blue_temperature),
             max_output_tokens=_int_env("MODEL_MAX_OUTPUT_TOKENS", cls.max_output_tokens),
+            ml_detector_enabled=os.environ.get("ML_DETECTOR_ENABLED", "0").lower() in {"1", "true", "yes"},
+            ml_model_dir=os.environ.get("ML_MODEL_DIR", cls.ml_model_dir),
         )
         config.validate()
         return config

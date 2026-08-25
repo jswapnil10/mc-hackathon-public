@@ -256,6 +256,9 @@ class BlueTurn:
     decision: BlueDecision
     model_calls: list[dict[str, Any]] = field(default_factory=list)
     policy_adjustments: list[str] = field(default_factory=list)
+    # Optional ML detector telemetry (None when ML_DETECTOR_ENABLED is off). Holds
+    # {per_event_risk, cumulative_session_risk, alert_threshold, above_threshold, model_hash}.
+    ml_risk: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -265,6 +268,7 @@ class BlueTurn:
             "decision": self.decision.to_dict(),
             "model_calls": self.model_calls,
             "policy_adjustments": self.policy_adjustments,
+            "ml_risk": self.ml_risk,
         }
 
 

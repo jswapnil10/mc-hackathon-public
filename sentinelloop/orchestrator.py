@@ -111,6 +111,8 @@ class SentinelLoopOrchestrator:
         include_ambient: bool = True,
         ambient_sample: int = 20,
         trap_sample_each: int = 5,
+        training_log_path: str | None = None,
+        retrain_every: int | None = None,
     ) -> LabRun:
         trace(
             "lab.started",
@@ -122,8 +124,9 @@ class SentinelLoopOrchestrator:
             red_model=self.config.red_model_id,
             blue_model=self.config.blue_model_id,
         )
-        if rounds < 1 or rounds > 5:
-            raise ValueError("A lab run must contain between 1 and 5 rounds.")
+        # Cap lifted to 200 so the generational retraining loop (Phase 3) can run many rounds.
+        if rounds < 1 or rounds > 200:
+            raise ValueError("A lab run must contain between 1 and 200 rounds.")
         if difficulty not in {"easy", "medium", "hard"}:
             raise ValueError("Difficulty must be easy, medium, or hard.")
         previous: ScenarioSpec | None = None
@@ -228,6 +231,13 @@ class SentinelLoopOrchestrator:
                 "Only the declassified feedback packet was released to Red.",
                 feedback=feedback,
             )
+            if training_log_path:
+                # Log every materialised stage (attack chain + controls) for the retraining loop.
+                from .blue_ml.labeling import log_round
+
+                logged = log_round(attack_case, [case for case, _ in control_results], training_log_path)
+                trace("labeling.round_logged", "Appended round rows to the training log.",
+                      rows=logged, path=training_log_path)
             results.append(
                 RoundResult(
                     round_number=index + 1,
@@ -241,6 +251,29 @@ class SentinelLoopOrchestrator:
                 )
             )
             previous = red_turn.scenario
+
+            # End of a generation: retrain the challenger and hot-reload if it beats the champion.
+            if retrain_every and training_log_path and (index + 1) % retrain_every == 0:
+                from .blue_ml.retrain import retrain as _retrain
+
+                generation = (index + 1) // retrain_every
+                trace("retrain.started", "Generation boundary reached; retraining challenger.",
+                      generation=generation, after_round=index + 1)
+                try:
+                    decision = _retrain(
+                        training_log_path,
+                        champion_dir=self.config.ml_model_dir,
+                        generation=generation,
+                    )
+                    if decision.get("promoted") and self.blue.reload_detector():
+                        trace("retrain.promoted", "Challenger promoted; Blue hot-reloaded the new champion.",
+                              generation=generation, challenger=decision["challenger"], model_hash=self.blue.model_hash)
+                    else:
+                        trace("retrain.rejected", "Challenger did not beat the incumbent; champion unchanged.",
+                              generation=generation, challenger=decision["challenger"], incumbent=decision["incumbent"])
+                except Exception as exc:  # noqa: BLE001 - retraining must never crash a live run
+                    trace("retrain.failed", "Retraining raised; continuing with the current champion.",
+                          generation=generation, error=str(exc))
         result = LabRun(
             run_id=f"LAB-{seed}-{bounded_family or 'AUTO'}",
             model_configuration={

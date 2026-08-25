@@ -1,0 +1,18 @@
+{
+  "generation": 1,
+  "rows": 73600,
+  "fraud_rows": 552,
+  "challenger": {
+    "chain_recall": 1.0,
+    "hard_false_positive_rate": 0.01515,
+    "chain_precision": 0.4404,
+    "prevented_share": 1.0
+  },
+  "incumbent": {
+    "chain_recall": 1.0,
+    "hard_false_positive_rate": 0.0082
+  },
+  "promoted": true,
+  "min_delta": 0.01,
+  "champion_threshold": 0.000363
+}
