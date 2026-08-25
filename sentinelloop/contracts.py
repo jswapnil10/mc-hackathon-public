@@ -186,6 +186,12 @@ class TruthRecord:
     is_attack: bool
     value_at_risk_inr: float
     offset_seconds: int
+    # Whether this stage is genuinely malicious. Some attack stages are benign in
+    # isolation (e.g. ATO novel_session, MULE account_warmup, victim-authorised
+    # context): they belong to the kill chain but are labelled non-contributing so a
+    # future classifier does not learn "this event_type exists => fraud". Defaults
+    # True so existing LLM/referee behaviour is unchanged (nothing in that path reads it).
+    fraud_contributing: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -276,6 +282,11 @@ class RefereeReport:
     blue_score: float
     red_score: float
     coarse_reason_categories: list[str]
+    # False-positive / friction on ordinary standalone legit traffic + hard-negative traps
+    # (the realistic FP denominator, distinct from the hard look-alike controls). Defaults 0.0
+    # so existing callers that pass no ambient cases are unaffected.
+    ambient_false_positive_rate: float = 0.0
+    ambient_friction_rate: float = 0.0
     scoring_notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

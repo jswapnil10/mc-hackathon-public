@@ -115,6 +115,12 @@ class OpenAICompatibleGateway:
             raise RuntimeError(
                 f"Could not reach the model endpoint at {self.config.chat_completions_url}: {exc.reason}"
             ) from exc
+        except (TimeoutError, OSError) as exc:
+            raise RuntimeError(
+                f"The model endpoint at {self.config.chat_completions_url} did not respond within "
+                f"{self.config.request_timeout_seconds}s for {agent_name} ({exc}). On CPU-only hosts, "
+                f"raise MODEL_TIMEOUT_SECONDS or use a smaller model."
+            ) from exc
 
         try:
             message = body["choices"][0]["message"]

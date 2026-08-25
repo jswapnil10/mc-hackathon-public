@@ -76,7 +76,9 @@ class GenAIRedAgent:
         *,
         requested_family: str | None,
         requested_difficulty: str,
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> tuple[Any, dict[str, Any], list[str]]:
+        # Structural violations still fail closed: Red may not change the user-bounded family or
+        # difficulty, pick an unknown family, or emphasize stages the card does not define.
         if plan.attack_family not in self.catalog.families:
             raise ValueError(f"Red selected unknown attack family {plan.attack_family!r}.")
         if requested_family and plan.attack_family != requested_family:
@@ -89,25 +91,33 @@ class GenAIRedAgent:
         if unknown_stages:
             raise ValueError(f"Red emphasized unknown stages: {sorted(unknown_stages)}")
 
+        # Parameter mutations are soft-dropped, not fatal: an LLM proposing a disallowed or
+        # out-of-bounds tune should not abort the whole episode. We ignore the suggestion and
+        # keep the vetted difficulty-profile default, so the compiled scenario is always in-bounds
+        # (the safety guarantee holds — an unsafe value is never applied). Dropped tunes are
+        # reported so the loop stays observable.
         overrides = copy.deepcopy(card.parameter_profiles[plan.difficulty])
+        dropped: list[str] = []
         seen_parameters: set[str] = set()
         for change in plan.parameter_changes:
             if change.parameter in seen_parameters:
-                raise ValueError(f"Red repeated parameter {change.parameter!r}.")
+                dropped.append(f"{change.parameter} (repeated)")
+                continue
             seen_parameters.add(change.parameter)
             if change.parameter not in card.allowed_mutations:
-                raise ValueError(f"Red attempted a forbidden mutation: {change.parameter!r}.")
-            bound = card.parameter_bounds[change.parameter]
+                dropped.append(f"{change.parameter} (not mutable)")
+                continue
+            bound = card.parameter_bounds.get(change.parameter, {})
             if "min" not in bound or "max" not in bound:
-                raise ValueError(f"Red mutation {change.parameter!r} has no numeric safety bound.")
+                dropped.append(f"{change.parameter} (no numeric bound)")
+                continue
             value = float(change.value)
             if not float(bound["min"]) <= value <= float(bound["max"]):
-                raise ValueError(
-                    f"Red mutation {change.parameter!r}={value} is outside {bound}."
-                )
+                dropped.append(f"{change.parameter}={value} (outside {bound['min']}..{bound['max']})")
+                continue
             original = overrides[change.parameter]
             overrides[change.parameter] = int(round(value)) if isinstance(original, int) else value
-        return card, overrides
+        return card, overrides, dropped
 
     def plan(
         self,
@@ -167,17 +177,24 @@ class GenAIRedAgent:
             plan = RedPlan.from_dict(result)
         except (KeyError, TypeError) as exc:
             raise ValueError("Red returned an incomplete campaign plan.") from exc
-        _, overrides = self._validate_plan(
+        _, overrides, dropped_mutations = self._validate_plan(
             plan,
             requested_family=attack_family,
             requested_difficulty=difficulty,
         )
+        if dropped_mutations:
+            trace(
+                "red.plan.mutations_dropped",
+                "Disallowed or out-of-bounds Red tunes were ignored; vetted profile defaults kept.",
+                dropped=dropped_mutations,
+            )
         trace(
             "red.plan.model_complete",
             "Qwen returned a structured Red campaign plan.",
             attack_family=plan.attack_family,
             stage_emphasis=plan.stage_emphasis,
             parameter_changes=[change.parameter for change in plan.parameter_changes],
+            dropped_mutations=dropped_mutations,
             model=model_trace.model,
             latency_ms=model_trace.latency_ms,
         )

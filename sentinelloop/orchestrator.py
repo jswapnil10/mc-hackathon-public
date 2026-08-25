@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from red_team_agent.models import ScenarioSpec
@@ -13,7 +13,12 @@ from .contracts import BlueTurn, RefereeReport, SimulationCase
 from .model_gateway import OpenAICompatibleGateway, StructuredModelGateway
 from .red_agent import GenAIRedAgent, RedTurn
 from .referee import DeterministicReferee
-from .simulation import simulate_attack, simulate_legitimate_controls
+from .simulation import (
+    simulate_ambient_cases,
+    simulate_attack,
+    simulate_legitimate_controls,
+    simulate_trap_cases,
+)
 from .trace import trace
 
 
@@ -26,6 +31,7 @@ class RoundResult:
     control_results: list[tuple[SimulationCase, list[BlueTurn]]]
     referee_report: RefereeReport
     feedback_released_to_red: dict[str, object]
+    ambient_results: list[tuple[SimulationCase, list[BlueTurn]]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,6 +46,7 @@ class RoundResult:
                     ],
                 },
                 "legitimate_control_count": len(self.control_results),
+                "ambient_case_count": len(self.ambient_results),
             },
             "blue": {
                 "attack_turns": [turn.to_dict() for turn in self.attack_blue_turns],
@@ -50,6 +57,14 @@ class RoundResult:
                         "decisions": [turn.decision.to_dict() for turn in turns],
                     }
                     for case, turns in self.control_results
+                ],
+                "ambient_summaries": [
+                    {
+                        "case_id": case.case_id,
+                        "kind_revealed_after_scoring": case.case_id.split("-")[0],
+                        "decisions": [turn.decision.to_dict() for turn in turns],
+                    }
+                    for case, turns in self.ambient_results
                 ],
             },
             "referee": self.referee_report.to_dict(),
@@ -93,6 +108,9 @@ class SentinelLoopOrchestrator:
         rounds: int = 2,
         seed: int = 20260824,
         include_legitimate_controls: bool = True,
+        include_ambient: bool = True,
+        ambient_sample: int = 20,
+        trap_sample_each: int = 5,
     ) -> LabRun:
         trace(
             "lab.started",
@@ -173,10 +191,27 @@ class SentinelLoopOrchestrator:
                         control_number=control_index + 1,
                         actions=[turn.decision.action for turn in turns],
                     )
+            ambient_results: list[tuple[SimulationCase, list[BlueTurn]]] = []
+            if include_ambient:
+                ambient_cases = simulate_ambient_cases(seed=round_seed, count=ambient_sample)
+                ambient_cases += simulate_trap_cases(seed=round_seed, count_each=trap_sample_each)
+                for ambient_index, ambient_case in enumerate(ambient_cases):
+                    turns = self.blue.run_case(
+                        ambient_case.events,
+                        seed=round_seed * 10000 + ambient_index * 10,
+                        stop_on_decisive_action=True,
+                    )
+                    ambient_results.append((ambient_case, turns))
+                trace(
+                    "ambient.completed",
+                    "Blue processed standalone legit + trap traffic (realistic FP denominator).",
+                    ambient_case_count=len(ambient_results),
+                )
             report = self.referee.score(
                 attack_case=attack_case,
                 attack_turns=attack_turns,
                 control_results=control_results,
+                ambient_results=ambient_results,
             )
             feedback = self.referee.feedback_for_red(report)
             trace(
@@ -202,6 +237,7 @@ class SentinelLoopOrchestrator:
                     control_results=control_results,
                     referee_report=report,
                     feedback_released_to_red=feedback,
+                    ambient_results=ambient_results,
                 )
             )
             previous = red_turn.scenario
