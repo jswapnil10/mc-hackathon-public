@@ -8,8 +8,8 @@ The agent does not contact victims, create phishing material, collect personal d
 
 The first version has five layers:
 
-1. **Attack-card catalogue** — six research-backed fraud families with observable stages, difficulty profiles, source references, legitimate look-alikes, and safe parameter bounds.
-2. **Planner** — chooses an attack family, objective, difficulty, and important stages. It works offline by default and can optionally use the OpenAI Responses API.
+1. **Attack-card catalogue** — nine research-backed fraud families with observable stages, difficulty profiles, source references, legitimate look-alikes, and safe parameter bounds.
+2. **Planner** — chooses an attack family, objective, difficulty, lifecycle phase, and focus stages. It works offline by default and can optionally use the OpenAI Responses API.
 3. **Deterministic compiler** — turns the bounded decision into a replayable scenario specification using synthetic identifiers and a seed.
 4. **Safety gate** — rejects unknown events, out-of-range parameters, unsafe field names, non-synthetic entity identifiers, missing sources, and missing safety constraints.
 5. **Mutation controller** — accepts only coarse Referee feedback and creates the next bounded variant. It does not receive Blue Team rules, scores, model internals, or thresholds.
@@ -40,12 +40,15 @@ The output at this stage is a **scenario specification**, not a finished transac
 
 | ID | Scenario |
 |---|---|
+| `AGENT-01` | Agentic-commerce intent and checkout manipulation |
 | `APP-01` | GenAI-amplified authorized push payment scam |
 | `ATO-01` | GenAI-assisted account takeover and rapid transfer |
 | `BEC-01` | GenAI-enhanced supplier impersonation payment diversion |
 | `MULE-01` | AI-coordinated mule-network fan-in and dispersal |
 | `SYNID-01` | GenAI synthetic-identity onboarding and payment activation |
 | `EVADE-01` | Feedback-guided low-and-slow payment evasion |
+| `PAYOUT-01` | GenAI-assisted merchant payout destination manipulation |
+| `DISPUTE-01` | GenAI-assisted dispute evidence and refund abuse |
 
 ## Run it without an API key
 
@@ -97,14 +100,6 @@ The model is deliberately not allowed to author raw payment events. It returns a
 python3 -m unittest discover -s red_team_agent/tests -v
 ```
 
-## What is needed from you
+## Current integration
 
-Nothing is required to run the offline version. Before enabling the live GenAI planner, you will need:
-
-- OpenAI API access with the key stored locally as `OPENAI_API_KEY`.
-- A preferred spend limit for API-backed development.
-- Later, a decision about which two or three attack families should receive the deepest hackathon demo treatment. The full catalogue can remain broader.
-
-## Next engineering step
-
-Build the **scenario simulator** that converts these validated specifications into timestamped synthetic event streams. That creates the data boundary the Blue Team Agent and Referee will consume.
+The main SentinelLoop runtime already converts these validated specifications into timestamped synthetic events. Blue investigates the sanitized event stream, the Referee scores against sealed truth, and Red receives only the bounded feedback packet needed for the next variant.

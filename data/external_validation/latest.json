@@ -1,0 +1,517 @@
+{
+  "validation_version": "external-ulb-v1",
+  "generated_at": "2026-08-24T17:19:36.754247+00:00",
+  "overall_assessment": "share_with_caveats",
+  "dataset": {
+    "name": "ULB/Worldline Credit Card Fraud",
+    "openml_dataset_id": 1597,
+    "source_url": "https://www.openml.org/d/1597",
+    "metadata_api_url": "https://www.openml.org/api/v1/json/data/1597",
+    "download_url": "https://data.openml.org/datasets/0000/1597/dataset_1597.pq",
+    "source_type": "external_real_anonymized_card_transactions",
+    "collection_window": "two days in September 2013",
+    "geography": "European cardholders",
+    "privacy": "V1-V28 are PCA-anonymized; Time and Amount remain interpretable",
+    "license_metadata": "Public (as declared by OpenML dataset 1597)",
+    "local_file_name": "creditcard.parquet",
+    "local_file_sha256": "b7efcb35a428bbe22347a05d2437d9177bab07ce61e51214a17bec584ad9496d",
+    "split_summary": {
+      "train": {
+        "rows": 170235,
+        "frauds": 342,
+        "fraud_prevalence": 0.00200899,
+        "time_min_seconds": 0.0,
+        "time_max_seconds": 120392.0
+      },
+      "validation": {
+        "rows": 56745,
+        "frauds": 57,
+        "fraud_prevalence": 0.00100449,
+        "time_min_seconds": 120393.0,
+        "time_max_seconds": 145233.0
+      },
+      "test": {
+        "rows": 56746,
+        "frauds": 74,
+        "fraud_prevalence": 0.00130406,
+        "time_min_seconds": 145234.0,
+        "time_max_seconds": 172792.0
+      }
+    }
+  },
+  "data_quality": {
+    "status": "failed",
+    "score": 91.89,
+    "dataset_grain": "one anonymized card transaction per row",
+    "row_count": 284807,
+    "column_count": 31,
+    "fraud_count": 492,
+    "fraud_prevalence": 0.00172749,
+    "time_min_seconds": 0.0,
+    "time_max_seconds": 172792.0,
+    "amount_min": 0.0,
+    "amount_max": 25691.16,
+    "source_sha256": "b7efcb35a428bbe22347a05d2437d9177bab07ce61e51214a17bec584ad9496d",
+    "checks": [
+      {
+        "name": "required_schema",
+        "passed": true,
+        "observed": [],
+        "expected": "Time, Amount, Class and V1-V28",
+        "severity": "critical"
+      },
+      {
+        "name": "exact_row_duplicates",
+        "passed": false,
+        "observed": 1081,
+        "expected": "0",
+        "severity": "high"
+      },
+      {
+        "name": "required_value_completeness",
+        "passed": true,
+        "observed": 0,
+        "expected": "0 null values",
+        "severity": "critical"
+      },
+      {
+        "name": "numeric_finiteness",
+        "passed": true,
+        "observed": 0,
+        "expected": "0 non-finite values",
+        "severity": "critical"
+      },
+      {
+        "name": "label_domain",
+        "passed": true,
+        "observed": [
+          0,
+          1
+        ],
+        "expected": "[0, 1]",
+        "severity": "critical"
+      },
+      {
+        "name": "amount_domain",
+        "passed": true,
+        "observed": 0,
+        "expected": "0 negative amounts",
+        "severity": "high"
+      },
+      {
+        "name": "elapsed_time_domain",
+        "passed": true,
+        "observed": 0,
+        "expected": "0 negative elapsed times",
+        "severity": "high"
+      },
+      {
+        "name": "published_row_count_reconciliation",
+        "passed": true,
+        "observed": 284807,
+        "expected": "284807",
+        "severity": "high"
+      },
+      {
+        "name": "published_fraud_count_reconciliation",
+        "passed": true,
+        "observed": 492,
+        "expected": "492",
+        "severity": "high"
+      },
+      {
+        "name": "source_chronological_order",
+        "passed": true,
+        "observed": true,
+        "expected": "non-decreasing Time",
+        "severity": "medium"
+      }
+    ],
+    "failure_count": 1,
+    "critical_failure_count": 0,
+    "model_input_status": "passed_after_conservative_deduplication",
+    "remediation": {
+      "exact_duplicate_rows_removed": 1081,
+      "raw_row_count": 284807,
+      "modeled_row_count": 283726,
+      "raw_fraud_count": 492,
+      "modeled_fraud_count": 473,
+      "rationale": "Exact duplicates are removed conservatively before temporal splitting to avoid optimistic validation. The source has no transaction identifier, so duplicated observations cannot be proven to be distinct payments."
+    }
+  },
+  "methodology": {
+    "split_policy": "chronological 60% train / 20% validation / 20% test; no random shuffling",
+    "model_selection": "highest validation PR-AUC only",
+    "threshold_selection": "highest validation F1 among thresholds satisfying the validation false-positive cap",
+    "score_calibration": "Platt scaling fit on validation model scores; test labels remain sealed",
+    "validation_false_positive_cap": 0.002,
+    "test_opened_after_selection": true,
+    "features": [
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V5",
+      "V6",
+      "V7",
+      "V8",
+      "V9",
+      "V10",
+      "V11",
+      "V12",
+      "V13",
+      "V14",
+      "V15",
+      "V16",
+      "V17",
+      "V18",
+      "V19",
+      "V20",
+      "V21",
+      "V22",
+      "V23",
+      "V24",
+      "V25",
+      "V26",
+      "V27",
+      "V28",
+      "amount_log",
+      "hour_sin",
+      "hour_cos"
+    ],
+    "forbidden_features": [
+      "Class",
+      "test labels",
+      "future rows"
+    ],
+    "currency": "EUR-equivalent source Amount field; no conversion applied"
+  },
+  "defense": {
+    "selected_model": "hist_gradient_boosting",
+    "risk_score_semantics": "validation-calibrated risk estimate; institution recalibration still required",
+    "candidate_models": {
+      "logistic_regression": {
+        "validation_pr_auc": 0.753156,
+        "validation_roc_auc": 0.97306,
+        "validation_brier_score_after_platt": 0.00037855,
+        "threshold": 0.481782,
+        "validation_precision": 0.904762,
+        "validation_recall": 0.666667,
+        "validation_f1": 0.767677,
+        "validation_false_positive_rate": 7.1e-05
+      },
+      "hist_gradient_boosting": {
+        "validation_pr_auc": 0.760544,
+        "validation_roc_auc": 0.969997,
+        "validation_brier_score_after_platt": 0.00035692,
+        "threshold": 0.678057,
+        "validation_precision": 0.931818,
+        "validation_recall": 0.719298,
+        "validation_f1": 0.811881,
+        "validation_false_positive_rate": 5.3e-05
+      }
+    },
+    "threshold_selected_on_validation": 0.678057,
+    "test_metrics": {
+      "pr_auc": 0.765572,
+      "roc_auc": 0.970348,
+      "precision": 0.872727,
+      "recall": 0.648649,
+      "f1": 0.744186,
+      "false_positive_rate": 0.000124,
+      "brier_score": 0.00052587,
+      "null_brier_score": 0.00130236,
+      "brier_skill_score": 0.596213,
+      "expected_calibration_error": 0.00016327,
+      "value_weighted_recall": 0.447022,
+      "event_count": 56746,
+      "fraud_event_count": 74,
+      "confusion_matrix": {
+        "tn": 56665,
+        "fp": 7,
+        "fn": 26,
+        "tp": 48
+      },
+      "precision_95ci": [
+        0.75983,
+        0.936958
+      ],
+      "recall_95ci": [
+        0.535008,
+        0.747618
+      ],
+      "false_positive_rate_95ci": [
+        6e-05,
+        0.000255
+      ],
+      "review_capacity": {
+        "top_0.1_percent": {
+          "review_count": 57,
+          "fraud_captured": 50,
+          "recall": 0.675676
+        },
+        "top_0.5_percent": {
+          "review_count": 284,
+          "fraud_captured": 63,
+          "recall": 0.851351
+        },
+        "top_1_percent": {
+          "review_count": 568,
+          "fraud_captured": 64,
+          "recall": 0.864865
+        }
+      },
+      "pr_auc_95ci": [
+        0.67779,
+        0.85661
+      ]
+    },
+    "temporal_slices": {
+      "early_test": {
+        "pr_auc": 0.834906,
+        "roc_auc": 0.980193,
+        "precision": 0.972973,
+        "recall": 0.692308,
+        "f1": 0.808989,
+        "false_positive_rate": 3.5e-05,
+        "brier_score": 0.00056667,
+        "null_brier_score": 0.00182937,
+        "brier_skill_score": 0.690236,
+        "expected_calibration_error": 0.00040166,
+        "value_weighted_recall": 0.392541,
+        "event_count": 28373,
+        "fraud_event_count": 52,
+        "confusion_matrix": {
+          "tn": 28320,
+          "fp": 1,
+          "fn": 16,
+          "tp": 36
+        },
+        "precision_95ci": [
+          0.861759,
+          0.995213
+        ],
+        "recall_95ci": [
+          0.557304,
+          0.800853
+        ],
+        "false_positive_rate_95ci": [
+          6e-06,
+          0.0002
+        ],
+        "review_capacity": {
+          "top_0.1_percent": {
+            "review_count": 29,
+            "fraud_captured": 29,
+            "recall": 0.557692
+          },
+          "top_0.5_percent": {
+            "review_count": 142,
+            "fraud_captured": 46,
+            "recall": 0.884615
+          },
+          "top_1_percent": {
+            "review_count": 284,
+            "fraud_captured": 47,
+            "recall": 0.903846
+          }
+        }
+      },
+      "late_test": {
+        "pr_auc": 0.631488,
+        "roc_auc": 0.944567,
+        "precision": 0.666667,
+        "recall": 0.545455,
+        "f1": 0.6,
+        "false_positive_rate": 0.000212,
+        "brier_score": 0.00048508,
+        "null_brier_score": 0.00077478,
+        "brier_skill_score": 0.37392,
+        "expected_calibration_error": 0.00022691,
+        "value_weighted_recall": 0.561699,
+        "event_count": 28373,
+        "fraud_event_count": 22,
+        "confusion_matrix": {
+          "tn": 28345,
+          "fp": 6,
+          "fn": 10,
+          "tp": 12
+        },
+        "precision_95ci": [
+          0.437495,
+          0.837212
+        ],
+        "recall_95ci": [
+          0.346598,
+          0.730797
+        ],
+        "false_positive_rate_95ci": [
+          9.7e-05,
+          0.000462
+        ],
+        "review_capacity": {
+          "top_0.1_percent": {
+            "review_count": 29,
+            "fraud_captured": 14,
+            "recall": 0.636364
+          },
+          "top_0.5_percent": {
+            "review_count": 142,
+            "fraud_captured": 17,
+            "recall": 0.772727
+          },
+          "top_1_percent": {
+            "review_count": 284,
+            "fraud_captured": 17,
+            "recall": 0.772727
+          }
+        }
+      }
+    }
+  },
+  "robustness": {
+    "population_stability_index_by_feature": {
+      "V1": 1.463301,
+      "V2": 0.023203,
+      "V3": 1.065295,
+      "V4": 0.192281,
+      "V5": 0.214154,
+      "V6": 0.080547,
+      "V7": 0.100793,
+      "V8": 0.059975,
+      "V9": 0.081392,
+      "V10": 0.047418,
+      "V11": 0.445779,
+      "V12": 0.298803,
+      "V13": 0.058532,
+      "V14": 0.112866,
+      "V15": 0.280627,
+      "V16": 0.009092,
+      "V17": 0.054684,
+      "V18": 0.033746,
+      "V19": 0.033858,
+      "V20": 0.072294,
+      "V21": 0.137189,
+      "V22": 0.226608,
+      "V23": 0.178579,
+      "V24": 0.167111,
+      "V25": 0.362922,
+      "V26": 0.169839,
+      "V27": 0.055005,
+      "V28": 0.718225,
+      "Amount": 0.008094
+    },
+    "worst_drift_features": [
+      {
+        "feature": "V1",
+        "psi": 1.463301
+      },
+      {
+        "feature": "V3",
+        "psi": 1.065295
+      },
+      {
+        "feature": "V28",
+        "psi": 0.718225
+      },
+      {
+        "feature": "V11",
+        "psi": 0.445779
+      },
+      {
+        "feature": "V25",
+        "psi": 0.362922
+      },
+      {
+        "feature": "V12",
+        "psi": 0.298803
+      },
+      {
+        "feature": "V15",
+        "psi": 0.280627
+      },
+      {
+        "feature": "V22",
+        "psi": 0.226608
+      }
+    ],
+    "psi_interpretation": {
+      "below_0.10": "small shift",
+      "0.10_to_0.25": "moderate shift requiring review",
+      "above_0.25": "large shift; recalibration or retraining likely required"
+    }
+  },
+  "synthetic_calibration": {
+    "status": "completed",
+    "comparison_scope": "currency-normalized amount shape and class prevalence only",
+    "limitations": [
+      "ULB features V1-V28 are anonymized PCA components and cannot be semantically mapped to SentinelLoop lifecycle telemetry.",
+      "ULB contains card transactions from two days in 2013; SentinelLoop spans multiple rails and lifecycle phases."
+    ],
+    "external_amount_profile": {
+      "positive_count": 281918,
+      "zero_rate": 0.006372,
+      "median": 22.5,
+      "normalized_quantiles": {
+        "0.5": 1.0,
+        "0.75": 3.475556,
+        "0.9": 9.104844,
+        "0.95": 16.355556,
+        "0.99": 45.505053
+      }
+    },
+    "synthetic_card_amount_profile": {
+      "positive_count": 586,
+      "zero_rate": 0.462878,
+      "median": 2439.12,
+      "normalized_quantiles": {
+        "0.5": 1.0,
+        "0.75": 1.986988,
+        "0.9": 5.0509,
+        "0.95": 12.882767,
+        "0.99": 31.428088
+      }
+    },
+    "currency_normalized_amount_shape_score": 0.703678,
+    "external_fraud_prevalence": 0.0016671,
+    "synthetic_card_attack_prevalence": 0.20989918,
+    "prevalence_multiplier": 125.91,
+    "interpretation": "The synthetic population intentionally oversamples attacks for stress testing. Production probability calibration must use institution-specific base rates."
+  },
+  "claim_validation": [
+    {
+      "claim": "The detection pipeline works under real rare-event class imbalance.",
+      "status": "supported",
+      "evidence": "Test PR-AUC 0.765572 versus prevalence 0.00172749."
+    },
+    {
+      "claim": "The threshold controls legitimate-payment false positives on future data.",
+      "status": "supported",
+      "evidence": "Chronological test FPR 0.000124 with 95% CI [6e-05, 0.000255]."
+    },
+    {
+      "claim": "Synthetic amount behavior is calibrated to external card-transaction shape.",
+      "status": "partial",
+      "evidence": "Only currency-normalized amount quantiles are comparable; rail, geography and source period differ."
+    },
+    {
+      "claim": "Red/Blue lifecycle-agent efficacy generalizes to live payments.",
+      "status": "not_testable_with_this_dataset",
+      "evidence": "ULB provides no entity, channel, lifecycle, action or GenAI-attack semantics."
+    }
+  ],
+  "limitations": [
+    "This external test validates the scalable detector methodology, not the Qwen agent's lifecycle reasoning.",
+    "The data covers one card dataset and two days from 2013; it does not represent UPI, bank transfer, wallets, payouts or agentic commerce.",
+    "PCA anonymization prevents semantic mapping of V1-V28 to SentinelLoop evidence tools and mitigations.",
+    "No customer, merchant, device or account identifiers are available for entity-isolated splitting or graph validation.",
+    "The test set has few fraud cases; confidence intervals must accompany point estimates.",
+    "Institution-specific shadow scoring remains required before any live decisioning claim."
+  ],
+  "next_validation_gates": [
+    "Run the IEEE-CIS adapter after accepting Kaggle terms to validate device, identity and transaction context.",
+    "Run the BAF adapter to validate pre-transaction onboarding drift and subgroup fairness.",
+    "Obtain privacy-approved aggregate institution priors for rail, channel, amount, velocity and lifecycle calibration.",
+    "Shadow-score live events with no customer action, then measure delayed labels, drift, calibration and operational latency."
+  ]
+}

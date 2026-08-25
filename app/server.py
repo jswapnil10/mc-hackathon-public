@@ -13,7 +13,9 @@ from flask import Flask, jsonify, render_template, request
 
 from red_team_agent.catalog import AttackCatalog
 from sentinelloop.config import AgentLabConfig
+from sentinelloop.evaluation import catalog_submission_profile
 from sentinelloop.orchestrator import SentinelLoopOrchestrator
+from sentinelloop.threat_atlas import ThreatAtlas
 from sentinelloop.trace import trace
 
 
@@ -25,6 +27,11 @@ METRICS_PATH = DATA_DIR / "baseline_metrics.json"
 AGENT_RUNS_DIR = PROJECT_ROOT / "runs" / "agentic"
 LATEST_AGENT_RUN_PATH = AGENT_RUNS_DIR / "latest.json"
 AGENT_RUN_LOCK = threading.Lock()
+BENCHMARK_DIR = PROJECT_ROOT / "data" / "benchmark"
+LATEST_BENCHMARK_PATH = BENCHMARK_DIR / "latest.json"
+BENCHMARK_RUN_LOCK = threading.Lock()
+EXTERNAL_VALIDATION_DIR = PROJECT_ROOT / "data" / "external_validation"
+LATEST_EXTERNAL_VALIDATION_PATH = EXTERNAL_VALIDATION_DIR / "latest.json"
 
 
 def _load_data() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
@@ -122,6 +129,10 @@ def _network(events: pd.DataFrame) -> dict[str, Any]:
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+    # Keep the HTML shell synchronized with its CSS and JavaScript during local demos.
+    # This is intentionally enabled even when Flask debug mode is off.
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
 
     @app.after_request
     def security_headers(response: Any) -> Any:
@@ -133,6 +144,8 @@ def create_app() -> Flask:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        if request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.get("/")
@@ -147,18 +160,28 @@ def create_app() -> Flask:
     def agent_status() -> Any:
         config = AgentLabConfig.from_env()
         catalog = AttackCatalog()
+        atlas = ThreatAtlas()
         return jsonify(
             {
-                "system": "SentinelLoop Agent Arena",
+                "system": "MasterGuard AI - Attack. Adapt. Defend.",
                 "mode": "live_open_model",
-                "architecture": "Red GenAI → Synthetic Arena → Blue GenAI → Deterministic Referee",
+                "architecture": (
+                    "Red GenAI → Synthetic Arena → Fast Sequence Guard + Blue GenAI → Deterministic Referee "
+                    "→ guarded Red/Blue feedback loops"
+                ),
                 "models": {
                     "red": config.red_model_id,
                     "blue": config.blue_model_id,
-                    "referee": "deterministic-policy-v1",
+                    "blue_strategist": config.blue_model_id,
+                    "referee": "deterministic-policy-v2",
                 },
                 "model_endpoint": "server-side and private",
                 "structured_output_mode": config.structured_output_mode,
+                "latency_profile": {
+                    "blue_model_calls_per_event": 1,
+                    "case_parallelism": config.case_parallelism,
+                    "recommended_demo_rounds": 1,
+                },
                 "attack_families": [
                     {
                         "id": card.attack_family,
@@ -168,9 +191,75 @@ def create_app() -> Flask:
                     for card in catalog.list()
                 ],
                 "latest_run_available": LATEST_AGENT_RUN_PATH.exists(),
+                "latest_benchmark_available": LATEST_BENCHMARK_PATH.exists(),
+                "latest_external_validation_available": LATEST_EXTERNAL_VALIDATION_PATH.exists(),
+                "threat_atlas": atlas.summary(),
                 "truth_boundary": "Blue receives sanitized observables only; Referee owns sealed labels.",
+                "submission_profile": catalog_submission_profile(catalog),
             }
         )
+
+    @app.get("/api/v2/threat-atlas")
+    def threat_atlas() -> Any:
+        return jsonify(ThreatAtlas().to_dict())
+
+    @app.get("/api/v2/benchmark")
+    def latest_population_benchmark() -> Any:
+        if not LATEST_BENCHMARK_PATH.exists():
+            return jsonify(
+                {
+                    "error": "No population benchmark has been generated yet.",
+                    "action": "Run the Scenario Foundry from this page.",
+                }
+            ), 404
+        return jsonify(json.loads(LATEST_BENCHMARK_PATH.read_text(encoding="utf-8")))
+
+    @app.get("/api/v2/external-validation")
+    def latest_external_validation() -> Any:
+        if not LATEST_EXTERNAL_VALIDATION_PATH.exists():
+            return jsonify(
+                {
+                    "error": "No external validation has been generated yet.",
+                    "action": "Run python -m sentinelloop external-validate after downloading the public dataset.",
+                }
+            ), 404
+        return jsonify(
+            json.loads(LATEST_EXTERNAL_VALIDATION_PATH.read_text(encoding="utf-8"))
+        )
+
+    @app.post("/api/v2/benchmark/run")
+    def run_population_defense_benchmark() -> Any:
+        if not BENCHMARK_RUN_LOCK.acquire(blocking=False):
+            return jsonify({"error": "The Scenario Foundry is already running."}), 409
+        try:
+            from sentinelloop.benchmark import run_population_benchmark
+            from sentinelloop.population import PopulationConfig
+
+            body = request.get_json(silent=True) or {}
+            config = PopulationConfig(
+                variants_per_vector=int(body.get("variants_per_vector", 6)),
+                legitimate_event_count=int(body.get("legitimate_events", 2400)),
+                seed=int(body.get("seed", 20260824)),
+            )
+            config.validate()
+            benchmark, events, predictions = run_population_benchmark(config)
+            BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
+            temporary_json = BENCHMARK_DIR / ".latest.json.tmp"
+            temporary_json.write_text(json.dumps(benchmark, indent=2), encoding="utf-8")
+            temporary_json.replace(LATEST_BENCHMARK_PATH)
+            events.to_csv(BENCHMARK_DIR / "population_events.csv", index=False)
+            predictions.to_csv(BENCHMARK_DIR / "defense_predictions.csv", index=False)
+            (BENCHMARK_DIR / "population_metadata.json").write_text(
+                json.dumps(benchmark["dataset"], indent=2), encoding="utf-8"
+            )
+            (BENCHMARK_DIR / "data_quality.json").write_text(
+                json.dumps(benchmark["data_quality"], indent=2), encoding="utf-8"
+            )
+            return jsonify(benchmark)
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 422
+        finally:
+            BENCHMARK_RUN_LOCK.release()
 
     @app.get("/api/v2/latest")
     def latest_agent_run() -> Any:
@@ -186,7 +275,7 @@ def create_app() -> Flask:
             body = request.get_json(silent=True) or {}
             family = str(body.get("attack_family", "ATO-01"))
             difficulty = str(body.get("difficulty", "medium"))
-            rounds = int(body.get("rounds", 2))
+            rounds = int(body.get("rounds", 1))
             seed = int(body.get("seed", 20260824))
             if family not in AttackCatalog().families:
                 return jsonify({"error": f"Unknown attack family {family!r}."}), 400

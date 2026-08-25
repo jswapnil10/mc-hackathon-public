@@ -2,19 +2,52 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from typing import Any
 
 from red_team_agent.models import ScenarioSpec
 
 from .blue_agent import GenAIBlueAgent
+from .blue_strategy import BlueStrategyTurn, GenAIBlueStrategist
 from .config import AgentLabConfig
-from .contracts import BlueTurn, RefereeReport, SimulationCase
+from .contracts import BlueTurn, DefensePlaybook, RefereeReport, SimulationCase
+from .evaluation import catalog_submission_profile, round_submission_evaluation
 from .model_gateway import OpenAICompatibleGateway, StructuredModelGateway
 from .red_agent import GenAIRedAgent, RedTurn
 from .referee import DeterministicReferee
 from .simulation import simulate_attack, simulate_legitimate_controls
 from .trace import trace
+
+
+@dataclass(frozen=True)
+class BlueAdaptationResult:
+    strategy_turn: BlueStrategyTurn
+    replay_attack_turns: list[BlueTurn]
+    replay_control_results: list[tuple[SimulationCase, list[BlueTurn]]]
+    replay_report: RefereeReport
+    promoted: bool
+    promotion_reason: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "strategy": self.strategy_turn.to_dict(),
+            "replay": {
+                "attack_turns": [turn.to_dict() for turn in self.replay_attack_turns],
+                "control_summaries": [
+                    {
+                        "case_id": case.case_id,
+                        "control_name_revealed_after_scoring": case.control_name,
+                        "decisions": [turn.decision.to_dict() for turn in turns],
+                    }
+                    for case, turns in self.replay_control_results
+                ],
+                "referee": self.replay_report.to_dict(),
+            },
+            "promoted": self.promoted,
+            "promotion_reason": self.promotion_reason,
+        }
 
 
 @dataclass(frozen=True)
@@ -26,6 +59,10 @@ class RoundResult:
     control_results: list[tuple[SimulationCase, list[BlueTurn]]]
     referee_report: RefereeReport
     feedback_released_to_red: dict[str, object]
+    active_blue_playbook: DefensePlaybook
+    blue_adaptation: BlueAdaptationResult | None = None
+    submission_evaluation: dict[str, Any] = field(default_factory=dict)
+    duration_ms: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +79,7 @@ class RoundResult:
                 "legitimate_control_count": len(self.control_results),
             },
             "blue": {
+                "active_playbook": self.active_blue_playbook.to_dict(),
                 "attack_turns": [turn.to_dict() for turn in self.attack_blue_turns],
                 "control_summaries": [
                     {
@@ -54,21 +92,30 @@ class RoundResult:
             },
             "referee": self.referee_report.to_dict(),
             "feedback_released_to_red": self.feedback_released_to_red,
+            "blue_adaptation": self.blue_adaptation.to_dict() if self.blue_adaptation else None,
+            "submission_evaluation": self.submission_evaluation or {},
+            "duration_ms": self.duration_ms,
         }
 
 
 @dataclass(frozen=True)
 class LabRun:
     run_id: str
-    model_configuration: dict[str, str]
+    model_configuration: dict[str, Any]
     rounds: list[RoundResult]
+    final_defense_playbook: DefensePlaybook
+    submission_profile: dict[str, Any] = field(default_factory=dict)
+    duration_ms: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
-            "architecture": "red_genai_vs_blue_genai_with_deterministic_referee",
+            "architecture": "red_genai_vs_two_speed_learning_blue_with_deterministic_referee",
             "model_configuration": self.model_configuration,
             "rounds": [round_result.to_dict() for round_result in self.rounds],
+            "final_defense_playbook": self.final_defense_playbook.to_dict(),
+            "submission_profile": self.submission_profile or {},
+            "duration_ms": self.duration_ms,
         }
 
 
@@ -83,7 +130,99 @@ class SentinelLoopOrchestrator:
         self.gateway = gateway or OpenAICompatibleGateway(self.config)
         self.red = GenAIRedAgent(gateway=self.gateway, config=self.config)
         self.blue = GenAIBlueAgent(gateway=self.gateway, config=self.config)
+        self.blue_strategist = GenAIBlueStrategist(gateway=self.gateway, config=self.config)
         self.referee = DeterministicReferee()
+
+    def _run_blue_cases(
+        self,
+        *,
+        attack_case: SimulationCase,
+        controls: list[SimulationCase],
+        attack_seed: int,
+        control_seed_base: int,
+        playbook: DefensePlaybook,
+    ) -> tuple[list[BlueTurn], list[tuple[SimulationCase, list[BlueTurn]]]]:
+        """Evaluate isolated cases concurrently while preserving order within each case."""
+        jobs = [
+            (attack_case, attack_seed),
+            *[
+                (control, control_seed_base + index * 100)
+                for index, control in enumerate(controls)
+            ],
+        ]
+
+        def evaluate(job: tuple[SimulationCase, int]) -> list[BlueTurn]:
+            case, case_seed = job
+            return self.blue.run_case(
+                case.events,
+                seed=case_seed,
+                stop_on_decisive_action=True,
+                playbook=playbook,
+            )
+
+        worker_count = min(self.config.case_parallelism, len(jobs))
+        trace(
+            "blue.case_batch.started",
+            "Blue started isolated attack and look-alike cases with bounded concurrency.",
+            case_count=len(jobs),
+            worker_count=worker_count,
+        )
+        if worker_count == 1:
+            outcomes = [evaluate(job) for job in jobs]
+        else:
+            with ThreadPoolExecutor(
+                max_workers=worker_count, thread_name_prefix="sentinelloop-blue"
+            ) as executor:
+                outcomes = list(executor.map(evaluate, jobs))
+        attack_turns = outcomes[0]
+        control_results = list(zip(controls, outcomes[1:]))
+        trace(
+            "blue.case_batch.completed",
+            "Blue completed the isolated case batch.",
+            attack_event_count=len(attack_turns),
+            control_event_counts=[len(turns) for _, turns in control_results],
+        )
+        return attack_turns, control_results
+
+    @staticmethod
+    def _promotion_decision(
+        baseline: RefereeReport, candidate: RefereeReport
+    ) -> tuple[bool, str]:
+        safety_preserved = (
+            candidate.hard_false_positive_rate <= baseline.hard_false_positive_rate
+            and candidate.legitimate_friction_rate <= baseline.legitimate_friction_rate
+            and candidate.value_prevented_ratio >= baseline.value_prevented_ratio
+            and candidate.blue_score >= baseline.blue_score
+            and candidate.balanced_lifecycle_defense_score
+            >= baseline.balanced_lifecycle_defense_score
+            and candidate.realized_impact_ratio <= baseline.realized_impact_ratio
+        )
+        earlier_detection = (
+            candidate.time_to_detect_seconds is not None
+            and (
+                baseline.time_to_detect_seconds is None
+                or candidate.time_to_detect_seconds < baseline.time_to_detect_seconds
+            )
+        )
+        measurable_gain = (
+            candidate.blue_score > baseline.blue_score
+            or candidate.value_prevented_ratio > baseline.value_prevented_ratio
+            or candidate.realized_impact_ratio < baseline.realized_impact_ratio
+            or candidate.balanced_lifecycle_defense_score
+            > baseline.balanced_lifecycle_defense_score
+            or candidate.worst_phase_score > baseline.worst_phase_score
+            or earlier_detection
+        )
+        if safety_preserved and measurable_gain:
+            return True, (
+                "Promoted: deterministic replay preserved legitimate-case safety and improved "
+                "protected value, lifecycle resilience, realized impact, or detection timing."
+            )
+        if not safety_preserved:
+            return False, (
+                "Rejected: replay reduced score, protected value, lifecycle resilience, or legitimate-case safety."
+            )
+        return False, "Rejected: replay produced no measurable defensive gain."
 
     def run(
         self,
@@ -94,6 +233,7 @@ class SentinelLoopOrchestrator:
         seed: int = 20260824,
         include_legitimate_controls: bool = True,
     ) -> LabRun:
+        lab_started = time.monotonic()
         trace(
             "lab.started",
             "SentinelLoop accepted a new adversarial lab run.",
@@ -112,8 +252,11 @@ class SentinelLoopOrchestrator:
         feedback: dict[str, object] | None = None
         results: list[RoundResult] = []
         bounded_family = attack_family
+        active_playbook = DefensePlaybook.baseline()
         for index in range(rounds):
+            round_started = time.monotonic()
             round_seed = seed + index
+            round_playbook = active_playbook
             trace(
                 "round.started",
                 "A feedback-loop round started.",
@@ -138,10 +281,19 @@ class SentinelLoopOrchestrator:
                 sealed_truth_record_count=len(attack_case.truth),
                 event_types=[event.event_type for event in attack_case.events],
             )
-            attack_turns = self.blue.run_case(
-                attack_case.events,
-                seed=round_seed * 100,
-                stop_on_decisive_action=True,
+            controls = (
+                simulate_legitimate_controls(
+                    red_turn.scenario, red_turn.scenario.legitimate_controls
+                )
+                if include_legitimate_controls
+                else []
+            )
+            attack_turns, control_results = self._run_blue_cases(
+                attack_case=attack_case,
+                controls=controls,
+                attack_seed=round_seed * 100,
+                control_seed_base=round_seed * 1000,
+                playbook=round_playbook,
             )
             trace(
                 "blue.attack_case.completed",
@@ -149,30 +301,6 @@ class SentinelLoopOrchestrator:
                 processed_event_count=len(attack_turns),
                 actions=[turn.decision.action for turn in attack_turns],
             )
-            control_results: list[tuple[SimulationCase, list[BlueTurn]]] = []
-            if include_legitimate_controls:
-                controls = simulate_legitimate_controls(
-                    red_turn.scenario, red_turn.scenario.legitimate_controls
-                )
-                for control_index, control_case in enumerate(controls):
-                    trace(
-                        "control.started",
-                        "Blue received a fresh-memory legitimate look-alike case.",
-                        control_number=control_index + 1,
-                        event_count=len(control_case.events),
-                    )
-                    turns = self.blue.run_case(
-                        control_case.events,
-                        seed=round_seed * 1000 + control_index * 100,
-                        stop_on_decisive_action=True,
-                    )
-                    control_results.append((control_case, turns))
-                    trace(
-                        "control.completed",
-                        "Blue finished the legitimate look-alike without seeing its label.",
-                        control_number=control_index + 1,
-                        actions=[turn.decision.action for turn in turns],
-                    )
             report = self.referee.score(
                 attack_case=attack_case,
                 attack_turns=attack_turns,
@@ -193,6 +321,54 @@ class SentinelLoopOrchestrator:
                 "Only the declassified feedback packet was released to Red.",
                 feedback=feedback,
             )
+            blue_adaptation: BlueAdaptationResult | None = None
+            if index < rounds - 1:
+                post_episode_packet = self.referee.feedback_for_blue(
+                    report=report,
+                    attack_case=attack_case,
+                    attack_turns=attack_turns,
+                    control_results=control_results,
+                )
+                strategy_turn = self.blue_strategist.propose(
+                    current_playbook=round_playbook,
+                    post_episode_packet=post_episode_packet,
+                    seed=round_seed * 10_000 + 700,
+                )
+                candidate = strategy_turn.proposed_playbook
+                replay_attack_turns, replay_control_results = self._run_blue_cases(
+                    attack_case=attack_case,
+                    controls=[control_case for control_case, _ in control_results],
+                    attack_seed=round_seed * 10_000 + 1_000,
+                    control_seed_base=round_seed * 10_000 + 2_000,
+                    playbook=candidate,
+                )
+                replay_report = self.referee.score(
+                    attack_case=attack_case,
+                    attack_turns=replay_attack_turns,
+                    control_results=replay_control_results,
+                )
+                promoted, promotion_reason = self._promotion_decision(report, replay_report)
+                trace(
+                    "blue.strategy.replay_scored",
+                    "The Referee scored Blue's candidate on the same attack and controls.",
+                    current_playbook_version=round_playbook.version,
+                    candidate_playbook_version=candidate.version,
+                    baseline_score=report.blue_score,
+                    replay_score=replay_report.blue_score,
+                    promoted=promoted,
+                    promotion_reason=promotion_reason,
+                )
+                blue_adaptation = BlueAdaptationResult(
+                    strategy_turn=strategy_turn,
+                    replay_attack_turns=replay_attack_turns,
+                    replay_control_results=replay_control_results,
+                    replay_report=replay_report,
+                    promoted=promoted,
+                    promotion_reason=promotion_reason,
+                )
+                if promoted:
+                    active_playbook = candidate
+            round_duration_ms = round((time.monotonic() - round_started) * 1000)
             results.append(
                 RoundResult(
                     round_number=index + 1,
@@ -202,22 +378,41 @@ class SentinelLoopOrchestrator:
                     control_results=control_results,
                     referee_report=report,
                     feedback_released_to_red=feedback,
+                    active_blue_playbook=round_playbook,
+                    blue_adaptation=blue_adaptation,
+                    submission_evaluation=round_submission_evaluation(
+                        attack_case=attack_case,
+                        attack_turns=attack_turns,
+                        control_results=control_results,
+                        report=report,
+                        round_duration_ms=round_duration_ms,
+                        case_parallelism=self.config.case_parallelism,
+                    ),
+                    duration_ms=round_duration_ms,
                 )
             )
             previous = red_turn.scenario
+        lab_duration_ms = round((time.monotonic() - lab_started) * 1000)
         result = LabRun(
             run_id=f"LAB-{seed}-{bounded_family or 'AUTO'}",
             model_configuration={
                 "red": self.config.red_model_id,
                 "blue": self.config.blue_model_id,
-                "referee": "deterministic-policy-v1",
+                "blue_strategist": self.config.blue_model_id,
+                "referee": "deterministic-policy-v2",
+                "blue_execution": "single_call_per_event",
+                "case_parallelism": self.config.case_parallelism,
             },
             rounds=results,
+            final_defense_playbook=active_playbook,
+            submission_profile=catalog_submission_profile(self.red.catalog),
+            duration_ms=lab_duration_ms,
         )
         trace(
             "lab.completed",
             "The adversarial lab run completed.",
             run_id=result.run_id,
             completed_rounds=len(result.rounds),
+            duration_ms=result.duration_ms,
         )
         return result

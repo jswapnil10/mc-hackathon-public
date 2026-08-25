@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
@@ -10,6 +11,7 @@ from sentinelloop.config import AgentLabConfig
 from sentinelloop.contracts import BlueDecision, ObservedEvent
 from sentinelloop.model_gateway import ModelCall
 from sentinelloop.orchestrator import SentinelLoopOrchestrator
+from sentinelloop.evidence import _entity_linkage, synthesize_case_risk
 from sentinelloop.simulation import simulate_attack
 from red_team_agent.planner import RedTeamAgent
 
@@ -43,24 +45,41 @@ class TestGateway:
         trace = ModelCall(agent_name, model, schema_name, 1)
         if agent_name == "red_planner":
             card = user_payload["attack_cards"][0]
-            changes = []
-            if user_payload["referee_feedback"]:
-                changes = [
-                    {
-                        "parameter": "new_device_probability",
-                        "value": 0.55,
-                        "rationale": "Reduce the strongest declassified novelty signal.",
-                    }
-                ]
+            focus_stage = next(stage for stage in card["stages"] if stage["mutable_parameters"])
+            parameter = focus_stage["mutable_parameters"][0]
+            value = card["parameter_profiles"][user_payload["requested_difficulty"]][parameter]
             return (
                 {
                     "attack_family": card["attack_family"],
                     "difficulty": user_payload["requested_difficulty"],
                     "objective": "Test whether defense joins session, beneficiary, and payment evidence early.",
-                    "stage_emphasis": [stage["stage_id"] for stage in card["stages"][:2]],
+                    "target_lifecycle_phase": focus_stage["lifecycle_phase"],
+                    "focus_stage_ids": [focus_stage["stage_id"]],
+                    "adaptation_goal": "Stress the selected lifecycle control using one bounded behavioral change.",
                     "adaptation_hypothesis": "A less novel session may force defense to use the full sequence.",
-                    "parameter_changes": changes,
+                    "parameter_changes": [
+                        {
+                            "parameter": parameter,
+                            "value": value,
+                            "rationale": "Keep the change bounded and tied to the selected focus stage.",
+                        }
+                    ],
                     "reasoning_summary": "Use a bounded account-takeover campaign with staged behavioral evidence.",
+                },
+                trace,
+            )
+        if agent_name == "blue_strategist":
+            return (
+                {
+                    "preferred_tools": ["communication_risk", "behavioral_biometrics"],
+                    "focus_reason_codes": ["identity_linkage", "behavior_sequence"],
+                    "investigation_guidance": [
+                        "Join entity relationships with behavioral continuity before value moves."
+                    ],
+                    "change_hypothesis": (
+                        "Adding relationship and behavioral evidence should improve coverage without "
+                        "increasing legitimate customer friction."
+                    ),
                 },
                 trace,
             )
@@ -77,7 +96,7 @@ class TestGateway:
                 },
                 trace,
             )
-        if agent_name in {"blue_decider", "blue_decider_repair"}:
+        if agent_name in {"blue_event_agent", "blue_event_repair"}:
             event = user_payload["current_event"]
             attributes = event["attributes"]
             evidence_refs = [item["evidence_id"] for item in user_payload["tool_evidence"]]
@@ -110,8 +129,7 @@ class TestGateway:
                 action, risk, reasons = "block", "critical", ["amount_anomaly", "velocity"]
             else:
                 action, risk, reasons = "monitor", "medium", ["insufficient_evidence"]
-            return (
-                {
+            response = {
                     "event_id": event["event_id"],
                     "action": action,
                     "risk_level": risk,
@@ -120,9 +138,22 @@ class TestGateway:
                     "evidence_refs": evidence_refs,
                     "decision_summary": "The action follows the visible evidence and proportionality policy.",
                     "mitigation": "Apply the selected action and retain the evidence trail.",
-                },
-                trace,
-            )
+                }
+            if agent_name == "blue_event_agent":
+                response.update(
+                    {
+                        "preliminary_risk": (
+                            "Inspect the sequence and test both risky and legitimate explanations."
+                        ),
+                        "requested_tools": user_payload["available_evidence_tools"][:4],
+                        "investigation_focus": [
+                            "sequence",
+                            "payment size",
+                            "verified context",
+                        ],
+                    }
+                )
+            return response, trace
         raise AssertionError(f"Unexpected agent {agent_name}")
 
 
@@ -190,7 +221,11 @@ class ClosedLoopTests(unittest.TestCase):
         )
         normalized, adjustments = GenAIBlueAgent._normalize_policy_labels(
             decision,
-            prior_turns=[SimpleNamespace(decision=SimpleNamespace(action="step_up"))],
+            prior_turns=[
+                SimpleNamespace(
+                    decision=SimpleNamespace(action="step_up", reason_codes=["velocity"])
+                )
+            ],
         )
         self.assertEqual(normalized.action, "hold")
         self.assertEqual(normalized.risk_level, "high")
@@ -205,10 +240,142 @@ class ClosedLoopTests(unittest.TestCase):
         self.assertEqual(len(round_result.control_results), 3)
         self.assertGreater(round_result.referee_report.attack_detection_rate, 0)
         self.assertEqual(round_result.referee_report.hard_false_positive_rate, 0)
+        self.assertEqual(
+            set(round_result.referee_report.lifecycle_metrics),
+            {"pre_transaction", "transaction", "post_transaction"},
+        )
+        self.assertGreaterEqual(
+            round_result.referee_report.balanced_lifecycle_defense_score, 0
+        )
+        self.assertLessEqual(
+            round_result.referee_report.balanced_lifecycle_defense_score, 100
+        )
+        self.assertGreaterEqual(round_result.referee_report.red_capability_score, 0)
+        self.assertLessEqual(round_result.referee_report.red_capability_score, 100)
+        self.assertAlmostEqual(
+            round_result.referee_report.realized_impact_inr
+            + round_result.referee_report.value_prevented_inr,
+            round_result.referee_report.total_value_at_risk_inr,
+        )
         self.assertTrue(any(call["agent_name"] == "red_planner" for call in gateway.calls))
-        self.assertTrue(any(call["agent_name"] == "blue_investigator" for call in gateway.calls))
-        self.assertTrue(any(call["agent_name"] == "blue_decider" for call in gateway.calls))
+        self.assertTrue(any(call["agent_name"] == "blue_event_agent" for call in gateway.calls))
+        blue_calls = [call for call in gateway.calls if call["agent_name"] == "blue_event_agent"]
+        model_evaluated_events = sum(
+            bool(turn.model_calls)
+            for turn in round_result.attack_blue_turns
+        ) + sum(
+            bool(turn.model_calls)
+            for _, turns in round_result.control_results
+            for turn in turns
+        )
+        self.assertEqual(len(blue_calls), model_evaluated_events)
+        self.assertTrue(
+            all(
+                not turn.model_calls and turn.decision.action == "allow"
+                for _, turns in round_result.control_results
+                for turn in turns
+            )
+        )
+        self.assertTrue(
+            all(
+                isinstance(packet.facts, dict)
+                for turn in round_result.attack_blue_turns
+                for packet in turn.evidence
+            )
+        )
         json.dumps(result.to_dict())
+
+    def test_blue_candidate_is_not_promoted_for_tool_coverage_alone(self) -> None:
+        gateway = TestGateway()
+        lab = SentinelLoopOrchestrator(config=AgentLabConfig(), gateway=gateway)
+        result = lab.run(attack_family="ATO-01", rounds=2, seed=51)
+        adaptation = result.rounds[0].blue_adaptation
+        self.assertIsNotNone(adaptation)
+        self.assertFalse(adaptation.promoted)
+        self.assertGreater(adaptation.replay_report.evidence_tool_coverage, result.rounds[0].referee_report.evidence_tool_coverage)
+        self.assertEqual(result.rounds[1].active_blue_playbook.version, 1)
+        self.assertEqual(result.final_defense_playbook.version, 1)
+
+    def test_fast_sequence_guard_catches_hard_low_and_slow_repetition(self) -> None:
+        scenario = RedTeamAgent().plan(
+            attack_family="EVADE-01", difficulty="hard", seed=20260824
+        )
+        case = simulate_attack(scenario)
+        repeated_index = next(
+            index for index, event in enumerate(case.events) if event.event_type == "PAYMENT_REPEATED"
+        )
+        synthesis = synthesize_case_risk(case.events[: repeated_index + 1])
+        self.assertEqual(synthesis["minimum_action"], "hold")
+        self.assertFalse(synthesis["uses_sealed_truth"])
+
+    def test_same_case_entity_repetition_is_not_trusted_history(self) -> None:
+        scenario = RedTeamAgent().plan(
+            attack_family="EVADE-01", difficulty="hard", seed=20260824
+        )
+        facts = _entity_linkage(simulate_attack(scenario).events)
+        self.assertTrue(facts["same_case_repeated_entity_paths"])
+        self.assertFalse(facts["historical_relationship_verified"])
+
+    def test_round_exports_judge_facing_fidelity_and_feasibility(self) -> None:
+        gateway = TestGateway()
+        result = SentinelLoopOrchestrator(config=AgentLabConfig(), gateway=gateway).run(
+            attack_family="AGENT-01", rounds=1, seed=91
+        )
+        evaluation = result.rounds[0].submission_evaluation
+        self.assertEqual(evaluation["fidelity"]["lab_only_event_types_exposed"], [])
+        self.assertTrue(evaluation["fidelity"]["truth_boundary_clean"])
+        self.assertEqual(evaluation["live_feasibility"]["pre_model_fast_path_coverage"], 1.0)
+        self.assertIn(
+            "fast_guard_actionable_event_count", evaluation["detection_efficacy"]
+        )
+        self.assertEqual(result.submission_profile["diversity"]["attack_family_count"], 9)
+
+    def test_hold_continues_evaluation_until_resolution_or_block(self) -> None:
+        gateway = TestGateway()
+        lab = SentinelLoopOrchestrator(config=AgentLabConfig(), gateway=gateway)
+        result = lab.run(attack_family="ATO-01", rounds=1, seed=61)
+        turns = result.rounds[0].attack_blue_turns
+        hold_index = next(
+            index for index, turn in enumerate(turns) if turn.decision.action == "hold"
+        )
+        self.assertGreater(len(turns), hold_index + 1)
+
+    def test_blue_candidate_with_more_customer_harm_is_rejected(self) -> None:
+        gateway = TestGateway()
+        lab = SentinelLoopOrchestrator(config=AgentLabConfig(), gateway=gateway)
+        baseline = lab.run(attack_family="ATO-01", rounds=1, seed=71).rounds[0].referee_report
+        unsafe_candidate = replace(
+            baseline,
+            blue_score=min(100.0, baseline.blue_score + 1.0),
+            hard_false_positive_rate=1.0,
+        )
+        promoted, reason = lab._promotion_decision(baseline, unsafe_candidate)
+        self.assertFalse(promoted)
+        self.assertIn("legitimate-case safety", reason)
+
+    def test_resolved_hold_does_not_claim_prevented_value(self) -> None:
+        gateway = TestGateway()
+        lab = SentinelLoopOrchestrator(config=AgentLabConfig(), gateway=gateway)
+        round_result = lab.run(attack_family="ATO-01", rounds=1, seed=81).rounds[0]
+        last_turn = round_result.attack_blue_turns[-1]
+        resolved_decision = replace(
+            last_turn.decision,
+            action="allow",
+            risk_level="low",
+            reason_codes=["legitimate_context"],
+        )
+        resolved_turns = [
+            *round_result.attack_blue_turns[:-1],
+            replace(last_turn, decision=resolved_decision),
+        ]
+        report = lab.referee.score(
+            attack_case=round_result.attack_case,
+            attack_turns=resolved_turns,
+            control_results=round_result.control_results,
+        )
+        self.assertEqual(report.outcome, "detected")
+        self.assertEqual(report.value_prevented_ratio, 0.0)
+        self.assertEqual(report.realized_impact_inr, report.total_value_at_risk_inr)
 
 
 if __name__ == "__main__":

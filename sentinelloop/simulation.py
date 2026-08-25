@@ -14,7 +14,85 @@ from .contracts import ObservedEvent, SimulationCase, TruthRecord
 
 
 BASELINE_AMOUNT_INR = 2_500.0
-PAYMENT_EVENT_TYPES = {"PAYMENT_INITIATED", "PAYMENT_REPEATED"}
+PAYMENT_EVENT_TYPES = {
+    "PAYMENT_INITIATED",
+    "AGENTIC_PAYMENT_INITIATED",
+    "PAYMENT_REPEATED",
+    "PAYOUT_REQUESTED",
+    "PAYOUT_SETTLED",
+    "DISPUTE_REFUND_ISSUED",
+}
+PRE_TRANSACTION_EVENT_TYPES = {
+    "COMMUNICATION_RISK_CONTEXT",
+    "SESSION_STARTED",
+    "AUTHENTICATION_CONTEXT_CHANGED",
+    "IDENTITY_APPLICATION_SUBMITTED",
+    "IDENTITY_VERIFICATION_ATTEMPTED",
+    "ACCOUNT_OPENED",
+    "ACCOUNT_WARMUP_ACTIVITY",
+    "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
+    "BENEFICIARY_ADDED",
+    "SUPPLIER_PROFILE_CHANGED",
+    "PAYOUT_DESTINATION_CHANGED",
+    "AGENT_COMMERCE_SESSION_STARTED",
+    "AGENT_PAYMENT_INTENT_PRESENTED",
+}
+POST_TRANSACTION_EVENT_TYPES = {
+    "FUNDS_RECEIVED",
+    "FUNDS_DISPERSED",
+    "PAYOUT_SETTLED",
+    "DISPUTE_OPENED",
+    "DISPUTE_EVIDENCE_REVIEWED",
+    "DISPUTE_REFUND_ISSUED",
+}
+
+
+def event_lifecycle_phase(event_type: str) -> str:
+    if event_type in PRE_TRANSACTION_EVENT_TYPES:
+        return "pre_transaction"
+    if event_type in POST_TRANSACTION_EVENT_TYPES:
+        return "post_transaction"
+    return "transaction"
+
+
+def event_delivery_profile(event_type: str) -> tuple[str, str, int]:
+    """Map a synthetic event to the production-style stream and decision budget it represents."""
+    if event_type in {"COMMUNICATION_RISK_CONTEXT"}:
+        source = "channel_risk_gateway"
+    elif event_type in {
+        "IDENTITY_APPLICATION_SUBMITTED",
+        "IDENTITY_VERIFICATION_ATTEMPTED",
+        "ACCOUNT_OPENED",
+    }:
+        source = "identity_verification_stream"
+    elif event_type in {
+        "SESSION_STARTED",
+        "AUTHENTICATION_CONTEXT_CHANGED",
+        "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
+    }:
+        source = "authentication_behavior_stream"
+    elif event_type in {"AGENT_COMMERCE_SESSION_STARTED", "AGENT_PAYMENT_INTENT_PRESENTED"}:
+        source = "agentic_commerce_trust_gateway"
+    elif event_type.startswith("DISPUTE_"):
+        source = "dispute_case_stream"
+    elif event_type in {"FUNDS_RECEIVED", "FUNDS_DISPERSED", "PAYOUT_SETTLED"}:
+        source = "payment_network_stream"
+    elif event_type in {
+        "BENEFICIARY_ADDED",
+        "SUPPLIER_PROFILE_CHANGED",
+        "PAYOUT_DESTINATION_CHANGED",
+        "SALES_VELOCITY_CHANGED",
+    }:
+        source = "account_profile_stream"
+    else:
+        source = "payment_orchestration_stream"
+
+    phase = event_lifecycle_phase(event_type)
+    if phase == "pre_transaction":
+        return source, "asynchronous_pre_transaction", 2000
+    if phase == "post_transaction":
+        return source, "streaming_post_transaction", 5000
+    return source, "inline_payment_decision", 300
 
 
 def _stable_id(*parts: object) -> str:
@@ -32,6 +110,14 @@ def _materialize_attributes(
         "shared_device_probability": "device_shared_across_accounts",
         "shared_network_probability": "network_shared_across_accounts",
         "device_reuse_probability": "device_reused_across_profiles",
+        "bot_behavior_probability": "behavior_automation_suspected",
+        "identity_mismatch_probability": "identity_consistency_mismatch",
+        "evidence_conflict_probability": "evidence_conflict_present",
+        "agent_signature_valid_probability": "agent_signature_valid",
+        "consumer_consent_valid_probability": "consumer_consent_valid",
+        "intent_scope_match_probability": "intent_scope_match",
+        "payment_container_match_probability": "payment_container_match",
+        "merchant_scope_match_probability": "merchant_scope_match",
     }
     for source, target in probability_fields.items():
         if source in materialized:
@@ -45,13 +131,17 @@ def _materialize_attributes(
 
 def _value_at_risk(scenario: ScenarioSpec, stage_id: str, event_type: str, attributes: dict[str, Any]) -> float:
     amount = float(attributes.get("amount_inr", 0.0))
-    if event_type == "PAYMENT_INITIATED":
+    if scenario.attack_family == "DISPUTE-01" and stage_id == "original_purchase":
+        return 0.0
+    if event_type in {"PAYMENT_INITIATED", "AGENTIC_PAYMENT_INITIATED"}:
         return amount
     if event_type == "PAYMENT_REPEATED":
         count = max(1, int(attributes.get("payment_count", scenario.parameters.get("payment_count", 2))))
         return amount * count
     if scenario.attack_family == "MULE-01" and stage_id == "fan_in":
         return amount * int(scenario.parameters.get("sender_count", 1))
+    if event_type in {"PAYOUT_REQUESTED", "DISPUTE_REFUND_ISSUED"}:
+        return amount
     return 0.0
 
 
@@ -65,14 +155,19 @@ def simulate_attack(scenario: ScenarioSpec) -> SimulationCase:
     for stage in scenario.stages:
         event_id = _stable_id(scenario.scenario_id, stage.stage_id, stage.sequence)
         attributes = _materialize_attributes(stage.attributes, rng=rng, event_type=stage.event_type)
+        source_system, decision_lane, latency_budget_ms = event_delivery_profile(stage.event_type)
         events.append(
             ObservedEvent(
                 event_id=event_id,
                 sequence=stage.sequence,
                 occurred_at=(start + timedelta(seconds=stage.offset_seconds)).isoformat(),
+                lifecycle_phase=stage.lifecycle_phase,
                 event_type=stage.event_type,
                 observable_signals=list(stage.observable_signals),
                 attributes=attributes,
+                source_system=source_system,
+                decision_lane=decision_lane,
+                latency_budget_ms=latency_budget_ms,
             )
         )
         truth.append(
@@ -96,6 +191,101 @@ def _control_shape(name: str, index: int) -> list[tuple[str, list[str], dict[str
     sender = f"syn_control_sender_{index:02d}"
     beneficiary = f"syn_control_beneficiary_{index:02d}"
     common = {"sender_account_id": sender, "beneficiary_id": beneficiary}
+    if "agent" in name:
+        agent = f"syn_control_agent_{index:02d}"
+        merchant = f"syn_control_merchant_{index:02d}"
+        return [
+            (
+                "AGENT_COMMERCE_SESSION_STARTED",
+                ["agent_registration_status", "message_signature_validity", "request_freshness"],
+                {
+                    "agent_id": agent,
+                    "merchant_id": merchant,
+                    "agent_signature_valid": True,
+                    "request_age_seconds": 12,
+                    "nonce_reuse_count": 0,
+                    "registered_agent_age_days": 420,
+                },
+            ),
+            (
+                "AGENT_PAYMENT_INTENT_PRESENTED",
+                ["consumer_consent_validity", "intent_scope_match", "basket_deviation"],
+                {
+                    "agent_id": agent,
+                    "merchant_id": merchant,
+                    "consumer_consent_valid": True,
+                    "intent_scope_match": True,
+                    "basket_value_multiplier": 1.02,
+                    "customer_confirmation_complete": True,
+                },
+            ),
+            (
+                "AGENTIC_PAYMENT_INITIATED",
+                ["payment_container_match", "merchant_scope_match", "amount_vs_verified_intent"],
+                {
+                    "agent_id": agent,
+                    "merchant_id": merchant,
+                    "beneficiary_id": beneficiary,
+                    "payment_container_match": True,
+                    "merchant_scope_match": True,
+                    "sender_baseline_amount_inr": 2500.0,
+                    "amount_inr": 2550.0,
+                    "strong_authentication_passed": True,
+                },
+            ),
+        ]
+    if any(token in name for token in ("bank_account_change", "sales_spike", "merchant_payout")):
+        merchant = f"syn_control_merchant_{index:02d}"
+        return [
+            (
+                "PAYOUT_DESTINATION_CHANGED",
+                ["destination_novelty", "profile_change_recency"],
+                {
+                    "merchant_id": merchant,
+                    "beneficiary_id": beneficiary,
+                    "bank_change_recency_days": 30,
+                    "out_of_band_verification_complete": True,
+                    "registered_entity_age_days": 1250,
+                },
+            ),
+            (
+                "PAYOUT_REQUESTED",
+                ["payout_amount_vs_baseline", "new_destination"],
+                {
+                    "merchant_id": merchant,
+                    "beneficiary_id": beneficiary,
+                    "sender_baseline_amount_inr": 55000.0,
+                    "amount_inr": 57500.0,
+                    "customer_confirmation_complete": True,
+                    "scheduled_payout": True,
+                },
+            ),
+        ]
+    if any(token in name for token in ("goods_not_received", "duplicate_charge", "service_failure")):
+        merchant = f"syn_control_merchant_{index:02d}"
+        return [
+            (
+                "DISPUTE_OPENED",
+                ["dispute_age", "linked_dispute_volume"],
+                {
+                    "sender_account_id": sender,
+                    "merchant_id": merchant,
+                    "dispute_age_hours": 168,
+                    "linked_dispute_count": 1,
+                    "customer_confirmation_complete": True,
+                },
+            ),
+            (
+                "DISPUTE_EVIDENCE_REVIEWED",
+                ["evidence_consistency", "independent_case_checks"],
+                {
+                    "sender_account_id": sender,
+                    "merchant_id": merchant,
+                    "evidence_conflict_present": False,
+                    "independent_checks_passed": 4,
+                },
+            ),
+        ]
     if any(token in name for token in ("supplier", "invoice", "payroll", "tax_run")):
         return [
             (
@@ -271,14 +461,19 @@ def simulate_legitimate_controls(scenario: ScenarioSpec, control_names: list[str
         for sequence, (event_type, signals, attributes) in enumerate(_control_shape(name, index), start=1):
             event_id = _stable_id(case_id, sequence)
             offset = (sequence - 1) * 120
+            source_system, decision_lane, latency_budget_ms = event_delivery_profile(event_type)
             events.append(
                 ObservedEvent(
                     event_id=event_id,
                     sequence=sequence,
                     occurred_at=(base + timedelta(minutes=index * 10, seconds=offset)).isoformat(),
+                    lifecycle_phase=event_lifecycle_phase(event_type),
                     event_type=event_type,
                     observable_signals=signals,
                     attributes=attributes,
+                    source_system=source_system,
+                    decision_lane=decision_lane,
+                    latency_budget_ms=latency_budget_ms,
                 )
             )
             truth.append(

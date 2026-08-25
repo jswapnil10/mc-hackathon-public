@@ -12,12 +12,15 @@ from red_team_agent.safety import ScenarioSafetyGate
 
 
 EXPECTED_FAMILIES = {
+    "AGENT-01",
     "APP-01",
     "ATO-01",
     "BEC-01",
     "MULE-01",
     "SYNID-01",
     "EVADE-01",
+    "PAYOUT-01",
+    "DISPUTE-01",
 }
 
 
@@ -25,7 +28,7 @@ class CatalogTests(unittest.TestCase):
     def setUp(self) -> None:
         self.catalog = AttackCatalog()
 
-    def test_catalog_contains_six_distinct_families(self) -> None:
+    def test_catalog_contains_nine_distinct_families(self) -> None:
         self.assertEqual(set(self.catalog.families), EXPECTED_FAMILIES)
 
     def test_cards_have_sources_profiles_and_controls(self) -> None:
@@ -37,6 +40,16 @@ class CatalogTests(unittest.TestCase):
                 self.assertTrue(card.legitimate_controls)
                 for profile in card.parameter_profiles.values():
                     self.assertEqual(set(profile), set(card.parameter_bounds))
+
+    def test_catalog_never_exposes_lab_control_events_to_blue(self) -> None:
+        event_types = {
+            stage["event_type"]
+            for card in self.catalog.list()
+            for stage in card.stage_templates
+        }
+        self.assertNotIn("CAMPAIGN_REPLAYED", event_types)
+        self.assertIn("ACCOUNT_BEHAVIOR_PROFILE_UPDATED", event_types)
+        self.assertIn("AGENTIC_PAYMENT_INITIATED", event_types)
 
 
 class PlanningTests(unittest.TestCase):
@@ -57,6 +70,12 @@ class PlanningTests(unittest.TestCase):
                     report = self.gate.validate(scenario)
                     self.assertTrue(report.approved, report.errors)
                     self.assertEqual(report.warnings, [])
+                    focused = {
+                        stage.lifecycle_phase
+                        for stage in scenario.stages
+                        if stage.stage_id in scenario.focus_stage_ids
+                    }
+                    self.assertEqual(focused, {scenario.target_lifecycle_phase})
 
     def test_offline_plan_is_deterministic(self) -> None:
         first = self.agent.plan(attack_family="ATO-01", difficulty="medium", seed=42)

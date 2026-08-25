@@ -7,7 +7,7 @@ import random
 from typing import Any, Protocol
 
 from .catalog import AttackCatalog
-from .models import AttackCard, PlannerDecision, ScenarioSpec, ScenarioStage
+from .models import AttackCard, LIFECYCLE_PHASES, PlannerDecision, ScenarioSpec, ScenarioStage
 from .safety import ScenarioSafetyGate
 
 
@@ -19,6 +19,32 @@ SAFETY_CONSTRAINTS = [
     "defensive_observables_only",
     "deterministic_replay_with_seed",
 ]
+
+INTERVENTION_TO_LIFECYCLE = {
+    "PREVENT": "pre_transaction",
+    "DECIDE": "transaction",
+    "CONTAIN": "post_transaction",
+}
+
+
+def lifecycle_phase_for_template(template: dict[str, Any]) -> str:
+    phase = str(
+        template.get("lifecycle_phase")
+        or INTERVENTION_TO_LIFECYCLE.get(str(template["blue_intervention_point"]), "")
+    )
+    if phase not in LIFECYCLE_PHASES:
+        raise ValueError(f"Stage {template.get('stage_id')!r} has no valid lifecycle phase.")
+    return phase
+
+
+def _template_parameter_refs(value: Any) -> set[str]:
+    if isinstance(value, str) and value.startswith("$param."):
+        return {value.removeprefix("$param.")}
+    if isinstance(value, dict):
+        return set().union(*(_template_parameter_refs(child) for child in value.values()))
+    if isinstance(value, list):
+        return set().union(*(_template_parameter_refs(child) for child in value))
+    return set()
 
 
 class PlanningBackend(Protocol):
@@ -53,9 +79,26 @@ class OfflinePlanningBackend:
         rng = random.Random(seed)
         family = attack_family or rng.choice(self.catalog.families)
         card = self.catalog.get(family)
-        available = [stage["stage_id"] for stage in card.stage_templates]
-        emphasis_count = min(3, len(available))
-        emphasis = sorted(rng.sample(available, k=emphasis_count)) if emphasis_count else []
+        mutable_templates = [
+            stage
+            for stage in card.stage_templates
+            if _template_parameter_refs(stage.get("attributes", {})).intersection(
+                card.allowed_mutations
+            )
+        ]
+        if not mutable_templates:
+            raise ValueError(
+                f"Attack card {card.attack_family} has no stage with bounded mutable behavior."
+            )
+        phases = sorted({lifecycle_phase_for_template(stage) for stage in mutable_templates})
+        target_phase = rng.choice(phases)
+        available = [
+            stage["stage_id"]
+            for stage in mutable_templates
+            if lifecycle_phase_for_template(stage) == target_phase
+        ]
+        focus_count = min(2, len(available))
+        focus = sorted(rng.sample(available, k=focus_count))
         selected_objective = objective or (
             f"Stress-test whether Blue can recognize and mitigate the synthetic {card.name} "
             f"campaign before high-risk value is released."
@@ -64,10 +107,15 @@ class OfflinePlanningBackend:
             attack_family=family,
             difficulty=difficulty,
             objective=selected_objective,
-            stage_emphasis=emphasis,
+            target_lifecycle_phase=target_phase,
+            focus_stage_ids=focus,
+            adaptation_goal=(
+                f"Stress the {target_phase.replace('_', ' ')} controls through bounded changes "
+                f"associated with {', '.join(focus)}."
+            ),
             reasoning_summary=(
-                f"Selected the curated {family} card at {difficulty} difficulty and emphasized "
-                f"{', '.join(emphasis) or 'the complete campaign'} for a reproducible safe test."
+                f"Selected the curated {family} card at {difficulty} difficulty and focused on "
+                f"{', '.join(focus)} in the {target_phase.replace('_', ' ')} phase."
             ),
             backend=self.name,
         )
@@ -113,17 +161,17 @@ class ScenarioCompiler:
             "merchant": f"syn_merchant_{rng.randint(100000, 999999)}",
             "identity": f"syn_identity_{rng.randint(100000, 999999)}",
             "supplier": f"syn_supplier_{rng.randint(100000, 999999)}",
+            "agent": f"syn_agent_{rng.randint(100000, 999999)}",
         }
 
         stages: list[ScenarioStage] = []
         for sequence, template in enumerate(card.stage_templates, start=1):
             attributes = _resolve_template_value(template.get("attributes", {}), parameters, synthetic_ids)
-            if template["stage_id"] in decision.stage_emphasis:
-                attributes["planner_emphasis"] = True
             stages.append(
                 ScenarioStage(
                     stage_id=template["stage_id"],
                     sequence=sequence,
+                    lifecycle_phase=lifecycle_phase_for_template(template),
                     event_type=template["event_type"],
                     offset_seconds=int(template["offset_seconds"]),
                     blue_intervention_point=template["blue_intervention_point"],
@@ -149,6 +197,9 @@ class ScenarioCompiler:
             safety_constraints=list(SAFETY_CONSTRAINTS),
             created_by=decision.backend,
             reasoning_summary=decision.reasoning_summary,
+            target_lifecycle_phase=decision.target_lifecycle_phase,
+            focus_stage_ids=list(decision.focus_stage_ids),
+            adaptation_goal=decision.adaptation_goal,
             parent_scenario_id=parent_scenario_id,
             mutation_number=mutation_number,
             mutation_reason=list(mutation_reason or []),

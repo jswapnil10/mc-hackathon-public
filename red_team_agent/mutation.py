@@ -100,7 +100,9 @@ class MutationController:
             attack_family=scenario.attack_family,
             difficulty=scenario.difficulty,
             objective=scenario.objective,
-            stage_emphasis=[stage.stage_id for stage in scenario.stages if stage.attributes.get("planner_emphasis")],
+            target_lifecycle_phase=scenario.target_lifecycle_phase,
+            focus_stage_ids=list(scenario.focus_stage_ids),
+            adaptation_goal=scenario.adaptation_goal,
             reasoning_summary=(
                 f"Mutation {scenario.mutation_number + 1} used only the Referee's coarse categories: "
                 f"{', '.join(feedback.coarse_reason_categories) or 'no named category'}."

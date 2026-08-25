@@ -6,6 +6,9 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
+LIFECYCLE_PHASES = {"pre_transaction", "transaction", "post_transaction"}
+
+
 @dataclass(frozen=True)
 class AttackCard:
     attack_family: str
@@ -26,7 +29,9 @@ class PlannerDecision:
     attack_family: str
     difficulty: str
     objective: str
-    stage_emphasis: list[str]
+    target_lifecycle_phase: str
+    focus_stage_ids: list[str]
+    adaptation_goal: str
     reasoning_summary: str
     backend: str
 
@@ -35,6 +40,7 @@ class PlannerDecision:
 class ScenarioStage:
     stage_id: str
     sequence: int
+    lifecycle_phase: str
     event_type: str
     offset_seconds: int
     blue_intervention_point: str
@@ -58,6 +64,9 @@ class ScenarioSpec:
     safety_constraints: list[str]
     created_by: str
     reasoning_summary: str
+    target_lifecycle_phase: str
+    focus_stage_ids: list[str]
+    adaptation_goal: str
     parent_scenario_id: str | None = None
     mutation_number: int = 0
     mutation_reason: list[str] = field(default_factory=list)
@@ -103,18 +112,26 @@ PLANNER_DECISION_JSON_SCHEMA: dict[str, Any] = {
         "attack_family": {"type": "string"},
         "difficulty": {"type": "string", "enum": ["easy", "medium", "hard"]},
         "objective": {"type": "string", "minLength": 10, "maxLength": 400},
-        "stage_emphasis": {
+        "target_lifecycle_phase": {
+            "type": "string",
+            "enum": sorted(LIFECYCLE_PHASES),
+        },
+        "focus_stage_ids": {
             "type": "array",
             "items": {"type": "string"},
+            "minItems": 1,
             "maxItems": 6,
         },
+        "adaptation_goal": {"type": "string", "minLength": 10, "maxLength": 400},
         "reasoning_summary": {"type": "string", "minLength": 10, "maxLength": 600},
     },
     "required": [
         "attack_family",
         "difficulty",
         "objective",
-        "stage_emphasis",
+        "target_lifecycle_phase",
+        "focus_stage_ids",
+        "adaptation_goal",
         "reasoning_summary",
     ],
 }

@@ -3,111 +3,310 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="SentinelLoop — Red GenAI versus Blue GenAI for payment security.">
-  <title>SentinelLoop · Agent Arena</title>
+  <meta name="description" content="MasterGuard AI - Attack. Adapt. Defend. An adversarial GenAI payment-security arena.">
+  <title>MasterGuard AI - Attack. Adapt. Defend.</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Ccircle cx='24' cy='20' r='18' fill='%23eb001b'/%3E%3Ccircle cx='40' cy='20' r='18' fill='%23f79e1b'/%3E%3Cpath d='M32 5.2a18 18 0 0 1 0 29.6 18 18 0 0 1 0-29.6Z' fill='%23ff5f00'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='lab.css') }}">
 </head>
 <body>
-  <div class="ambient ambient-red"></div>
-  <div class="ambient ambient-blue"></div>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="SentinelLoop home">
+    <a class="brand" href="/" aria-label="MasterGuard AI home">
       <span class="brand-mark"><i></i><i></i></span>
-      <span>SentinelLoop</span>
+      <span class="brand-copy"><strong>MasterGuard AI</strong><small>Attack. Adapt. Defend.</small></span>
     </a>
+    <nav class="topnav" aria-label="Page sections">
+      <a href="#threatAtlas">Identify</a>
+      <a href="#scenarioFoundry">Generate</a>
+      <a href="#defenseBenchmark">Defend</a>
+      <a href="#externalValidation">Validate</a>
+      <a href="#battleControls">Arena</a>
+    </nav>
     <div class="system-state"><span class="pulse"></span><span id="systemMode">Open-model arena</span></div>
-    <a class="legacy-link" href="/legacy">View v1 archive</a>
+    <div class="mastercard-lockup" aria-label="Mastercard Innovation Challenge 2026">
+      <svg viewBox="0 0 72 44" role="img" aria-label="Mastercard logo">
+        <circle cx="27" cy="22" r="19" fill="#eb001b"></circle>
+        <circle cx="45" cy="22" r="19" fill="#f79e1b"></circle>
+        <path d="M36 7.2a19 19 0 0 1 0 29.6 19 19 0 0 1 0-29.6Z" fill="#ff5f00"></path>
+      </svg>
+      <span><b>mastercard</b><small>Innovation Challenge 2026</small></span>
+    </div>
   </header>
 
   <main>
     <section class="hero">
-      <div class="eyebrow">AI DEFENSE LAB · PAYMENT SECURITY</div>
-      <h1>Build the attack.<br><span>Let an agent defend it.</span></h1>
-      <p>Two isolated GenAI agents compete inside a synthetic payment world. A neutral Referee scores what happened—and releases only enough feedback for the next attack to evolve.</p>
-      <div class="model-ribbon">
-        <div><span class="agent-dot red"></span><small>RED MODEL</small><strong id="redModel">Loading…</strong></div>
-        <div><span class="agent-dot blue"></span><small>BLUE MODEL</small><strong id="blueModel">Loading…</strong></div>
-        <div><span class="agent-dot white"></span><small>REFEREE</small><strong id="refereeModel">Deterministic</strong></div>
+      <div class="hero-copy">
+        <div class="eyebrow">AI DEFENSE LAB · PAYMENT SECURITY</div>
+        <h1>Build the attack.<br><span>Prove the defense.</span></h1>
+        <p>Two isolated GenAI agents compete across the complete payment lifecycle. MasterGuard AI measures capability, consequence and customer harm—not merely whether an alert fired.</p>
+        <a class="hero-cta" href="#battleControls">Configure a battle <span>↘</span></a>
+      </div>
+      <aside class="hero-stage" aria-label="Arena architecture">
+        <div class="stage-head"><span><i></i> LIVE ARCHITECTURE</span><b>RED × BLUE</b></div>
+        <div class="stage-flow">
+          <div><small>01</small><b>Red plans</b><span>Bounded lifecycle behavior</span></div>
+          <i>→</i>
+          <div><small>02</small><b>Blue acts</b><span>Evidence-led intervention</span></div>
+          <i>→</i>
+          <div><small>03</small><b>Referee proves</b><span>Sealed deterministic truth</span></div>
+        </div>
+        <div class="model-ribbon">
+          <div><span class="agent-dot red"></span><small>RED MODEL</small><strong id="redModel">Loading…</strong></div>
+          <div><span class="agent-dot blue"></span><small>BLUE MODEL</small><strong id="blueModel">Loading…</strong></div>
+          <div><span class="agent-dot neutral"></span><small>REFEREE</small><strong id="refereeModel">Deterministic</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="pillar-strip" aria-label="Three-pillar solution">
+      <a href="#threatAtlas"><small>01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Source-backed landscape →</span></a>
+      <a href="#scenarioFoundry"><small>02 · GENERATE</small><strong>Scenario Foundry</strong><span>Population-scale simulations →</span></a>
+      <a href="#defenseBenchmark"><small>03 · DEFEND</small><strong>Defense Benchmark</strong><span>Sealed efficacy proof →</span></a>
+    </section>
+
+    <section id="threatAtlas" class="atlas-section">
+      <div class="section-heading">
+        <div><div class="section-kicker">01 · IDENTIFY</div><h2>Research becomes an executable Threat Atlas</h2><p>Every vector is source-backed, mapped to real payment surfaces, and connected to a bounded simulator family.</p></div>
+        <div class="atlas-summary-line"><span><b id="atlasVectorCount">—</b> vectors</span><span><b id="atlasSourceCount">—</b> sources</span><span><b id="atlasRailCount">—</b> rails</span></div>
+      </div>
+      <div class="atlas-toolbar">
+        <label>Attack category<select id="atlasCategory"><option value="all">All categories</option></select></label>
+        <label>Payment rail<select id="atlasRail"><option value="all">All rails</option></select></label>
+        <span id="atlasResultCount">Loading researched vectors…</span>
+      </div>
+      <div id="atlasVectorGrid" class="atlas-vector-grid"></div>
+      <p class="method-note"><b>Evidence boundary:</b> a cited vector may be emerging or inferred. Research confidence, plausibility, novelty and source links stay visible; no unsupported vector is presented as observed fraud prevalence.</p>
+    </section>
+
+    <section id="scenarioFoundry" class="foundry-section">
+      <div class="foundry-copy">
+        <div class="section-kicker">02 · GENERATE</div>
+        <h2>Turn every idea into a safe payment population</h2>
+        <p>Red compiles bounded variants. The arena materializes longitudinal customer behavior, attack sequences and verified look-alikes. Labels stay sealed from the defense.</p>
+        <div class="foundry-flow" aria-label="Scenario generation flow">
+          <span>Threat vector</span><i>→</i><span>Bounded Red plan</span><i>→</i><span>Observable events</span><i>→</i><span>Sealed split</span>
+        </div>
+      </div>
+      <div class="foundry-console">
+        <header><span>SCENARIO FOUNDRY · LATEST BUILD</span><b id="foundryQualityState">—</b></header>
+        <div class="foundry-stats">
+          <div><small>EVENTS</small><strong id="foundryEvents">—</strong></div>
+          <div><small>CAMPAIGNS</small><strong id="foundryCampaigns">—</strong></div>
+          <div><small>VECTORS</small><strong id="foundryVectors">—</strong></div>
+          <div><small>FIDELITY</small><strong id="foundryFidelity">—</strong></div>
+        </div>
+        <div id="splitBars" class="split-bars"></div>
+        <button id="runFoundry" class="foundry-button" type="button"><span>Regenerate & benchmark</span><b>↗</b></button>
+        <p id="foundryState">Uses fixed, reproducible defaults and does not call the Qwen endpoint.</p>
       </div>
     </section>
 
-    <section class="flow-card" aria-label="Agent architecture">
-      <article class="flow-node red-node"><span>01</span><b>Red Agent</b><small>Plans & adapts</small></article>
-      <div class="flow-arrow"><i></i><em>safe plan</em></div>
-      <article class="flow-node arena-node"><span>02</span><b>Synthetic Arena</b><small>Materializes events</small></article>
-      <div class="flow-arrow"><i></i><em>observables</em></div>
-      <article class="flow-node blue-node"><span>03</span><b>Blue Agent</b><small>Investigates & acts</small></article>
-      <div class="flow-arrow"><i></i><em>decisions</em></div>
-      <article class="flow-node referee-node"><span>04</span><b>Referee</b><small>Opens sealed truth</small></article>
-      <div class="feedback-path"><span>coarse feedback only</span></div>
+    <section id="defenseBenchmark" class="benchmark-section">
+      <div class="section-heading">
+        <div><div class="section-kicker">03 · DEFEND</div><h2>Prove detection on data the defense never trained on</h2><p>The winning detector is selected on validation only, then frozen before known-pattern and novel-vector test sets are opened.</p></div>
+        <span id="benchmarkModel" class="proof-badge">NO BENCHMARK YET</span>
+      </div>
+      <div class="benchmark-kpis">
+        <article><small>HIDDEN-TEST PR-AUC</small><strong id="benchmarkPrauc">—</strong><p>Ranking quality when fraud is the minority class.</p></article>
+        <article><small>NOVEL-VECTOR RECALL</small><strong id="benchmarkNovelRecall">—</strong><p>Attacks found when the complete vector ID was withheld.</p></article>
+        <article><small>F1 SCORE</small><strong id="benchmarkF1">—</strong><p>Balance between detection precision and recall.</p></article>
+        <article><small>HARD FALSE POSITIVES</small><strong id="benchmarkFpr">—</strong><p>Verified legitimate look-alikes incorrectly flagged.</p></article>
+      </div>
+      <div class="benchmark-detail-grid">
+        <article class="confusion-card">
+          <header><div><small>SEALED TEST OUTCOMES</small><h3>Confusion matrix</h3></div><span id="benchmarkThreshold">Threshold —</span></header>
+          <div class="confusion-grid">
+            <div class="correct"><small>TRUE NEGATIVE</small><strong id="matrixTn">—</strong><span>legitimate passed</span></div>
+            <div class="wrong"><small>FALSE POSITIVE</small><strong id="matrixFp">—</strong><span>customer friction</span></div>
+            <div class="wrong"><small>FALSE NEGATIVE</small><strong id="matrixFn">—</strong><span>missed attack</span></div>
+            <div class="correct"><small>TRUE POSITIVE</small><strong id="matrixTp">—</strong><span>attack detected</span></div>
+          </div>
+        </article>
+        <article class="phase-benchmark-card">
+          <header><small>FULL-LIFECYCLE EFFICACY</small><h3>Recall and customer safety by phase</h3></header>
+          <div id="benchmarkPhases"></div>
+        </article>
+      </div>
+      <div class="family-table-wrap">
+        <div class="family-table-head"><div><small>ATTACK COVERAGE</small><h3>Defense efficacy by family</h3></div><span id="benchmarkGenerated">—</span></div>
+        <div class="family-table-scroll"><table><thead><tr><th>Family</th><th>Attack events</th><th>Recall</th><th>Value protected</th><th>Mean risk</th></tr></thead><tbody id="familyResults"></tbody></table></div>
+      </div>
+      <p class="method-note"><b>Interpretation:</b> these are reproducible synthetic stress-test results, not claims about live Mastercard traffic. Real deployment requires privacy-reviewed calibration, shadow traffic and drift monitoring.</p>
     </section>
 
-    <section class="control-panel">
+    <section id="externalValidation" class="external-validation-section">
+      <div class="section-heading">
+        <div><div class="section-kicker">MAJOR VALIDATION · INDEPENDENT DATA</div><h2>Reality-check the defense beyond our simulator</h2><p>A frozen detector is evaluated on later transactions from a public, real, anonymized card-fraud dataset. Model choice and threshold are fixed before the future test partition is opened.</p></div>
+        <span id="externalAssessment" class="proof-badge validation-caveat">LOADING VALIDATION…</span>
+      </div>
+      <div class="validation-kpis">
+        <article><small>FUTURE-TEST PR-AUC</small><strong id="externalPrauc">—</strong><p id="externalPraucCi">95% interval —</p></article>
+        <article><small>PRECISION</small><strong id="externalPrecision">—</strong><p>Of payments flagged, how many were fraud.</p></article>
+        <article><small>RECALL</small><strong id="externalRecall">—</strong><p>Of fraud payments, how many were caught.</p></article>
+        <article><small>FALSE-POSITIVE RATE</small><strong id="externalFpr">—</strong><p>Legitimate payments incorrectly flagged.</p></article>
+      </div>
+      <div class="validation-grid">
+        <article class="validation-proof-card">
+          <header><div><small>EXTERNAL TEST OUTCOMES</small><h3>Real rare-event performance</h3></div><span id="externalDatasetSize">—</span></header>
+          <div class="confusion-grid external-matrix">
+            <div class="correct"><small>TRUE NEGATIVE</small><strong id="externalTn">—</strong><span>legitimate passed</span></div>
+            <div class="wrong"><small>FALSE POSITIVE</small><strong id="externalFp">—</strong><span>customer friction</span></div>
+            <div class="wrong"><small>FALSE NEGATIVE</small><strong id="externalFn">—</strong><span>missed fraud</span></div>
+            <div class="correct"><small>TRUE POSITIVE</small><strong id="externalTp">—</strong><span>fraud detected</span></div>
+          </div>
+          <div class="review-capacity"><small>INVESTIGATION CAPACITY</small><strong id="externalReviewCapture">—</strong><span id="externalReviewCount">—</span></div>
+        </article>
+        <article class="validation-drift-card">
+          <header><small>TEMPORAL ROBUSTNESS</small><h3>Performance changed inside the future window</h3></header>
+          <div id="externalTemporal"></div>
+          <p id="externalDriftNote">Loading drift evidence…</p>
+        </article>
+      </div>
+      <div class="validation-verdict-grid">
+        <article><small>WHAT THIS SUPPORTS</small><h3>Rare-event detection is independently evidenced</h3><p id="externalSupports">Loading claim validation…</p></article>
+        <article class="caveat"><small>WHAT THIS DOES NOT PROVE</small><h3>The GenAI lifecycle arena still needs live shadow validation</h3><p id="externalDoesNotProve">Loading limitations…</p></article>
+        <article><small>DATA INTEGRITY</small><h3 id="externalQuality">Quality review pending</h3><p id="externalRemediation">Loading reconciliation…</p></article>
+      </div>
+      <p class="method-note"><b>Evidence boundary:</b> this test validates the scalable detection method on independent anonymized card transactions. It does not validate Qwen’s lifecycle reasoning, non-card rails, or production readiness. <a id="externalSource" href="https://www.openml.org/d/1597" target="_blank" rel="noreferrer">View the public dataset record ↗</a></p>
+    </section>
+
+    <section id="evaluationProfile" class="criteria-section" aria-label="Submission evaluation coverage">
+      <div class="section-heading">
+        <div><div class="section-kicker">JUDGE-READY EVIDENCE</div><h2>Built against the five evaluation criteria</h2><p>Every claim below is computed from the catalogue, event contracts, or the latest scored battle.</p></div>
+        <span class="proof-badge">SOURCE-BACKED · REPRODUCIBLE</span>
+      </div>
+      <div class="criteria-grid">
+        <article><small>01 · ATTACK DIVERSITY</small><strong id="criteriaDiversity">—</strong><p id="criteriaDiversityNote">Loading catalogue coverage…</p></article>
+        <article><small>02 · SIMULATION FIDELITY</small><strong id="criteriaFidelity">Declared-prior score</strong><p id="criteriaFidelityNote">Seeded events, look-alikes, and sealed truth.</p></article>
+        <article><small>03 · DETECTION EFFICACY</small><strong id="criteriaDetection">Two-speed defense</strong><p id="criteriaDetectionNote">Fast sequence guard plus Qwen investigation.</p></article>
+        <article><small>04 · NOVELTY</small><strong id="criteriaNovelty">Dual learning loops</strong><p id="criteriaNoveltyNote">Red evolves attacks; Blue promotes only measured gains.</p></article>
+        <article><small>05 · LIVE FEASIBILITY</small><strong id="criteriaLive">Inline guard</strong><p id="criteriaLiveNote">Open-model reasoning stays asynchronous and outside the authorization lane.</p></article>
+      </div>
+    </section>
+
+    <section id="battleControls" class="control-panel">
       <div class="control-copy">
         <div class="section-kicker">NEW BATTLE</div>
         <h2>Configure the next stress test</h2>
-        <p>Red can change only bounded synthetic behavior. Blue never sees the answer key.</p>
+        <p>Red changes only bounded synthetic behavior. Blue sees observable evidence—not the answer key.</p>
       </div>
       <form id="runForm">
         <label>Attack family<select id="attackFamily" name="attack_family"></select></label>
         <label>Difficulty<select id="difficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label>
-        <label>Feedback rounds<select id="rounds" name="rounds"><option value="1">1 round</option><option value="2" selected>2 rounds</option><option value="3">3 rounds</option></select></label>
-        <button type="submit" id="runButton"><span>Start agent battle</span><b>→</b></button>
+        <label>Feedback rounds<select id="rounds" name="rounds"><option value="1" selected>1 round · fast demo</option><option value="2">2 rounds · feedback loop</option><option value="3">3 rounds · extended</option></select></label>
+        <button class="run-button" type="submit" id="runButton"><span>Start agent battle</span><b>→</b></button>
+        <p id="latencyEstimate" class="latency-note">Fast mode uses one Blue model call per event and evaluates isolated cases in parallel.</p>
       </form>
     </section>
 
     <section id="runState" class="run-state hidden" aria-live="polite">
       <div class="loader"><i></i><i></i><i></i></div>
-      <div><strong>Agents are running the episode</strong><span id="runStateText">Red is planning a bounded campaign…</span></div>
+      <div><strong>Agents are running the episode</strong><span id="runStateText">Red is planning a bounded campaign…</span><span id="runElapsed">Elapsed 0s</span></div>
     </section>
     <section id="errorState" class="error-state hidden" aria-live="assertive"></section>
 
     <section id="results" class="results hidden">
       <div class="results-heading">
-        <div><div class="section-kicker">LATEST RESULT</div><h2 id="runTitle">Battle report</h2></div>
+        <div><div class="section-kicker">BATTLE REPORT</div><h2 id="runTitle">Latest arena run</h2></div>
         <div id="roundTabs" class="round-tabs"></div>
       </div>
 
-      <div class="score-grid">
-        <article class="score-card blue-score"><small>BLUE DEFENSE SCORE</small><strong id="blueScore">—</strong><span>/ 100</span></article>
-        <article class="score-card red-score"><small>RED EVASION SCORE</small><strong id="redScore">—</strong><span>/ 100</span></article>
-        <article class="metric-card"><small>OUTCOME</small><strong id="outcome">—</strong><span id="detectionTime">No result</span></article>
-        <article class="metric-card"><small>VALUE PROTECTED</small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></article>
-        <article class="metric-card"><small>HARD FALSE POSITIVES</small><strong id="falsePositives">—</strong><span>on look-alike controls</span></article>
-      </div>
+      <section class="outcome-board" aria-label="Battle outcome">
+        <article class="outcome-primary"><small>BALANCED LIFECYCLE DEFENSE</small><strong id="balancedScore">—</strong><span>/ 100</span><p>Weights the weakest phase so a strong average cannot hide a control gap.</p></article>
+        <article><small>RED CAPABILITY</small><strong id="redCapability">—</strong><span>/ 100</span><p id="redCapabilityNote">Lifecycle reach, stealth, breadth and stage depth.</p></article>
+        <article><small>REALIZED IMPACT</small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after defense</span><p id="impactVerdict">Waiting for a completed battle.</p></article>
+        <article><small>OUTCOME</small><strong id="outcome">—</strong><span id="detectionTime">No result</span><p><b id="falsePositives">—</b> hard false positives on look-alikes.</p></article>
+      </section>
 
-      <div class="battle-grid">
-        <article class="agent-panel red-panel">
-          <header><div><span class="agent-dot red"></span><small>RED AGENT</small><h3>Campaign strategy</h3></div><span class="model-pill" id="redModelPill">Qwen</span></header>
-          <div class="strategy-family" id="strategyFamily">—</div>
-          <p class="strategy-text" id="strategyObjective">—</p>
-          <div class="strategy-block"><small>ADAPTATION HYPOTHESIS</small><p id="adaptationHypothesis">—</p></div>
-          <div class="strategy-block"><small>BOUNDED CHANGES</small><div id="parameterChanges" class="chip-list"></div></div>
-        </article>
+      <section id="lifecycleScorecard" class="lifecycle-section">
+        <div class="section-heading">
+          <div><div class="section-kicker">FULL-LIFECYCLE EVALUATION</div><h2>Where did defense work?</h2><p>Each phase is measured from its own first actionable opportunity.</p></div>
+          <div class="lifecycle-summary"><span>Weakest phase <b id="worstPhase">—</b></span><span>Balance gap <b id="balanceGap">—</b></span></div>
+        </div>
+        <div id="phaseCards" class="phase-cards"></div>
+      </section>
 
-        <article class="agent-panel blue-panel">
-          <header><div><span class="agent-dot blue"></span><small>BLUE AGENT</small><h3>Investigation timeline</h3></div><span class="model-pill" id="blueModelPill">Qwen</span></header>
-          <div id="eventTimeline" class="event-timeline"></div>
-        </article>
-      </div>
+      <section class="impact-section" aria-label="Capability and impact">
+        <div class="impact-copy">
+          <div class="section-kicker">CAPABILITY × CONSEQUENCE</div>
+          <h2>Was the attack weak—or defended well?</h2>
+          <p>The horizontal position measures Red's capability. The vertical position measures harm that remained after Blue acted. Bubble size represents total potential value.</p>
+          <div class="impact-values">
+            <div><small>ATTACK POTENTIAL</small><strong id="attackPotential">—</strong></div>
+            <div><small>VALUE PROTECTED</small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></div>
+            <div><small>REALIZED IMPACT</small><strong id="impactAmount">—</strong></div>
+          </div>
+        </div>
+        <div class="quadrant-wrap">
+          <div class="quadrant" aria-label="Red capability versus realized impact">
+            <span class="quad-label structural">STRUCTURAL GAP</span>
+            <span class="quad-label critical">CRITICAL</span>
+            <span class="quad-label low">LOW PRIORITY</span>
+            <span class="quad-label defended">DEFENDED WELL</span>
+            <span id="impactBubble" class="impact-bubble">RED</span>
+            <span class="axis axis-x">Red capability →</span>
+            <span class="axis axis-y">Realized impact →</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="battleReplay" class="battle-section">
+        <div class="section-heading">
+          <div><div class="section-kicker">EXPLAINABLE AGENT THEATER</div><h2>Replay the battle</h2><p>Select an event to inspect exactly what Blue saw, requested and decided.</p></div>
+        </div>
+        <div class="battle-grid">
+          <article class="agent-panel red-panel">
+            <header><div><span class="agent-dot red"></span><small>RED AGENT</small><h3>Campaign strategy</h3></div><span class="model-pill" id="redModelPill">Qwen</span></header>
+            <div class="strategy-family" id="strategyFamily">—</div>
+            <p class="strategy-text" id="strategyObjective">—</p>
+            <div class="strategy-block"><small>LIFECYCLE FOCUS</small><div id="strategyFocus" class="chip-list"></div></div>
+            <div class="strategy-block"><small>ADAPTATION GOAL</small><p id="adaptationGoal">—</p></div>
+            <div class="strategy-block"><small>ADAPTATION HYPOTHESIS</small><p id="adaptationHypothesis">—</p></div>
+            <div class="strategy-block"><small>BOUNDED CHANGES</small><div id="parameterChanges" class="chip-list"></div></div>
+          </article>
+
+          <article class="agent-panel blue-panel">
+            <header><div><span class="agent-dot blue"></span><small>BLUE AGENT</small><h3>Investigation replay</h3></div><span class="model-pill" id="blueModelPill">Qwen</span></header>
+            <div class="replay-layout">
+              <div id="eventTimeline" class="event-timeline" aria-label="Battle events"></div>
+              <div class="event-detail">
+                <div class="event-detail-top"><span id="selectedPhase">—</span><span id="selectedSequence">EVENT —</span></div>
+                <h3 id="selectedEvent">Select an event</h3>
+                <div class="decision-hero"><span id="selectedAction" class="action monitor">—</span><strong id="selectedRisk">— risk</strong><em id="selectedConfidence">— confidence</em></div>
+                <p id="selectedSummary">The event decision and supporting evidence will appear here.</p>
+                <div id="selectedDelivery" class="delivery-note">Production delivery metadata will appear here.</div>
+                <div class="guard-block"><small>FAST SEQUENCE GUARD</small><div class="guard-summary"><strong id="selectedGuard">—</strong><span id="selectedGuardScore">—</span></div><div id="selectedGuardSignals" class="chip-list"></div></div>
+                <div class="detail-group"><small>EVIDENCE TOOLS</small><div id="selectedTools" class="chip-list"></div></div>
+                <div class="detail-group"><small>REASON CODES</small><div id="selectedReasons" class="chip-list"></div></div>
+                <div class="detail-group"><small>MITIGATION</small><p id="selectedMitigation">—</p></div>
+                <div class="replay-controls"><button id="previousEvent" type="button">← Previous</button><button id="nextEvent" type="button">Next →</button></div>
+              </div>
+            </div>
+            <div id="blueLearning" class="learning-block"><small>BLUE LEARNING LOOP</small><p>—</p></div>
+          </article>
+        </div>
+      </section>
 
       <article class="referee-panel">
-        <header><div><span class="agent-dot white"></span><small>NEUTRAL REFEREE</small><h3>What Red is allowed to learn</h3></div><span class="sealed-badge">SEALED TRUTH</span></header>
+        <header><div><span class="referee-shield">✓</span><small>NEUTRAL REFEREE</small><h3>What Red is allowed to learn</h3></div><span class="sealed-badge">SEALED TRUTH</span></header>
         <div class="feedback-grid">
           <div><small>OUTCOME RELEASED</small><strong id="feedbackOutcome">—</strong></div>
           <div><small>DETECTION STAGE</small><strong id="feedbackStage">—</strong></div>
           <div><small>COARSE REASONS</small><div id="feedbackReasons" class="chip-list"></div></div>
           <div><small>PROTECTED RATIO</small><strong id="feedbackRatio">—</strong></div>
         </div>
-        <p class="boundary-note"><span>↳</span> No Blue prompt, private evidence, thresholds or hidden reasoning crosses this boundary.</p>
+        <p class="boundary-note"><span>↳</span> No Blue prompt, private evidence, playbook threshold or hidden reasoning crosses this boundary.</p>
       </article>
     </section>
   </main>
 
-  <footer><span>SentinelLoop · fully synthetic events · no real payment rails</span><span>Built for Mastercard Innovation Challenge 2026</span></footer>
+  <footer>
+    <span>MasterGuard AI - Attack. Adapt. Defend. · fully synthetic events · no real payment rails</span>
+    <span>Hackathon prototype for Mastercard Innovation Challenge 2026 · not an official Mastercard product</span>
+    <a href="/legacy">View v1 archive</a>
+  </footer>
   <script src="{{ url_for('static', filename='lab.js') }}"></script>
 </body>
 </html>

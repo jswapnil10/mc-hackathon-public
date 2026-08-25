@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from red_team_agent.catalog import AttackCatalog
-from red_team_agent.models import PlannerDecision, ScenarioSpec
-from red_team_agent.planner import ScenarioCompiler
+from red_team_agent.models import LIFECYCLE_PHASES, PlannerDecision, ScenarioSpec
+from red_team_agent.planner import ScenarioCompiler, lifecycle_phase_for_template
 from red_team_agent.safety import ScenarioSafetyGate
 
 from .config import AgentLabConfig
@@ -47,7 +47,17 @@ class GenAIRedAgent:
         self.safety_gate = ScenarioSafetyGate(self.catalog)
 
     @staticmethod
-    def _card_payload(card: Any) -> dict[str, Any]:
+    def _parameter_refs(value: Any) -> set[str]:
+        if isinstance(value, str) and value.startswith("$param."):
+            return {value.removeprefix("$param.")}
+        if isinstance(value, dict):
+            return set().union(*(GenAIRedAgent._parameter_refs(child) for child in value.values()))
+        if isinstance(value, list):
+            return set().union(*(GenAIRedAgent._parameter_refs(child) for child in value))
+        return set()
+
+    @classmethod
+    def _card_payload(cls, card: Any) -> dict[str, Any]:
         return {
             "attack_family": card.attack_family,
             "name": card.name,
@@ -58,9 +68,15 @@ class GenAIRedAgent:
             "stages": [
                 {
                     "stage_id": stage["stage_id"],
+                    "lifecycle_phase": lifecycle_phase_for_template(stage),
                     "event_type": stage["event_type"],
                     "intervention_point": stage["blue_intervention_point"],
                     "observable_signals": stage["observable_signals"],
+                    "mutable_parameters": sorted(
+                        cls._parameter_refs(stage.get("attributes", {})).intersection(
+                            card.allowed_mutations
+                        )
+                    ),
                 }
                 for stage in card.stage_templates
             ],
@@ -84,10 +100,32 @@ class GenAIRedAgent:
         if plan.difficulty != requested_difficulty:
             raise ValueError("Red changed the user-bounded difficulty.")
         card = self.catalog.get(plan.attack_family)
-        allowed_stages = {stage["stage_id"] for stage in card.stage_templates}
-        unknown_stages = set(plan.stage_emphasis).difference(allowed_stages)
+        stage_by_id = {stage["stage_id"]: stage for stage in card.stage_templates}
+        allowed_stages = set(stage_by_id)
+        unknown_stages = set(plan.focus_stage_ids).difference(allowed_stages)
         if unknown_stages:
-            raise ValueError(f"Red emphasized unknown stages: {sorted(unknown_stages)}")
+            raise ValueError(f"Red focused on unknown stages: {sorted(unknown_stages)}")
+        if not plan.focus_stage_ids:
+            raise ValueError("Red must select at least one focus stage.")
+        if plan.target_lifecycle_phase not in LIFECYCLE_PHASES:
+            raise ValueError("Red selected an unknown lifecycle phase.")
+        wrong_phase = [
+            stage_id
+            for stage_id in plan.focus_stage_ids
+            if lifecycle_phase_for_template(stage_by_id[stage_id]) != plan.target_lifecycle_phase
+        ]
+        if wrong_phase:
+            raise ValueError(
+                f"Red focus stages do not belong to {plan.target_lifecycle_phase}: {wrong_phase}"
+            )
+        focus_parameters = set().union(
+            *(
+                self._parameter_refs(stage_by_id[stage_id].get("attributes", {}))
+                for stage_id in plan.focus_stage_ids
+            )
+        ).intersection(card.allowed_mutations)
+        if not focus_parameters:
+            raise ValueError("Red selected focus stages with no bounded mutable behavior.")
 
         overrides = copy.deepcopy(card.parameter_profiles[plan.difficulty])
         seen_parameters: set[str] = set()
@@ -107,6 +145,11 @@ class GenAIRedAgent:
                 )
             original = overrides[change.parameter]
             overrides[change.parameter] = int(round(value)) if isinstance(original, int) else value
+        unrelated_changes = seen_parameters.difference(focus_parameters)
+        if unrelated_changes:
+            raise ValueError(
+                f"Red mutations are not tied to its focus stages: {sorted(unrelated_changes)}"
+            )
         return card, overrides
 
     def plan(
@@ -133,6 +176,16 @@ class GenAIRedAgent:
             cards = self.catalog.list()
         schema = copy.deepcopy(RED_PLAN_SCHEMA)
         schema["properties"]["attack_family"]["enum"] = [card.attack_family for card in cards]
+        available_stages = [stage for card in cards for stage in self._card_payload(card)["stages"]]
+        available_focus_stages = [
+            stage for stage in available_stages if stage["mutable_parameters"]
+        ]
+        schema["properties"]["focus_stage_ids"]["items"]["enum"] = [
+            stage["stage_id"] for stage in available_focus_stages
+        ]
+        schema["properties"]["target_lifecycle_phase"]["enum"] = sorted(
+            {stage["lifecycle_phase"] for stage in available_focus_stages}
+        )
         payload = {
             "task": "Create the next bounded synthetic campaign plan.",
             "requested_attack_family": attack_family,
@@ -144,7 +197,9 @@ class GenAIRedAgent:
                     "attack_family": previous_scenario.attack_family,
                     "difficulty": previous_scenario.difficulty,
                     "parameters": previous_scenario.parameters,
-                    "stage_ids": [stage.stage_id for stage in previous_scenario.stages],
+                    "target_lifecycle_phase": previous_scenario.target_lifecycle_phase,
+                    "focus_stage_ids": previous_scenario.focus_stage_ids,
+                    "adaptation_goal": previous_scenario.adaptation_goal,
                     "mutation_number": previous_scenario.mutation_number,
                 }
                 if previous_scenario
@@ -176,7 +231,8 @@ class GenAIRedAgent:
             "red.plan.model_complete",
             "Qwen returned a structured Red campaign plan.",
             attack_family=plan.attack_family,
-            stage_emphasis=plan.stage_emphasis,
+            target_lifecycle_phase=plan.target_lifecycle_phase,
+            focus_stage_ids=plan.focus_stage_ids,
             parameter_changes=[change.parameter for change in plan.parameter_changes],
             model=model_trace.model,
             latency_ms=model_trace.latency_ms,
@@ -186,7 +242,9 @@ class GenAIRedAgent:
             attack_family=plan.attack_family,
             difficulty=plan.difficulty,
             objective=plan.objective,
-            stage_emphasis=plan.stage_emphasis,
+            target_lifecycle_phase=plan.target_lifecycle_phase,
+            focus_stage_ids=plan.focus_stage_ids,
+            adaptation_goal=plan.adaptation_goal,
             reasoning_summary=f"{plan.reasoning_summary} Adaptation: {plan.adaptation_hypothesis}",
             backend=f"open-model:{self.config.red_model_id}",
         )

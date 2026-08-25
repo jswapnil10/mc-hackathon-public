@@ -846,17 +846,18 @@
       ],
       "stage_templates": [
         {
-          "stage_id": "bounded_replay",
-          "event_type": "CAMPAIGN_REPLAYED",
+          "stage_id": "behavior_baseline",
+          "event_type": "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
           "offset_seconds": 0,
           "blue_intervention_point": "PREVENT",
           "observable_signals": [
-            "scenario_lineage",
-            "bounded_parameter_delta"
+            "account_observation_window",
+            "session_history_depth"
           ],
           "attributes": {
             "sender_account_id": "$synthetic.sender",
-            "campaign_duration_minutes": "$param.campaign_duration_minutes"
+            "observation_window_minutes": "$param.campaign_duration_minutes",
+            "session_history_depth": "$param.session_history_depth"
           }
         },
         {
@@ -977,6 +978,498 @@
         "gradual_customer_behavior_change",
         "recurring_installment_payments",
         "legitimate_account_or_device_migration"
+      ]
+    },
+    {
+      "attack_family": "PAYOUT-01",
+      "name": "GenAI-assisted merchant payout destination manipulation",
+      "observed_pattern": "A synthetic merchant profile develops a plausible operational history, changes its payout destination, shows an unusual sales pattern, and requests settlement to the newly introduced destination. GenAI is represented through bounded automation and consistency signals rather than executable abuse instructions.",
+      "genai_role": [
+        "Coordinates plausible merchant-profile changes across synthetic events",
+        "Varies sales and payout timing within approved bounds",
+        "Adapts observable consistency while the Referee retains sealed truth"
+      ],
+      "payment_surface": [
+        "MERCHANT_ACQUIRING",
+        "MARKETPLACE_PAYOUT",
+        "FASTER_SETTLEMENT"
+      ],
+      "source_refs": [
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "The report recommends layered detection across the customer and transaction lifecycle, including behavioral and identity signals."
+        },
+        {
+          "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+          "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+          "observed": "FinCEN highlights identity inconsistencies, velocity, related accounts, and rapid movement of funds as defensive indicators."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "payout_destination_change",
+          "lifecycle_phase": "pre_transaction",
+          "event_type": "PAYOUT_DESTINATION_CHANGED",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "destination_novelty",
+            "profile_change_recency",
+            "behavioral_automation"
+          ],
+          "attributes": {
+            "merchant_id": "$synthetic.merchant",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "bank_change_recency_days": "$param.bank_change_recency_days",
+            "destination_novelty_score": "$param.destination_novelty_score",
+            "bot_behavior_probability": "$param.bot_behavior_probability"
+          }
+        },
+        {
+          "stage_id": "sales_velocity_shift",
+          "lifecycle_phase": "pre_transaction",
+          "event_type": "SALES_VELOCITY_CHANGED",
+          "offset_seconds": 1800,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "sales_velocity_vs_baseline",
+            "customer_mix_change",
+            "merchant_age"
+          ],
+          "attributes": {
+            "merchant_id": "$synthetic.merchant",
+            "sales_velocity_multiplier": "$param.sales_velocity_multiplier",
+            "merchant_age_days": "$param.merchant_age_days"
+          }
+        },
+        {
+          "stage_id": "accelerated_payout_request",
+          "lifecycle_phase": "transaction",
+          "event_type": "PAYOUT_REQUESTED",
+          "offset_seconds": 3600,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "payout_amount_vs_baseline",
+            "new_destination",
+            "accelerated_settlement"
+          ],
+          "attributes": {
+            "merchant_id": "$synthetic.merchant",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "amount_multiplier": "$param.amount_multiplier",
+            "accelerated_settlement": true
+          }
+        },
+        {
+          "stage_id": "payout_settlement",
+          "lifecycle_phase": "post_transaction",
+          "event_type": "PAYOUT_SETTLED",
+          "offset_seconds": 5400,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "destination_first_settlement",
+            "settlement_velocity"
+          ],
+          "attributes": {
+            "merchant_id": "$synthetic.merchant",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "bank_change_recency_days": 0,
+          "destination_novelty_score": 1.0,
+          "bot_behavior_probability": 1.0,
+          "sales_velocity_multiplier": 8.0,
+          "merchant_age_days": 2,
+          "amount_multiplier": 9.0
+        },
+        "medium": {
+          "bank_change_recency_days": 14,
+          "destination_novelty_score": 0.65,
+          "bot_behavior_probability": 0.55,
+          "sales_velocity_multiplier": 3.5,
+          "merchant_age_days": 120,
+          "amount_multiplier": 4.0
+        },
+        "hard": {
+          "bank_change_recency_days": 90,
+          "destination_novelty_score": 0.2,
+          "bot_behavior_probability": 0.1,
+          "sales_velocity_multiplier": 1.4,
+          "merchant_age_days": 900,
+          "amount_multiplier": 1.3
+        }
+      },
+      "parameter_bounds": {
+        "bank_change_recency_days": {"min": 0, "max": 365},
+        "destination_novelty_score": {"min": 0.0, "max": 1.0},
+        "bot_behavior_probability": {"min": 0.0, "max": 1.0},
+        "sales_velocity_multiplier": {"min": 1.0, "max": 10.0},
+        "merchant_age_days": {"min": 0, "max": 3650},
+        "amount_multiplier": {"min": 1.0, "max": 10.0}
+      },
+      "allowed_mutations": [
+        "bank_change_recency_days",
+        "destination_novelty_score",
+        "bot_behavior_probability",
+        "sales_velocity_multiplier",
+        "merchant_age_days",
+        "amount_multiplier"
+      ],
+      "legitimate_controls": [
+        "verified_bank_account_change",
+        "seasonal_sales_spike",
+        "scheduled_merchant_payout"
+      ]
+    },
+    {
+      "attack_family": "DISPUTE-01",
+      "name": "GenAI-assisted dispute evidence and refund abuse",
+      "observed_pattern": "A completed synthetic purchase is followed by a coordinated dispute, machine-like evidence submission, conflicting case facts, and a refund attempt. The scenario tests post-transaction investigation and containment without producing deceptive documents or message content.",
+      "genai_role": [
+        "Scales synthetic dispute submissions without generating usable documents",
+        "Introduces bounded evidence-consistency and behavioral signals",
+        "Adapts timing and linked-case volume against post-transaction controls"
+      ],
+      "payment_surface": [
+        "CARD_DISPUTES",
+        "MARKETPLACE_REFUNDS",
+        "POST_TRANSACTION_CASE_MANAGEMENT"
+      ],
+      "source_refs": [
+        {
+          "title": "Mastercard — Generative AI: Preparing Your Fraud Organization",
+          "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+          "observed": "The report treats fraud defense as a lifecycle problem and calls for stronger post-event analysis, operational readiness, and continuous learning."
+        },
+        {
+          "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+          "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+          "observed": "The alert recommends examining inconsistencies across submitted evidence, identity information, accounts, and transaction behavior."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "original_purchase",
+          "lifecycle_phase": "transaction",
+          "event_type": "PAYMENT_INITIATED",
+          "offset_seconds": 0,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "amount_vs_baseline",
+            "merchant_history"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "merchant_id": "$synthetic.merchant",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        },
+        {
+          "stage_id": "coordinated_dispute",
+          "lifecycle_phase": "post_transaction",
+          "event_type": "DISPUTE_OPENED",
+          "offset_seconds": 86400,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "dispute_age",
+            "linked_dispute_volume",
+            "claimant_behavior"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "merchant_id": "$synthetic.merchant",
+            "dispute_age_hours": "$param.dispute_age_hours",
+            "linked_dispute_count": "$param.linked_dispute_count",
+            "bot_behavior_probability": "$param.bot_behavior_probability"
+          }
+        },
+        {
+          "stage_id": "evidence_review",
+          "lifecycle_phase": "post_transaction",
+          "event_type": "DISPUTE_EVIDENCE_REVIEWED",
+          "offset_seconds": 90000,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "evidence_consistency",
+            "submission_timing",
+            "cross_case_similarity"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "merchant_id": "$synthetic.merchant",
+            "evidence_conflict_probability": "$param.evidence_conflict_probability",
+            "submission_interval_seconds": "$param.submission_interval_seconds",
+            "linked_dispute_count": "$param.linked_dispute_count"
+          }
+        },
+        {
+          "stage_id": "refund_release",
+          "lifecycle_phase": "post_transaction",
+          "event_type": "DISPUTE_REFUND_ISSUED",
+          "offset_seconds": 93600,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "refund_value",
+            "unresolved_evidence_conflict"
+          ],
+          "attributes": {
+            "sender_account_id": "$synthetic.sender",
+            "merchant_id": "$synthetic.merchant",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "amount_multiplier": 7.0,
+          "dispute_age_hours": 1,
+          "linked_dispute_count": 20,
+          "bot_behavior_probability": 1.0,
+          "evidence_conflict_probability": 1.0,
+          "submission_interval_seconds": 2
+        },
+        "medium": {
+          "amount_multiplier": 3.0,
+          "dispute_age_hours": 24,
+          "linked_dispute_count": 7,
+          "bot_behavior_probability": 0.55,
+          "evidence_conflict_probability": 0.6,
+          "submission_interval_seconds": 45
+        },
+        "hard": {
+          "amount_multiplier": 1.2,
+          "dispute_age_hours": 240,
+          "linked_dispute_count": 2,
+          "bot_behavior_probability": 0.1,
+          "evidence_conflict_probability": 0.15,
+          "submission_interval_seconds": 900
+        }
+      },
+      "parameter_bounds": {
+        "amount_multiplier": {"min": 1.0, "max": 10.0},
+        "dispute_age_hours": {"min": 1, "max": 720},
+        "linked_dispute_count": {"min": 1, "max": 30},
+        "bot_behavior_probability": {"min": 0.0, "max": 1.0},
+        "evidence_conflict_probability": {"min": 0.0, "max": 1.0},
+        "submission_interval_seconds": {"min": 1, "max": 3600}
+      },
+      "allowed_mutations": [
+        "amount_multiplier",
+        "dispute_age_hours",
+        "linked_dispute_count",
+        "bot_behavior_probability",
+        "evidence_conflict_probability",
+        "submission_interval_seconds"
+      ],
+      "legitimate_controls": [
+        "legitimate_goods_not_received",
+        "documented_duplicate_charge",
+        "verified_service_failure"
+      ]
+    },
+    {
+      "attack_family": "AGENT-01",
+      "name": "Agentic-commerce intent and checkout manipulation",
+      "observed_pattern": "An automated shopping agent presents partially credible identity, consumer-intent, and payment-container signals, then attempts a bounded purchase sequence whose basket or payment scope may differ from the verified instruction. The simulation contains only synthetic trust metadata and payment events.",
+      "genai_role": [
+        "Coordinates synthetic browsing, intent, and checkout behavior across an agentic purchase journey",
+        "Adapts how closely agent identity and transaction intent resemble legitimate commerce",
+        "Tests whether defense verifies agent, consent, and payment scope as one linked sequence"
+      ],
+      "payment_surface": [
+        "AGENTIC_COMMERCE",
+        "ECOMMERCE_CHECKOUT",
+        "TOKENIZED_PAYMENT"
+      ],
+      "source_refs": [
+        {
+          "title": "Mastercard Agent Pay — secure and trusted agentic payments",
+          "url": "https://www.mastercard.com/global/en/business/artificial-intelligence/mastercard-agent-pay.html",
+          "observed": "Mastercard identifies registered agents, network tokens, verified order intent, and consumer consent as foundations for trusted agentic payments."
+        },
+        {
+          "title": "Mastercard — The new rules of the road for agentic commerce",
+          "url": "https://www.mastercard.com/global/en/news-and-trends/stories/2026/agentic-commerce-rules-of-the-road.html",
+          "observed": "Agentic-commerce protocols emphasize clear user intent, secure credentials, verifiable agent identity, and low-friction authentication."
+        },
+        {
+          "title": "Visa Trusted Agent Protocol — Merchant Specifications",
+          "url": "https://developer.visa.com/capabilities/trusted-agent-protocol/trusted-agent-protocol-specifications/",
+          "observed": "The specification separates agent recognition, consumer recognition, and payment-container verification and includes freshness and replay controls."
+        }
+      ],
+      "stage_templates": [
+        {
+          "stage_id": "agent_recognition",
+          "lifecycle_phase": "pre_transaction",
+          "event_type": "AGENT_COMMERCE_SESSION_STARTED",
+          "offset_seconds": 0,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "agent_registration_status",
+            "message_signature_validity",
+            "request_freshness"
+          ],
+          "attributes": {
+            "agent_id": "$synthetic.agent",
+            "merchant_id": "$synthetic.merchant",
+            "agent_signature_valid_probability": "$param.agent_signature_valid_probability",
+            "request_age_seconds": "$param.request_age_seconds",
+            "nonce_reuse_count": "$param.nonce_reuse_count"
+          }
+        },
+        {
+          "stage_id": "delegated_intent",
+          "lifecycle_phase": "pre_transaction",
+          "event_type": "AGENT_PAYMENT_INTENT_PRESENTED",
+          "offset_seconds": 45,
+          "blue_intervention_point": "PREVENT",
+          "observable_signals": [
+            "consumer_consent_validity",
+            "intent_scope_match",
+            "basket_deviation"
+          ],
+          "attributes": {
+            "agent_id": "$synthetic.agent",
+            "merchant_id": "$synthetic.merchant",
+            "consumer_consent_valid_probability": "$param.consumer_consent_valid_probability",
+            "intent_scope_match_probability": "$param.intent_scope_match_probability",
+            "authorized_payment_count": 1,
+            "basket_value_multiplier": "$param.basket_value_multiplier"
+          }
+        },
+        {
+          "stage_id": "agent_checkout",
+          "lifecycle_phase": "transaction",
+          "event_type": "AGENTIC_PAYMENT_INITIATED",
+          "offset_seconds": 90,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "payment_container_match",
+            "merchant_scope_match",
+            "amount_vs_verified_intent"
+          ],
+          "attributes": {
+            "agent_id": "$synthetic.agent",
+            "merchant_id": "$synthetic.merchant",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "payment_container_match_probability": "$param.payment_container_match_probability",
+            "merchant_scope_match_probability": "$param.merchant_scope_match_probability",
+            "amount_multiplier": "$param.amount_multiplier"
+          }
+        },
+        {
+          "stage_id": "automated_purchase_burst",
+          "lifecycle_phase": "transaction",
+          "event_type": "PAYMENT_REPEATED",
+          "offset_seconds": 150,
+          "blue_intervention_point": "DECIDE",
+          "observable_signals": [
+            "agent_purchase_count",
+            "payment_interval",
+            "cumulative_value"
+          ],
+          "attributes": {
+            "agent_id": "$synthetic.agent",
+            "merchant_id": "$synthetic.merchant",
+            "beneficiary_id": "$synthetic.beneficiary",
+            "payment_count": "$param.payment_count",
+            "payment_interval_minutes": "$param.payment_interval_minutes"
+          }
+        },
+        {
+          "stage_id": "merchant_capture",
+          "lifecycle_phase": "post_transaction",
+          "event_type": "FUNDS_RECEIVED",
+          "offset_seconds": 300,
+          "blue_intervention_point": "CONTAIN",
+          "observable_signals": [
+            "agent_to_merchant_value_received",
+            "intent_payment_linkage"
+          ],
+          "attributes": {
+            "agent_id": "$synthetic.agent",
+            "merchant_id": "$synthetic.merchant",
+            "beneficiary_id": "$synthetic.beneficiary"
+          }
+        }
+      ],
+      "parameter_profiles": {
+        "easy": {
+          "agent_signature_valid_probability": 0.1,
+          "consumer_consent_valid_probability": 0.1,
+          "intent_scope_match_probability": 0.15,
+          "payment_container_match_probability": 0.15,
+          "merchant_scope_match_probability": 0.2,
+          "request_age_seconds": 7200,
+          "nonce_reuse_count": 5,
+          "basket_value_multiplier": 4.0,
+          "amount_multiplier": 5.0,
+          "payment_count": 6,
+          "payment_interval_minutes": 1
+        },
+        "medium": {
+          "agent_signature_valid_probability": 0.55,
+          "consumer_consent_valid_probability": 0.5,
+          "intent_scope_match_probability": 0.5,
+          "payment_container_match_probability": 0.55,
+          "merchant_scope_match_probability": 0.6,
+          "request_age_seconds": 600,
+          "nonce_reuse_count": 1,
+          "basket_value_multiplier": 2.0,
+          "amount_multiplier": 2.5,
+          "payment_count": 3,
+          "payment_interval_minutes": 5
+        },
+        "hard": {
+          "agent_signature_valid_probability": 0.9,
+          "consumer_consent_valid_probability": 0.85,
+          "intent_scope_match_probability": 0.8,
+          "payment_container_match_probability": 0.85,
+          "merchant_scope_match_probability": 0.9,
+          "request_age_seconds": 45,
+          "nonce_reuse_count": 0,
+          "basket_value_multiplier": 1.15,
+          "amount_multiplier": 1.2,
+          "payment_count": 2,
+          "payment_interval_minutes": 30
+        }
+      },
+      "parameter_bounds": {
+        "agent_signature_valid_probability": {"min": 0.0, "max": 1.0},
+        "consumer_consent_valid_probability": {"min": 0.0, "max": 1.0},
+        "intent_scope_match_probability": {"min": 0.0, "max": 1.0},
+        "payment_container_match_probability": {"min": 0.0, "max": 1.0},
+        "merchant_scope_match_probability": {"min": 0.0, "max": 1.0},
+        "request_age_seconds": {"min": 0, "max": 86400},
+        "nonce_reuse_count": {"min": 0, "max": 20},
+        "basket_value_multiplier": {"min": 1.0, "max": 10.0},
+        "amount_multiplier": {"min": 1.0, "max": 10.0},
+        "payment_count": {"min": 1, "max": 10},
+        "payment_interval_minutes": {"min": 1, "max": 1440}
+      },
+      "allowed_mutations": [
+        "agent_signature_valid_probability",
+        "consumer_consent_valid_probability",
+        "intent_scope_match_probability",
+        "payment_container_match_probability",
+        "merchant_scope_match_probability",
+        "request_age_seconds",
+        "nonce_reuse_count",
+        "basket_value_multiplier",
+        "amount_multiplier",
+        "payment_count",
+        "payment_interval_minutes"
+      ],
+      "legitimate_controls": [
+        "registered_agent_verified_purchase",
+        "consumer_confirmed_agent_checkout",
+        "verified_recurring_agent_purchase"
       ]
     }
   ]

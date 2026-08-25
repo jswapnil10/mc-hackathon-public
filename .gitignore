@@ -7,6 +7,7 @@
 .tmp_docs/
 .tmp_slides/
 .pytest_cache/
+.ipynb_checkpoints/
 .coverage
 htmlcov/
 tmp/
@@ -18,6 +19,9 @@ __pycache__/
 # Generated local data and run artifacts
 data/processed/*.csv
 data/processed/*.json
+data/benchmark/*.csv
+data/external/
+data/external_validation/*.csv
 runs/
 
 # Local document-rendering and office artifacts

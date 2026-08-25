@@ -68,6 +68,7 @@ class AgentLabConfig:
     red_temperature: float = 0.65
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
+    case_parallelism: int = 4
 
     @classmethod
     def from_env(cls) -> "AgentLabConfig":
@@ -90,6 +91,7 @@ class AgentLabConfig:
             red_temperature=_float_env("RED_AGENT_TEMPERATURE", cls.red_temperature),
             blue_temperature=_float_env("BLUE_AGENT_TEMPERATURE", cls.blue_temperature),
             max_output_tokens=_int_env("MODEL_MAX_OUTPUT_TOKENS", cls.max_output_tokens),
+            case_parallelism=_int_env("CASE_PARALLELISM", cls.case_parallelism),
         )
         config.validate()
         return config
@@ -109,6 +111,8 @@ class AgentLabConfig:
                 raise ValueError(f"{name} must be between 0 and 2.")
         if self.request_timeout_seconds < 1 or self.max_output_tokens < 100:
             raise ValueError("Model timeout and output-token limit must be positive.")
+        if not 1 <= self.case_parallelism <= 8:
+            raise ValueError("CASE_PARALLELISM must be between 1 and 8.")
 
     @property
     def chat_completions_url(self) -> str:

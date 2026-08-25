@@ -12,9 +12,10 @@ The original statistical baseline remains in the repository as historical scaffo
 
 Red receives source-grounded attack cards, bounded parameters, the selected difficulty and a small amount of declassified feedback from the previous round. It decides:
 
-- which stages deserve emphasis;
+- whether to stress the pre-transaction, transaction or post-transaction phase;
+- which stages within that phase are the focus;
 - the campaign objective and adaptation hypothesis;
-- up to four bounded parameter changes;
+- one to four bounded parameter changes tied to those focus stages;
 - how the next variant should test the defense.
 
 Red cannot create real messages, credentials, targets, personal data, phishing URLs or payment-rail actions. Its plan is compiled deterministically and rejected if it exceeds the attack card's bounds.
@@ -23,15 +24,27 @@ Red cannot create real messages, credentials, targets, personal data, phishing U
 
 Blue receives only the event fields a real defensive system might observe. It never receives `attack_family`, `scenario_id`, stage names or fraud labels.
 
-For each visible event, Blue first acts as an investigator. It selects from five read-only tools:
+Before any model call, a deterministic sequence guard joins the visible case across lifecycle phases. It scores only observable evidence, produces a minimum safe action, and never reads sealed truth. This is the fast payment-data-plane layer: Qwen may strengthen its recommendation but cannot weaken it.
 
+Blue then acts as an investigator. It selects from nine read-only tools:
+
+- case-risk synthesis;
 - timeline summary;
 - entity linkage;
 - velocity profile;
 - payment context;
-- legitimate-alternative search.
+- legitimate-alternative search;
+- behavioral biometrics;
+- communication risk;
+- evidence quality.
 
 After the tools return evidence, a separate Blue decision step chooses `allow`, `monitor`, `step_up`, `hold` or `block`, with reason codes, cited evidence and a mitigation explanation.
+
+The legitimacy boundary is explicit. Same-case entity repetition proves continuity only; it does not prove an established relationship. `legitimate_context` can resolve an alert only when the legitimate-alternatives evidence contains independent verification or qualifying historical context.
+
+A `hold` pauses synthetic value movement but does not stop investigation. Later events are still evaluated so the hold can be resolved with legitimate context or escalated to `block`. Only `block` terminates the case.
+
+Between rounds, a Blue Strategist receives a declassified episode summary and proposes a bounded playbook: preferred evidence tools, defensive focus codes and investigation guidance. The candidate is replayed on the exact same attack and legitimate controls. The deterministic Referee—not Blue—promotes it only when safety is preserved and prevention, realized impact, lifecycle resilience or detection timing measurably improves. Wider evidence-tool usage alone does not qualify.
 
 ### Referee world
 
@@ -41,7 +54,12 @@ The Referee is deterministic because neither competing model should grade itself
 - how much synthetic value Blue protected;
 - whether intervention happened at prevent, decide or contain time;
 - hard false positives on legitimate look-alike cases;
-- customer friction caused by step-up, hold or block actions.
+- customer friction caused by step-up, hold or block actions;
+- how much of the event stream Blue evaluated;
+- how broadly Blue used the approved evidence layers;
+- per-phase response speed, consequence control and legitimate-customer safety;
+- a balanced lifecycle score weighted toward the weakest reached phase; and
+- Red lifecycle reach, stealth, breadth and stage depth, kept separate from realized financial impact.
 
 Only outcome, detection stage, detection time, protected-value ratio, false-positive rate and coarse reason categories are returned to Red. Blue's prompt, evidence details, thresholds and reasoning never cross that boundary.
 
@@ -54,20 +72,32 @@ bounded compiler + safety gate
       ↓
 synthetic observable event stream ───────┐
       ↓                                  │ sealed truth
+fast observable sequence guard          │
+      ↓                                  │
 Blue Investigator → evidence tools      │
       ↓                                  │
 Blue Decision Agent                     │
       ↓                                  ↓
           deterministic Referee scoring
                        ↓
-          coarse declassified feedback
-                       ↓
-               Red's next variant
+          ┌────────────┴────────────┐
+          ↓                         ↓
+ coarse feedback to Red     episode summary to Blue Strategist
+          ↓                         ↓
+ Red's next variant         candidate defense playbook
+                                    ↓
+                       same-case deterministic replay
+                                    ↓
+                        promote only after safe gain
 ```
+
+The two learning channels remain separate: Red never receives Blue's playbook or private evidence, and Blue never receives the attack family, scenario ID, stage IDs or fraud label.
 
 ## Open-model deployment
 
 The application uses the OpenAI-compatible chat-completions protocol as an interface, not a vendor dependency. The default is `Qwen/Qwen3.5-9B`, served by vLLM with strict JSON-schema output. Red and Blue may share one inference server while remaining isolated by prompt, memory and allowed data.
+
+Live placement is intentionally two-speed. A pure deterministic calculation produces the minimum action before Qwen is called. Independently verified legitimate context may resolve an event immediately only when that minimum remains `allow` and there is no unresolved alert. All other events use one evidence-grounded Qwen response for both investigation and action, while isolated attack and look-alike cases may run concurrently. Transaction events declare a 300 ms lane, pre-transaction events a 2 s lane, and post-transaction events a 5 s streaming lane. The prototype records actual model and end-to-end battle latency but does not pretend local Qwen is a 300 ms hard dependency: model investigation and explanation belong in the asynchronous control plane while the guardrail can sit inline.
 
 For local development, SentinelLoop automatically discovers an already-installed Qwen model exposed by Ollama at `127.0.0.1:11434` when no model environment variables are set. Explicit environment configuration always wins, including the private vLLM address used in deployment.
 
@@ -88,6 +118,9 @@ python3 -m sentinelloop config
 
 # With a compatible Qwen endpoint already running
 python3 -m sentinelloop run --attack-family ATO-01 --difficulty medium --rounds 2
+
+# Live benchmark on a bounded family/difficulty matrix
+python3 -m sentinelloop benchmark --families ATO-01 EVADE-01 --difficulties medium hard
 
 # Start the Agent Arena at http://127.0.0.1:8501
 python3 -m app.server

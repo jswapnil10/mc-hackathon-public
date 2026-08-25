@@ -1,0 +1,100 @@
+{
+  "status": "passed",
+  "score": 100.0,
+  "grain": "one sanitized observable event per row",
+  "row_count": 4446,
+  "column_count": 49,
+  "checks": [
+    {
+      "name": "required_schema",
+      "passed": true,
+      "observed": [],
+      "expected": "no missing fields",
+      "severity": "critical"
+    },
+    {
+      "name": "event_id_uniqueness",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 duplicates",
+      "severity": "critical"
+    },
+    {
+      "name": "split_domain",
+      "passed": true,
+      "observed": [],
+      "expected": "only sealed split values",
+      "severity": "critical"
+    },
+    {
+      "name": "scenario_split_isolation",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 leaking scenarios",
+      "severity": "critical"
+    },
+    {
+      "name": "entity_split_isolation",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 leaking sender entities",
+      "severity": "critical"
+    },
+    {
+      "name": "attack_label_integrity",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 attack rows without labels",
+      "severity": "critical"
+    },
+    {
+      "name": "legitimate_label_integrity",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 legitimate rows with attack labels",
+      "severity": "critical"
+    },
+    {
+      "name": "amount_domain",
+      "passed": true,
+      "observed": 0,
+      "expected": "INR 0 to 250000",
+      "severity": "high"
+    },
+    {
+      "name": "core_completeness",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 incomplete rows",
+      "severity": "critical"
+    },
+    {
+      "name": "class_coverage_by_split",
+      "passed": true,
+      "observed": {
+        "test_known": 2,
+        "test_novel": 2,
+        "train": 2,
+        "validation": 2
+      },
+      "expected": "both classes in every split",
+      "severity": "high"
+    },
+    {
+      "name": "threat_vector_coverage",
+      "passed": true,
+      "observed": [],
+      "expected": "all atlas vectors represented",
+      "severity": "high"
+    },
+    {
+      "name": "novel_vector_seal",
+      "passed": true,
+      "observed": [],
+      "expected": "0 novel vectors outside test_novel",
+      "severity": "critical"
+    }
+  ],
+  "failure_count": 0,
+  "critical_failure_count": 0
+}

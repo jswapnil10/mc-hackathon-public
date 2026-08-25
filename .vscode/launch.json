@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "SentinelLoop Web — Guided Debug",
+      "name": "MasterGuard AI Web — Guided Debug",
       "type": "debugpy",
       "request": "launch",
       "module": "app.server",

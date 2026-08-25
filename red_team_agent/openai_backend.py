@@ -1,6 +1,6 @@
 """Optional OpenAI Responses API backend for bounded planning decisions.
 
-The model chooses only an attack card, difficulty, objective, and stage emphasis.
+The model chooses only an attack card, difficulty, lifecycle focus, and objective.
 It never writes payment events. The deterministic compiler and safety gate remain
 the authority for executable scenario data.
 """
@@ -15,6 +15,7 @@ from typing import Any
 
 from .catalog import AttackCatalog
 from .models import PLANNER_DECISION_JSON_SCHEMA, PlannerDecision
+from .planner import _template_parameter_refs, lifecycle_phase_for_template
 
 
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -53,8 +54,11 @@ class OpenAIPlanningBackend:
                 "OPENAI_API_KEY is not set. Configure it in your local environment; do not paste it into chat."
             )
 
+        selected_cards = (
+            [self.catalog.get(attack_family)] if attack_family else self.catalog.list()
+        )
         cards = []
-        for card in self.catalog.list():
+        for card in selected_cards:
             cards.append(
                 {
                     "attack_family": card.attack_family,
@@ -62,12 +66,35 @@ class OpenAIPlanningBackend:
                     "observed_pattern": card.observed_pattern,
                     "genai_role": card.genai_role,
                     "payment_surface": card.payment_surface,
-                    "available_stages": [stage["stage_id"] for stage in card.stage_templates],
+                    "available_stages": [
+                        {
+                            "stage_id": stage["stage_id"],
+                            "lifecycle_phase": lifecycle_phase_for_template(stage),
+                            "mutable_parameters": sorted(
+                                _template_parameter_refs(
+                                    stage.get("attributes", {})
+                                ).intersection(card.allowed_mutations)
+                            ),
+                        }
+                        for stage in card.stage_templates
+                        if _template_parameter_refs(
+                            stage.get("attributes", {})
+                        ).intersection(card.allowed_mutations)
+                    ],
                 }
             )
 
         schema = json.loads(json.dumps(PLANNER_DECISION_JSON_SCHEMA))
-        schema["properties"]["attack_family"]["enum"] = self.catalog.families
+        schema["properties"]["attack_family"]["enum"] = [
+            card.attack_family for card in selected_cards
+        ]
+        available_stages = [stage for card in cards for stage in card["available_stages"]]
+        schema["properties"]["focus_stage_ids"]["items"]["enum"] = [
+            stage["stage_id"] for stage in available_stages
+        ]
+        schema["properties"]["target_lifecycle_phase"]["enum"] = sorted(
+            {stage["lifecycle_phase"] for stage in available_stages}
+        )
         prompt = {
             "requested_attack_family": attack_family,
             "requested_difficulty": difficulty,
@@ -83,7 +110,8 @@ class OpenAIPlanningBackend:
                 "payment, identity, session, and graph behavior. Never produce phishing text, "
                 "credentials, personal data, real targets, URLs, exploit code, or instructions "
                 "for wrongdoing. The deterministic compiler will create all events. Return only "
-                "the requested structured planning decision."
+                "the requested structured planning decision. Choose focus stages from one lifecycle "
+                "phase and only from stages that expose bounded mutable parameters."
             ),
             "input": json.dumps(prompt, indent=2),
             "text": {

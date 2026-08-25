@@ -1,0 +1,4 @@
+-r requirements-validation.txt
+nbformat>=5.10,<6.0
+nbclient>=0.10,<1.0
+ipykernel>=6.29,<7.0

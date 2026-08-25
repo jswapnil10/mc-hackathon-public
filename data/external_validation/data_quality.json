@@ -1,0 +1,100 @@
+{
+  "status": "failed",
+  "score": 91.89,
+  "dataset_grain": "one anonymized card transaction per row",
+  "row_count": 284807,
+  "column_count": 31,
+  "fraud_count": 492,
+  "fraud_prevalence": 0.00172749,
+  "time_min_seconds": 0.0,
+  "time_max_seconds": 172792.0,
+  "amount_min": 0.0,
+  "amount_max": 25691.16,
+  "source_sha256": "b7efcb35a428bbe22347a05d2437d9177bab07ce61e51214a17bec584ad9496d",
+  "checks": [
+    {
+      "name": "required_schema",
+      "passed": true,
+      "observed": [],
+      "expected": "Time, Amount, Class and V1-V28",
+      "severity": "critical"
+    },
+    {
+      "name": "exact_row_duplicates",
+      "passed": false,
+      "observed": 1081,
+      "expected": "0",
+      "severity": "high"
+    },
+    {
+      "name": "required_value_completeness",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 null values",
+      "severity": "critical"
+    },
+    {
+      "name": "numeric_finiteness",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 non-finite values",
+      "severity": "critical"
+    },
+    {
+      "name": "label_domain",
+      "passed": true,
+      "observed": [
+        0,
+        1
+      ],
+      "expected": "[0, 1]",
+      "severity": "critical"
+    },
+    {
+      "name": "amount_domain",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 negative amounts",
+      "severity": "high"
+    },
+    {
+      "name": "elapsed_time_domain",
+      "passed": true,
+      "observed": 0,
+      "expected": "0 negative elapsed times",
+      "severity": "high"
+    },
+    {
+      "name": "published_row_count_reconciliation",
+      "passed": true,
+      "observed": 284807,
+      "expected": "284807",
+      "severity": "high"
+    },
+    {
+      "name": "published_fraud_count_reconciliation",
+      "passed": true,
+      "observed": 492,
+      "expected": "492",
+      "severity": "high"
+    },
+    {
+      "name": "source_chronological_order",
+      "passed": true,
+      "observed": true,
+      "expected": "non-decreasing Time",
+      "severity": "medium"
+    }
+  ],
+  "failure_count": 1,
+  "critical_failure_count": 0,
+  "model_input_status": "passed_after_conservative_deduplication",
+  "remediation": {
+    "exact_duplicate_rows_removed": 1081,
+    "raw_row_count": 284807,
+    "modeled_row_count": 283726,
+    "raw_fraud_count": 492,
+    "modeled_fraud_count": 473,
+    "rationale": "Exact duplicates are removed conservatively before temporal splitting to avoid optimistic validation. The source has no transaction identifier, so duplicated observations cannot be proven to be distinct payments."
+  }
+}

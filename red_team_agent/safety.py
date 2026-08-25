@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from .catalog import AttackCatalog
-from .models import SafetyReport, ScenarioSpec
+from .models import LIFECYCLE_PHASES, SafetyReport, ScenarioSpec
 
 
 ALLOWED_EVENT_TYPES = {
@@ -17,13 +17,23 @@ ALLOWED_EVENT_TYPES = {
     "IDENTITY_VERIFICATION_ATTEMPTED",
     "ACCOUNT_OPENED",
     "ACCOUNT_WARMUP_ACTIVITY",
+    "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
     "BENEFICIARY_ADDED",
     "SUPPLIER_PROFILE_CHANGED",
     "PAYMENT_INITIATED",
     "PAYMENT_REPEATED",
     "FUNDS_RECEIVED",
     "FUNDS_DISPERSED",
-    "CAMPAIGN_REPLAYED",
+    "AGENT_COMMERCE_SESSION_STARTED",
+    "AGENT_PAYMENT_INTENT_PRESENTED",
+    "AGENTIC_PAYMENT_INITIATED",
+    "PAYOUT_DESTINATION_CHANGED",
+    "SALES_VELOCITY_CHANGED",
+    "PAYOUT_REQUESTED",
+    "PAYOUT_SETTLED",
+    "DISPUTE_OPENED",
+    "DISPUTE_EVIDENCE_REVIEWED",
+    "DISPUTE_REFUND_ISSUED",
 }
 
 ALLOWED_INTERVENTION_POINTS = {"PREVENT", "DECIDE", "CONTAIN"}
@@ -71,6 +81,16 @@ def _in_bounds(value: Any, bound: dict[str, Any]) -> bool:
     return bound.get("min", value) <= value <= bound.get("max", value)
 
 
+def _parameter_refs(value: Any) -> set[str]:
+    if isinstance(value, str) and value.startswith("$param."):
+        return {value.removeprefix("$param.")}
+    if isinstance(value, dict):
+        return set().union(*(_parameter_refs(child) for child in value.values()))
+    if isinstance(value, list):
+        return set().union(*(_parameter_refs(child) for child in value))
+    return set()
+
+
 class ScenarioSafetyGate:
     def __init__(self, catalog: AttackCatalog) -> None:
         self.catalog = catalog
@@ -111,6 +131,41 @@ class ScenarioSafetyGate:
         if unknown_stage_ids:
             errors.append(f"Scenario contains stages not approved by its attack card: {sorted(unknown_stage_ids)}")
 
+        if scenario.target_lifecycle_phase not in LIFECYCLE_PHASES:
+            errors.append("Scenario target_lifecycle_phase is invalid.")
+        unknown_focus_ids = set(scenario.focus_stage_ids).difference(approved_stage_ids)
+        if unknown_focus_ids or not scenario.focus_stage_ids:
+            errors.append(f"Scenario focus stages are invalid: {sorted(unknown_focus_ids)}")
+        stage_phase_by_id = {
+            stage.stage_id: stage.lifecycle_phase for stage in scenario.stages
+        }
+        wrong_phase_focus = [
+            stage_id
+            for stage_id in scenario.focus_stage_ids
+            if stage_phase_by_id.get(stage_id) != scenario.target_lifecycle_phase
+        ]
+        if wrong_phase_focus:
+            errors.append(
+                "Scenario focus stages must belong to target_lifecycle_phase: "
+                f"{sorted(wrong_phase_focus)}"
+            )
+        template_by_id = {
+            template["stage_id"]: template for template in card.stage_templates
+        }
+        immutable_focus = [
+            stage_id
+            for stage_id in scenario.focus_stage_ids
+            if stage_id in template_by_id
+            and not _parameter_refs(
+                template_by_id[stage_id].get("attributes", {})
+            ).intersection(card.allowed_mutations)
+        ]
+        if immutable_focus:
+            errors.append(
+                "Scenario focus stages must expose bounded mutable behavior: "
+                f"{sorted(immutable_focus)}"
+            )
+
         for stage in scenario.stages:
             if stage.event_type not in ALLOWED_EVENT_TYPES:
                 errors.append(f"Stage {stage.stage_id} uses forbidden event_type {stage.event_type!r}.")
@@ -118,6 +173,8 @@ class ScenarioSafetyGate:
                 errors.append(
                     f"Stage {stage.stage_id} has invalid intervention point {stage.blue_intervention_point!r}."
                 )
+            if stage.lifecycle_phase not in LIFECYCLE_PHASES:
+                errors.append(f"Stage {stage.stage_id} has invalid lifecycle phase {stage.lifecycle_phase!r}.")
             if not stage.observable_signals:
                 warnings.append(f"Stage {stage.stage_id} has no observable defensive signals.")
 
