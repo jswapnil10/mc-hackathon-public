@@ -40,17 +40,17 @@
       <div class="hero-copy">
         <div class="eyebrow">AI DEFENSE LAB · PAYMENT SECURITY</div>
         <h1>Build the attack.<br><span>Prove the defense.</span></h1>
-        <p>Red GenAI evolves bounded attacks. Blue combines fast gradient-boosting screening with GenAI investigation across the complete payment lifecycle. A sealed Referee measures capability, consequence and customer harm—not merely whether an alert fired.</p>
+        <p>MasterGuard AI is a safe payment-fraud stress test. A Red AI creates a synthetic attack, a Blue defense decides how to respond, and an independent Referee reveals the hidden answer key only after every decision is made.</p>
         <a class="hero-cta" href="#battleControls">Configure a battle <span>↘</span></a>
       </div>
       <aside class="hero-stage" aria-label="Arena architecture">
         <div class="stage-head"><span><i></i> LIVE ARCHITECTURE</span><b>RED × BLUE</b></div>
         <div class="stage-flow">
-          <div><small>01</small><b>Red plans</b><span>Bounded lifecycle behavior</span></div>
+          <div><small>01</small><b>Red creates</b><span>A safe, synthetic fraud sequence</span></div>
           <i>→</i>
-          <div><small>02</small><b>Blue scores & acts</b><span>ML evidence + GenAI investigation</span></div>
+          <div><small>02</small><b>Blue responds</b><span>Allow, monitor, verify, hold, or block</span></div>
           <i>→</i>
-          <div><small>03</small><b>Referee proves</b><span>Sealed deterministic truth</span></div>
+          <div><small>03</small><b>Referee scores</b><span>Fraud caught, money protected, customers unharmed</span></div>
         </div>
         <div class="model-ribbon">
           <div><span class="agent-dot red"></span><small>RED MODEL</small><strong id="redModel">Loading…</strong></div>
@@ -95,7 +95,7 @@
           <div><small>EVENTS</small><strong id="foundryEvents">—</strong></div>
           <div><small>CAMPAIGNS</small><strong id="foundryCampaigns">—</strong></div>
           <div><small>VECTORS</small><strong id="foundryVectors">—</strong></div>
-          <div><small>FIDELITY</small><strong id="foundryFidelity">—</strong></div>
+          <div><small>SIMULATION REALISM</small><strong id="foundryFidelity">—</strong></div>
         </div>
         <div id="splitBars" class="split-bars"></div>
         <button id="runFoundry" class="foundry-button" type="button"><span>Regenerate & benchmark</span><b>↗</b></button>
@@ -109,10 +109,10 @@
         <span id="benchmarkModel" class="proof-badge">NO BENCHMARK YET</span>
       </div>
       <div class="benchmark-kpis">
-        <article><small>HIDDEN-TEST PR-AUC</small><strong id="benchmarkPrauc">—</strong><p>Ranking quality when fraud is the minority class.</p></article>
-        <article><small>NOVEL-VECTOR RECALL</small><strong id="benchmarkNovelRecall">—</strong><p>Attacks found when the complete vector ID was withheld.</p></article>
-        <article><small>F1 SCORE</small><strong id="benchmarkF1">—</strong><p>Balance between detection precision and recall.</p></article>
-        <article><small>HARD FALSE POSITIVES</small><strong id="benchmarkFpr">—</strong><p>Verified legitimate look-alikes incorrectly flagged.</p></article>
+        <article><small>FRAUD RANKING QUALITY (PR-AUC)</small><strong id="benchmarkPrauc">—</strong><p>How well fraud rises above legitimate payments when fraud is rare. Higher is better.</p></article>
+        <article><small>NEW ATTACKS CAUGHT (RECALL)</small><strong id="benchmarkNovelRecall">—</strong><p>Share of attacks caught when their complete vector ID was hidden during training. Higher is better.</p></article>
+        <article><small>DETECTION BALANCE (F1)</small><strong id="benchmarkF1">—</strong><p>One score balancing fraud caught against incorrect alerts. Higher is better.</p></article>
+        <article><small>LEGITIMATE LOOK-ALIKES FLAGGED</small><strong id="benchmarkFpr">—</strong><p>Verified legitimate cases incorrectly treated as fraud. Lower is better.</p></article>
       </div>
       <div class="benchmark-detail-grid">
         <article class="confusion-card">
@@ -125,13 +125,13 @@
           </div>
         </article>
         <article class="phase-benchmark-card">
-          <header><small>FULL-LIFECYCLE EFFICACY</small><h3>Recall and customer safety by phase</h3></header>
+          <header><small>PAYMENT-STAGE DEFENSE</small><h3>Fraud caught and legitimate users protected</h3></header>
           <div id="benchmarkPhases"></div>
         </article>
       </div>
       <div class="family-table-wrap">
         <div class="family-table-head"><div><small>ATTACK COVERAGE</small><h3>Defense efficacy by family</h3></div><span id="benchmarkGenerated">—</span></div>
-        <div class="family-table-scroll"><table><thead><tr><th>Family</th><th>Attack events</th><th>Recall</th><th>Value protected</th><th>Mean risk</th></tr></thead><tbody id="familyResults"></tbody></table></div>
+        <div class="family-table-scroll"><table><thead><tr><th>Family</th><th>Attack events</th><th>Fraud caught</th><th>Value protected</th><th>Average risk score</th></tr></thead><tbody id="familyResults"></tbody></table></div>
       </div>
       <p class="method-note"><b>Interpretation:</b> these are reproducible synthetic stress-test results, not claims about live Mastercard traffic. Real deployment requires privacy-reviewed calibration, shadow traffic and drift monitoring.</p>
     </section>
@@ -142,10 +142,10 @@
         <span id="externalAssessment" class="proof-badge validation-caveat">LOADING VALIDATION…</span>
       </div>
       <div class="validation-kpis">
-        <article><small>FUTURE-TEST PR-AUC</small><strong id="externalPrauc">—</strong><p id="externalPraucCi">95% interval —</p></article>
-        <article><small>PRECISION</small><strong id="externalPrecision">—</strong><p>Of payments flagged, how many were fraud.</p></article>
-        <article><small>RECALL</small><strong id="externalRecall">—</strong><p>Of fraud payments, how many were caught.</p></article>
-        <article><small>FALSE-POSITIVE RATE</small><strong id="externalFpr">—</strong><p>Legitimate payments incorrectly flagged.</p></article>
+        <article><small>FRAUD RANKING QUALITY (PR-AUC)</small><strong id="externalPrauc">—</strong><p id="externalPraucCi">95% interval —</p></article>
+        <article><small>ALERT ACCURACY (PRECISION)</small><strong id="externalPrecision">—</strong><p>Of payments flagged, how many were actually fraud. Higher is better.</p></article>
+        <article><small>FRAUD CAUGHT (RECALL)</small><strong id="externalRecall">—</strong><p>Of fraud payments, how many were caught. Higher is better.</p></article>
+        <article><small>LEGITIMATE PAYMENTS FLAGGED</small><strong id="externalFpr">—</strong><p>Legitimate payments incorrectly flagged. Lower is better.</p></article>
       </div>
       <div class="validation-grid">
         <article class="validation-proof-card">
@@ -159,7 +159,7 @@
           <div class="review-capacity"><small>INVESTIGATION CAPACITY</small><strong id="externalReviewCapture">—</strong><span id="externalReviewCount">—</span></div>
         </article>
         <article class="validation-drift-card">
-          <header><small>TEMPORAL ROBUSTNESS</small><h3>Performance changed inside the future window</h3></header>
+          <header><small>STABILITY OVER TIME</small><h3>Did detection quality change on later payments?</h3></header>
           <div id="externalTemporal"></div>
           <p id="externalDriftNote">Loading drift evidence…</p>
         </article>
@@ -179,10 +179,24 @@
       </div>
       <div class="criteria-grid">
         <article><small>01 · ATTACK DIVERSITY</small><strong id="criteriaDiversity">—</strong><p id="criteriaDiversityNote">Loading catalogue coverage…</p></article>
-        <article><small>02 · SIMULATION FIDELITY</small><strong id="criteriaFidelity">Declared-prior score</strong><p id="criteriaFidelityNote">Seeded events, look-alikes, and sealed truth.</p></article>
-        <article><small>03 · DETECTION EFFICACY</small><strong id="criteriaDetection">Two-speed defense</strong><p id="criteriaDetectionNote">Fast sequence guard plus Qwen investigation.</p></article>
-        <article><small>04 · NOVELTY</small><strong id="criteriaNovelty">Dual learning loops</strong><p id="criteriaNoveltyNote">Red evolves attacks; Blue promotes only measured gains.</p></article>
-        <article><small>05 · LIVE FEASIBILITY</small><strong id="criteriaLive">Inline guard</strong><p id="criteriaLiveNote">Open-model reasoning stays asynchronous and outside the authorization lane.</p></article>
+        <article><small>02 · SIMULATION REALISM (FIDELITY)</small><strong id="criteriaFidelity">Declared-prior score</strong><p id="criteriaFidelityNote">Seeded events, look-alikes, and sealed truth.</p></article>
+        <article><small>03 · DETECTION QUALITY (EFFICACY)</small><strong id="criteriaDetection">Two-speed defense</strong><p id="criteriaDetectionNote">Fast sequence guard plus Qwen investigation.</p></article>
+        <article><small>04 · WHAT IS NEW (NOVELTY)</small><strong id="criteriaNovelty">Dual learning loops</strong><p id="criteriaNoveltyNote">Red evolves attacks; Blue promotes only measured gains.</p></article>
+        <article><small>05 · CAN IT RUN LIVE? (FEASIBILITY)</small><strong id="criteriaLive">Inline guard</strong><p id="criteriaLiveNote">Open-model reasoning stays asynchronous and outside the authorization lane.</p></article>
+      </div>
+    </section>
+
+    <section class="arena-guide" aria-labelledby="arenaGuideTitle">
+      <div class="arena-guide-heading">
+        <div class="section-kicker">HOW THE LIVE ARENA WORKS</div>
+        <h2 id="arenaGuideTitle">What happens when you start a battle?</h2>
+        <p>One round is one complete stress test. Everything is synthetic: no customer is contacted and no real payment is attempted.</p>
+      </div>
+      <div class="arena-guide-steps">
+        <article><span>1</span><div><strong>Choose the test</strong><p>Select a fraud family and difficulty. Difficulty changes the safe synthetic behavior—not real attack access.</p></div></article>
+        <article><span>2</span><div><strong>Red builds the scenario</strong><p>The Red model proposes a bounded plan. A safety gate rejects anything outside the simulator contract.</p></div></article>
+        <article><span>3</span><div><strong>Blue makes event decisions</strong><p>Blue sees observable payment behavior and legitimate look-alikes, but never sees which events are labelled fraud.</p></div></article>
+        <article><span>4</span><div><strong>Referee reveals the result</strong><p>After Blue finishes, sealed truth measures what was detected, how much synthetic value was protected, and whether legitimate users were harmed.</p></div></article>
       </div>
     </section>
 
@@ -190,20 +204,25 @@
       <div class="control-copy">
         <div class="section-kicker">NEW BATTLE</div>
         <h2>Configure the next stress test</h2>
-        <p>Red changes only bounded synthetic behavior. Blue sees observable evidence—not the answer key.</p>
+        <p>For a first demonstration, keep one round selected. Use multiple rounds only when you want to show how Red and Blue adapt between completed battles.</p>
       </div>
       <form id="runForm">
         <label>Attack family<select id="attackFamily" name="attack_family"></select></label>
         <label>Difficulty<select id="difficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label>
         <label>Feedback rounds<select id="rounds" name="rounds"><option value="1" selected>1 round · fast demo</option><option value="2">2 rounds · feedback loop</option><option value="3">3 rounds · extended</option></select></label>
         <button class="run-button" type="submit" id="runButton"><span>Start agent battle</span><b>→</b></button>
-        <p id="latencyEstimate" class="latency-note">Fast mode uses one Blue model call per event and evaluates isolated cases in parallel.</p>
+        <p id="latencyEstimate" class="latency-note">One round runs Red once, evaluates each reached payment event, and scores the result once.</p>
       </form>
     </section>
 
     <section id="runState" class="run-state hidden" aria-live="polite">
-      <div class="loader"><i></i><i></i><i></i></div>
-      <div><strong>Agents are running the episode</strong><span id="runStateText">Red is planning a bounded campaign…</span><span id="runElapsed">Elapsed 0s</span></div>
+      <div class="run-state-head">
+        <div class="loader"><i></i><i></i><i></i></div>
+        <div class="run-state-copy"><small id="runRoundLabel">ROUND 1 OF 1 · LIVE</small><strong id="runStateTitle">Preparing the synthetic payment arena</strong><span id="runStateText">The server is validating the battle boundaries.</span></div>
+        <span id="runElapsed">Elapsed 0s</span>
+      </div>
+      <ol id="runProgressSteps" class="run-progress-steps" aria-label="Live battle stages"></ol>
+      <div id="runProgressCount" class="run-progress-count">Waiting for the first verified stage update…</div>
     </section>
     <section id="errorState" class="error-state hidden" aria-live="assertive"></section>
 
@@ -213,30 +232,39 @@
         <div id="roundTabs" class="round-tabs"></div>
       </div>
 
+      <aside class="metric-guide" aria-label="How to read the battle metrics">
+        <strong>How to read this report</strong>
+        <span><b>Defense score:</b> higher is better.</span>
+        <span><b>Attack strength:</b> higher means a tougher test, not a defense failure.</span>
+        <span><b>Money lost:</b> lower is better.</span>
+        <span><b>Detection time:</b> uses the simulated event timeline, not browser waiting time.</span>
+        <span><b>Result:</b> Prevented means no synthetic loss; Contained means some loss was limited; Detected means a warning without proven value protection; Missed means no warning.</span>
+      </aside>
+
       <section class="outcome-board" aria-label="Battle outcome">
-        <article class="outcome-primary"><small>BALANCED LIFECYCLE DEFENSE</small><strong id="balancedScore">—</strong><span>/ 100</span><p>Weights the weakest phase so a strong average cannot hide a control gap.</p></article>
-        <article><small>RED CAPABILITY</small><strong id="redCapability">—</strong><span>/ 100</span><p id="redCapabilityNote">Lifecycle reach, stealth, breadth and stage depth.</p></article>
-        <article><small>REALIZED IMPACT</small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after defense</span><p id="impactVerdict">Waiting for a completed battle.</p></article>
-        <article><small>OUTCOME</small><strong id="outcome">—</strong><span id="detectionTime">No result</span><p><b id="falsePositives">—</b> hard false positives on look-alikes.</p></article>
+        <article class="outcome-primary"><small>OVERALL DEFENSE SCORE · HIGHER IS BETTER</small><strong id="balancedScore">—</strong><span>/ 100</span><p>60% average performance plus 40% of the weakest payment stage, so one strong stage cannot hide another stage's gap.</p></article>
+        <article><small>ATTACK STRENGTH · HIGHER IS HARDER</small><strong id="redCapability">—</strong><span>/ 100</span><p id="redCapabilityNote">How far the attack progressed, how quietly it moved, and how many stages it exercised.</p></article>
+        <article><small>SYNTHETIC MONEY LOST · LOWER IS BETTER</small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after Blue acted</span><p id="impactVerdict">Waiting for a completed battle.</p></article>
+        <article><small>FINAL RESULT</small><strong id="outcome">—</strong><span id="detectionTime">No result</span><p><b id="falsePositives">—</b> of legitimate look-alikes were wrongly held or blocked.</p></article>
       </section>
 
       <section id="lifecycleScorecard" class="lifecycle-section">
         <div class="section-heading">
-          <div><div class="section-kicker">FULL-LIFECYCLE EVALUATION</div><h2>Where did defense work?</h2><p>Each phase is measured from its own first actionable opportunity.</p></div>
-          <div class="lifecycle-summary"><span>Weakest phase <b id="worstPhase">—</b></span><span>Balance gap <b id="balanceGap">—</b></span></div>
+          <div><div class="section-kicker">PAYMENT JOURNEY SCORECARD</div><h2>How well did Blue defend each payment stage?</h2><p>Each stage starts at its first observable warning. A stage score combines detection (25%), response speed (20%), harm stopped (35%), and legitimate-customer safety (20%).</p></div>
+          <div class="lifecycle-summary"><span>Needs most improvement <b id="worstPhase">—</b></span><span>Difference between best and worst <b id="balanceGap">—</b></span></div>
         </div>
         <div id="phaseCards" class="phase-cards"></div>
       </section>
 
       <section class="impact-section" aria-label="Capability and impact">
         <div class="impact-copy">
-          <div class="section-kicker">CAPABILITY × CONSEQUENCE</div>
-          <h2>Was the attack weak—or defended well?</h2>
-          <p>The horizontal position measures Red's capability. The vertical position measures harm that remained after Blue acted. Bubble size represents total potential value.</p>
+          <div class="section-kicker">ATTACK STRENGTH × MONEY LOST</div>
+          <h2>Was the attack easy—or did Blue defend it well?</h2>
+          <p>Move right for a stronger attack. Move up for more synthetic money lost after Blue acted. Bubble size shows the total value that was at risk.</p>
           <div class="impact-values">
-            <div><small>ATTACK POTENTIAL</small><strong id="attackPotential">—</strong></div>
+            <div><small>SYNTHETIC VALUE AT RISK</small><strong id="attackPotential">—</strong></div>
             <div><small>VALUE PROTECTED</small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></div>
-            <div><small>REALIZED IMPACT</small><strong id="impactAmount">—</strong></div>
+            <div><small>SYNTHETIC MONEY LOST</small><strong id="impactAmount">—</strong></div>
           </div>
         </div>
         <div class="quadrant-wrap">
@@ -246,8 +274,8 @@
             <span class="quad-label low">LOW PRIORITY</span>
             <span class="quad-label defended">DEFENDED WELL</span>
             <span id="impactBubble" class="impact-bubble">RED</span>
-            <span class="axis axis-x">Red capability →</span>
-            <span class="axis axis-y">Realized impact →</span>
+            <span class="axis axis-x">Attack strength →</span>
+            <span class="axis axis-y">Money lost →</span>
           </div>
         </div>
       </section>

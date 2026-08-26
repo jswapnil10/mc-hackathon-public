@@ -5,7 +5,8 @@ from __future__ import annotations
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any
+from threading import Lock
+from typing import Any, Callable
 
 from red_team_agent.models import ScenarioSpec
 
@@ -140,6 +141,7 @@ class SentinelLoopOrchestrator:
         *,
         config: AgentLabConfig | None = None,
         gateway: StructuredModelGateway | None = None,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.config = config or AgentLabConfig.from_env()
         self.gateway = gateway or OpenAICompatibleGateway(self.config)
@@ -147,6 +149,39 @@ class SentinelLoopOrchestrator:
         self.blue = GenAIBlueAgent(gateway=self.gateway, config=self.config)
         self.blue_strategist = GenAIBlueStrategist(gateway=self.gateway, config=self.config)
         self.referee = DeterministicReferee()
+        self.progress_callback = progress_callback
+
+    def _progress(
+        self,
+        stage: str,
+        headline: str,
+        detail: str,
+        *,
+        round_number: int,
+        total_rounds: int,
+        **facts: Any,
+    ) -> None:
+        """Publish sanitized, judge-facing progress without exposing agent prompts or truth."""
+        if self.progress_callback is None:
+            return
+        payload = {
+            "status": "completed" if stage == "completed" else "running",
+            "stage": stage,
+            "headline": headline,
+            "detail": detail,
+            "round_number": round_number,
+            "total_rounds": total_rounds,
+            **facts,
+        }
+        try:
+            self.progress_callback(payload)
+        except Exception as exc:  # noqa: BLE001 - telemetry must never break a battle
+            trace(
+                "progress.publish_failed",
+                "Judge-facing progress reporting failed; the battle continued.",
+                stage=stage,
+                error=str(exc),
+            )
 
     def _run_blue_cases(
         self,
@@ -156,6 +191,9 @@ class SentinelLoopOrchestrator:
         attack_seed: int,
         control_seed_base: int,
         playbook: DefensePlaybook,
+        round_number: int,
+        total_rounds: int,
+        replay: bool = False,
     ) -> tuple[list[BlueTurn], list[tuple[SimulationCase, list[BlueTurn]]]]:
         """Evaluate isolated cases concurrently while preserving order within each case."""
         jobs = [
@@ -166,13 +204,58 @@ class SentinelLoopOrchestrator:
             ],
         ]
 
+        total_event_capacity = sum(len(case.events) for case, _ in jobs)
+        completed_events = 0
+        progress_lock = Lock()
+        stage = "blue_replay" if replay else "blue_investigation"
+        headline = (
+            "Blue is replay-testing a candidate defense"
+            if replay
+            else "Blue is evaluating the attack and legitimate look-alikes"
+        )
+        self._progress(
+            stage,
+            headline,
+            (
+                f"0 event decisions completed across {len(jobs)} isolated cases. "
+                "Events remain ordered inside each case."
+            ),
+            round_number=round_number,
+            total_rounds=total_rounds,
+            completed_events=0,
+            total_event_capacity=total_event_capacity,
+            case_count=len(jobs),
+        )
+
         def evaluate(job: tuple[SimulationCase, int]) -> list[BlueTurn]:
+            nonlocal completed_events
             case, case_seed = job
+
+            def event_completed(_event: Any, _turn: Any) -> None:
+                nonlocal completed_events
+                with progress_lock:
+                    completed_events += 1
+                    current = completed_events
+                self._progress(
+                    stage,
+                    headline,
+                    (
+                        f"{current} event decision{'s' if current != 1 else ''} completed "
+                        f"across {len(jobs)} isolated cases."
+                    ),
+                    round_number=round_number,
+                    total_rounds=total_rounds,
+                    completed_events=current,
+                    total_event_capacity=total_event_capacity,
+                    case_count=len(jobs),
+                )
+
             return self.blue.run_case(
                 case.events,
                 seed=case_seed,
                 stop_on_decisive_action=True,
                 playbook=playbook,
+                event_completed=event_completed,
             )
 
         worker_count = min(self.config.case_parallelism, len(jobs))
@@ -274,6 +357,13 @@ class SentinelLoopOrchestrator:
         results: list[RoundResult] = []
         bounded_family = attack_family
         active_playbook = DefensePlaybook.baseline()
+        self._progress(
+            "preparing",
+            "Preparing the synthetic payment arena",
+            "The server validated the battle settings and isolated Red, Blue, and Referee data.",
+            round_number=1,
+            total_rounds=rounds,
+        )
         for index in range(rounds):
             round_started = time.monotonic()
             round_seed = seed + index
@@ -283,6 +373,16 @@ class SentinelLoopOrchestrator:
                 "A feedback-loop round started.",
                 round_number=index + 1,
                 round_seed=round_seed,
+            )
+            self._progress(
+                "red_planning",
+                "Red is designing a bounded attack plan",
+                (
+                    f"Round {index + 1} of {rounds}. The Red model is choosing a safe objective, "
+                    "lifecycle focus, and synthetic parameter changes."
+                ),
+                round_number=index + 1,
+                total_rounds=rounds,
             )
             red_turn = self.red.plan(
                 attack_family=bounded_family,
@@ -309,12 +409,26 @@ class SentinelLoopOrchestrator:
                 if include_legitimate_controls
                 else []
             )
+            self._progress(
+                "simulation",
+                "The arena built the synthetic payment events",
+                (
+                    f"Safety checks passed. Built {len(attack_case.events)} attack events and "
+                    f"{len(controls)} legitimate look-alike cases; sealed labels remain with the Referee."
+                ),
+                round_number=index + 1,
+                total_rounds=rounds,
+                attack_event_count=len(attack_case.events),
+                control_case_count=len(controls),
+            )
             attack_turns, control_results = self._run_blue_cases(
                 attack_case=attack_case,
                 controls=controls,
                 attack_seed=round_seed * 100,
                 control_seed_base=round_seed * 1000,
                 playbook=round_playbook,
+                round_number=index + 1,
+                total_rounds=rounds,
             )
             trace(
                 "blue.attack_case.completed",
@@ -340,6 +454,13 @@ class SentinelLoopOrchestrator:
                     "Blue processed standalone legit + trap traffic (realistic FP denominator).",
                     ambient_case_count=len(ambient_results),
                 )
+            self._progress(
+                "referee_scoring",
+                "The Referee is opening the sealed answer key",
+                "Blue's decisions are complete. The Referee is measuring detection, value protected, timing, and legitimate-customer harm.",
+                round_number=index + 1,
+                total_rounds=rounds,
+            )
             report = self.referee.score(
                 attack_case=attack_case,
                 attack_turns=attack_turns,
@@ -370,6 +491,13 @@ class SentinelLoopOrchestrator:
                       rows=logged, path=training_log_path)
             blue_adaptation: BlueAdaptationResult | None = None
             if index < rounds - 1:
+                self._progress(
+                    "blue_adaptation",
+                    "Blue is proposing a safer defense for the next round",
+                    "Only post-outcome evidence is available. The candidate must beat the current playbook without increasing customer harm.",
+                    round_number=index + 1,
+                    total_rounds=rounds,
+                )
                 post_episode_packet = self.referee.feedback_for_blue(
                     report=report,
                     attack_case=attack_case,
@@ -388,6 +516,9 @@ class SentinelLoopOrchestrator:
                     attack_seed=round_seed * 10_000 + 1_000,
                     control_seed_base=round_seed * 10_000 + 2_000,
                     playbook=candidate,
+                    round_number=index + 1,
+                    total_rounds=rounds,
+                    replay=True,
                 )
                 replay_report = self.referee.score(
                     attack_case=attack_case,
@@ -440,6 +571,21 @@ class SentinelLoopOrchestrator:
                 )
             )
             previous = red_turn.scenario
+            self._progress(
+                "round_complete",
+                f"Round {index + 1} is complete",
+                (
+                    f"Outcome: {report.outcome}. "
+                    + (
+                        "The next round will use only the permitted feedback."
+                        if index < rounds - 1
+                        else "The final battle report is being prepared."
+                    )
+                ),
+                round_number=index + 1,
+                total_rounds=rounds,
+                outcome=report.outcome,
+            )
 
             # End of a generation: retrain the challenger and hot-reload if it beats the champion.
             if retrain_every and training_log_path and (index + 1) % retrain_every == 0:
@@ -491,6 +637,15 @@ class SentinelLoopOrchestrator:
             "The adversarial lab run completed.",
             run_id=result.run_id,
             completed_rounds=len(result.rounds),
+            duration_ms=result.duration_ms,
+        )
+        self._progress(
+            "completed",
+            "Battle complete",
+            "The scored report is ready. No real payment rail, customer, or external recipient was touched.",
+            round_number=rounds,
+            total_rounds=rounds,
+            run_id=result.run_id,
             duration_ms=result.duration_ms,
         )
         return result

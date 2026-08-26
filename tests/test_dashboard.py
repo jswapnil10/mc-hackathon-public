@@ -17,8 +17,10 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"MasterGuard AI", response.data)
         self.assertIn(b"Attack. Adapt. Defend.", response.data)
-        self.assertIn(b"BALANCED LIFECYCLE DEFENSE", response.data)
-        self.assertIn(b"CAPABILITY \xc3\x97 CONSEQUENCE", response.data)
+        self.assertIn(b"OVERALL DEFENSE SCORE", response.data)
+        self.assertIn(b"What happens when you start a battle?", response.data)
+        self.assertIn(b"How to read this report", response.data)
+        self.assertIn(b"ATTACK STRENGTH \xc3\x97 MONEY LOST", response.data)
         self.assertIn(b"Threat Atlas", response.data)
         self.assertIn(b"Scenario Foundry", response.data)
         self.assertIn(b"Defense Benchmark", response.data)
@@ -81,6 +83,15 @@ class DashboardTests(unittest.TestCase):
             "/api/v2/run",
             json={"attack_family": "UNBOUNDED-99", "difficulty": "medium", "rounds": 2},
         )
+        self.assertEqual(response.status_code, 400)
+
+    def test_unknown_run_progress_is_explicit(self):
+        response = self.client.get("/api/v2/run-progress/browser-test-0001")
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("not started", response.get_json()["error"])
+
+    def test_invalid_run_progress_identifier_is_rejected(self):
+        response = self.client.get("/api/v2/run-progress/not_valid!")
         self.assertEqual(response.status_code, 400)
 
 

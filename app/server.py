@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -28,11 +30,31 @@ LEGACY_DEMO_DIR = PROJECT_ROOT / "app" / "legacy_demo"
 AGENT_RUNS_DIR = PROJECT_ROOT / "runs" / "agentic"
 LATEST_AGENT_RUN_PATH = AGENT_RUNS_DIR / "latest.json"
 AGENT_RUN_LOCK = threading.Lock()
+RUN_PROGRESS_LOCK = threading.Lock()
+RUN_PROGRESS: dict[str, dict[str, Any]] = {}
+RUN_PROGRESS_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{8,80}$")
 BENCHMARK_DIR = PROJECT_ROOT / "data" / "benchmark"
 LATEST_BENCHMARK_PATH = BENCHMARK_DIR / "latest.json"
 BENCHMARK_RUN_LOCK = threading.Lock()
 EXTERNAL_VALIDATION_DIR = PROJECT_ROOT / "data" / "external_validation"
 LATEST_EXTERNAL_VALIDATION_PATH = EXTERNAL_VALIDATION_DIR / "latest.json"
+
+
+def _set_run_progress(progress_id: str, payload: dict[str, Any]) -> None:
+    """Keep a small, sanitized in-memory progress record for browser polling."""
+    with RUN_PROGRESS_LOCK:
+        RUN_PROGRESS[progress_id] = {
+            **payload,
+            "progress_id": progress_id,
+            "updated_at_epoch_ms": round(time.time() * 1000),
+        }
+        while len(RUN_PROGRESS) > 8:
+            removable = [key for key in RUN_PROGRESS if key != progress_id]
+            oldest = min(
+                removable or list(RUN_PROGRESS),
+                key=lambda key: RUN_PROGRESS[key].get("updated_at_epoch_ms", 0),
+            )
+            RUN_PROGRESS.pop(oldest, None)
 
 
 def _load_data() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
@@ -284,22 +306,52 @@ def create_app() -> Flask:
             return jsonify({"error": "No agentic run has been completed yet."}), 404
         return jsonify(json.loads(LATEST_AGENT_RUN_PATH.read_text(encoding="utf-8")))
 
+    @app.get("/api/v2/run-progress/<progress_id>")
+    def agent_run_progress(progress_id: str) -> Any:
+        if not RUN_PROGRESS_ID_PATTERN.fullmatch(progress_id):
+            return jsonify({"error": "Invalid progress identifier."}), 400
+        with RUN_PROGRESS_LOCK:
+            progress = RUN_PROGRESS.get(progress_id)
+            snapshot = dict(progress) if progress is not None else None
+        if snapshot is None:
+            return jsonify({"error": "This battle has not started reporting progress yet."}), 404
+        return jsonify(snapshot)
+
     @app.post("/api/v2/run")
     def run_agent_lab() -> Any:
         if not AGENT_RUN_LOCK.acquire(blocking=False):
             return jsonify({"error": "Another Agent Arena run is already in progress."}), 409
+        progress_id: str | None = None
         try:
             body = request.get_json(silent=True) or {}
             family = str(body.get("attack_family", "ATO-01"))
             difficulty = str(body.get("difficulty", "medium"))
             rounds = int(body.get("rounds", 1))
             seed = int(body.get("seed", 20260824))
+            requested_progress_id = str(body.get("progress_id", "")).strip()
+            if requested_progress_id:
+                if not RUN_PROGRESS_ID_PATTERN.fullmatch(requested_progress_id):
+                    return jsonify({"error": "Invalid progress identifier."}), 400
+                progress_id = requested_progress_id
             if family not in AttackCatalog().families:
                 return jsonify({"error": f"Unknown attack family {family!r}."}), 400
             if difficulty not in {"easy", "medium", "hard"}:
                 return jsonify({"error": "Difficulty must be easy, medium, or hard."}), 400
             if not 1 <= rounds <= 3:
                 return jsonify({"error": "The web demo supports between 1 and 3 rounds."}), 400
+
+            if progress_id:
+                _set_run_progress(
+                    progress_id,
+                    {
+                        "status": "running",
+                        "stage": "preparing",
+                        "headline": "Preparing the synthetic payment arena",
+                        "detail": "The server accepted the battle and is validating its boundaries.",
+                        "round_number": 1,
+                        "total_rounds": rounds,
+                    },
+                )
 
             trace(
                 "web.run.accepted",
@@ -310,7 +362,15 @@ def create_app() -> Flask:
                 seed=seed,
             )
             config = AgentLabConfig.from_env()
-            result = SentinelLoopOrchestrator(config=config).run(
+            progress_callback = (
+                (lambda update: _set_run_progress(progress_id, update))
+                if progress_id is not None
+                else None
+            )
+            result = SentinelLoopOrchestrator(
+                config=config,
+                progress_callback=progress_callback,
+            ).run(
                 attack_family=family,
                 difficulty=difficulty,
                 rounds=rounds,
@@ -335,6 +395,16 @@ def create_app() -> Flask:
             )
             return jsonify(payload)
         except RuntimeError as error:
+            if progress_id:
+                _set_run_progress(
+                    progress_id,
+                    {
+                        "status": "error",
+                        "stage": "error",
+                        "headline": "The battle stopped safely",
+                        "detail": str(error),
+                    },
+                )
             return jsonify(
                 {
                     "error": str(error),
@@ -347,6 +417,16 @@ def create_app() -> Flask:
                 }
             ), 502
         except ValueError as error:
+            if progress_id:
+                _set_run_progress(
+                    progress_id,
+                    {
+                        "status": "error",
+                        "stage": "error",
+                        "headline": "A safety or policy contract stopped the battle",
+                        "detail": str(error),
+                    },
+                )
             return jsonify(
                 {
                     "error": str(error),

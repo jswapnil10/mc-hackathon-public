@@ -1,6 +1,11 @@
 const $ = (selector) => document.querySelector(selector);
 const state = { run: null, roundIndex: 0, turnIndex: 0, status: null, atlas: null, benchmark: null, externalValidation: null };
 const phases = ['pre_transaction', 'transaction', 'post_transaction'];
+const phaseExplanations = {
+  pre_transaction: 'Before money moves',
+  transaction: 'While the payment is being requested',
+  post_transaction: 'After money reaches the receiving side',
+};
 const actionClasses = new Set(['allow', 'monitor', 'step_up', 'hold', 'block']);
 
 const money = (value) => new Intl.NumberFormat('en-IN', {
@@ -125,7 +130,7 @@ function renderBenchmark(data) {
   const lifecycle = defense.lifecycle_results || {};
   $('#benchmarkPhases').innerHTML = phases.map(phase => {
     const item = lifecycle[phase] || {};
-    return `<div class="benchmark-phase"><div class="benchmark-phase-head"><span>${escapeHtml(pretty(phase))}</span><b>${precisePct(item.recall, 1)} recall</b></div><progress max="100" value="${clamp((Number(item.recall) || 0) * 100, 0, 100)}">${precisePct(item.recall, 1)}</progress><small>${integer(item.events)} hidden-test events · ${precisePct(1 - (Number(item.false_positive_rate) || 0), 1)} legitimate safety</small></div>`;
+    return `<div class="benchmark-phase"><div class="benchmark-phase-head"><span>${escapeHtml(pretty(phase))}</span><b>${precisePct(item.recall, 1)} fraud caught</b></div><progress max="100" value="${clamp((Number(item.recall) || 0) * 100, 0, 100)}">${precisePct(item.recall, 1)}</progress><small>${integer(item.events)} hidden-test events · ${precisePct(1 - (Number(item.false_positive_rate) || 0), 1)} legitimate users protected</small></div>`;
   }).join('');
   $('#familyResults').innerHTML = Object.entries(defense.family_results || {}).sort().map(([family, item]) => `<tr><td>${escapeHtml(family)}</td><td>${integer(item.events)}</td><td>${precisePct(item.recall, 1)}</td><td>${precisePct(item.value_weighted_recall, 1)}</td><td>${precisePct(item.mean_risk_score, 1)}</td></tr>`).join('');
   $('#benchmarkGenerated').textContent = `${integer(metrics.event_count)} sealed test events · ${integer((data.threat_atlas || {}).novel_holdout_vector_count)} novel vectors`;
@@ -188,15 +193,15 @@ function renderExternalValidation(data) {
   $('#externalTemporal').innerHTML = [
     ['Earlier half', early],
     ['Later half', late],
-  ].map(([label, item]) => `<div class="temporal-row"><span>${escapeHtml(label)}</span><div><b>${precisePct(item.pr_auc, 1)} PR-AUC</b><small>${precisePct(item.recall, 1)} recall · ${precisePct(item.false_positive_rate, 3)} false positives</small></div></div>`).join('');
+  ].map(([label, item]) => `<div class="temporal-row"><span>${escapeHtml(label)}</span><div><b>${precisePct(item.pr_auc, 1)} fraud-ranking quality</b><small>${precisePct(item.recall, 1)} fraud caught · ${precisePct(item.false_positive_rate, 3)} legitimate payments flagged</small></div></div>`).join('');
   $('#externalDriftNote').textContent = worstDrift.feature
-    ? `${worstDrift.feature} showed the largest train-to-test population shift (PSI ${Number(worstDrift.psi).toFixed(2)}). The late-window decline is a retraining and monitoring signal.`
+    ? `${worstDrift.feature} changed the most between training and future payments (population stability index ${Number(worstDrift.psi).toFixed(2)}). The later decline means the defense should be monitored and retrained.`
     : 'No drift summary is available.';
   $('#externalSupports').textContent = supportedClaim
-    ? supportedClaim.evidence
+    ? `On future payments, fraud-ranking quality reached ${precisePct(metrics.pr_auc, 1)} while fraud made up only ${precisePct(metrics.fraud_prevalence, 3)} of the data.`
     : 'The independent test evidence is available in the downloadable validation report.';
   $('#externalDoesNotProve').textContent = (data.limitations || [])[0] || 'Institution-specific shadow scoring is still required.';
-  $('#externalQuality').textContent = `${score(quality.score)} / 100 raw quality · modeled after remediation`;
+  $('#externalQuality').textContent = `${score(quality.score)} / 100 source-data quality · validated after cleanup`;
   $('#externalRemediation').textContent = `${integer(remediation.exact_duplicate_rows_removed)} exact duplicate rows were removed before chronological splitting. Published counts reconciled at ${integer(remediation.raw_row_count)} rows and ${integer(remediation.raw_fraud_count)} frauds; ${integer(remediation.modeled_row_count)} rows entered validation.`;
   if (String(dataset.source_url || '').startsWith('https://')) $('#externalSource').href = dataset.source_url;
 }
@@ -217,16 +222,16 @@ function renderRoundEvaluation(evaluation, report, round = {}) {
   const efficacy = (evaluation && evaluation.detection_efficacy) || {};
   const live = (evaluation && evaluation.live_feasibility) || {};
   $('#criteriaFidelity').textContent = `${score(fidelity.score)} / 100`;
-  $('#criteriaFidelityNote').textContent = `${Number(fidelity.legitimate_look_alike_cases) || 0} look-alikes · ${fidelity.truth_boundary_clean ? 'sealed truth clean' : 'truth-boundary issue'} · ${Number((fidelity.lab_only_event_types_exposed || []).length)} lab-only events.`;
+  $('#criteriaFidelityNote').textContent = `${Number(fidelity.legitimate_look_alike_cases) || 0} legitimate look-alikes tested · ${fidelity.truth_boundary_clean ? 'Blue never saw the answer key' : 'answer-key boundary needs review'}.`;
   $('#criteriaDetection').textContent = `${pct(efficacy.value_prevented_ratio ?? report.value_prevented_ratio)} protected`;
-  $('#criteriaDetectionNote').textContent = `${pct(efficacy.hard_false_positive_rate ?? report.hard_false_positive_rate)} hard false positives · lifecycle score ${score(efficacy.balanced_lifecycle_defense_score ?? report.balanced_lifecycle_defense_score)}.`;
+  $('#criteriaDetectionNote').textContent = `${pct(efficacy.hard_false_positive_rate ?? report.hard_false_positive_rate)} of legitimate look-alikes wrongly stopped · ${score(efficacy.balanced_lifecycle_defense_score ?? report.balanced_lifecycle_defense_score)} overall defense score.`;
   $('#criteriaNovelty').textContent = 'Two-speed defense';
   const storedGuardedEvents = Number(efficacy.fast_guard_actionable_event_count);
   const guardedEvents = Number.isFinite(storedGuardedEvents)
     ? storedGuardedEvents
     : (((round.blue || {}).attack_turns || []).filter(turn => ['step_up', 'hold', 'block'].includes(((turn.risk_synthesis || {}).operational_minimum_action || (turn.risk_synthesis || {}).minimum_action))).length);
   const modelEscalations = Number(efficacy.fast_guard_intervention_count) || 0;
-  $('#criteriaNoveltyNote').textContent = `${guardedEvents} actionable fast-path floor${guardedEvents === 1 ? '' : 's'} · ${modelEscalations} model under-reaction${modelEscalations === 1 ? '' : 's'} corrected.`;
+  $('#criteriaNoveltyNote').textContent = `${guardedEvents} events had an immediate minimum-safe action before GenAI finished · ${modelEscalations} weaker model action${modelEscalations === 1 ? '' : 's'} corrected.`;
   $('#criteriaLive').textContent = live.round_duration_ms == null
     ? `${pct(live.pre_model_fast_path_coverage)} fast path`
     : `${duration(live.round_duration_ms)} battle`;
@@ -235,14 +240,14 @@ function renderRoundEvaluation(evaluation, report, round = {}) {
     : `${Number(live.blue_model_call_count)} Blue calls · ${Number(live.model_calls_per_blue_event || 0).toFixed(1)} per event · `;
   $('#criteriaLiveNote').textContent = live.model_call_p95_ms == null
     ? `${callSummary}Inline guard is separate from asynchronous open-model reasoning.`
-    : `${callSummary}Qwen p95 ${Math.round(Number(live.model_call_p95_ms))} ms · ${Number(live.case_parallelism) || 1} isolated cases in parallel.`;
+    : `${callSummary}95% of Qwen calls finished within ${duration(live.model_call_p95_ms)} · ${Number(live.case_parallelism) || 1} isolated cases can run in parallel.`;
 }
 
 function updateLatencyEstimate() {
   const rounds = Number($('#rounds').value) || 1;
   $('#latencyEstimate').textContent = rounds === 1
-    ? 'Fast demo: one Blue call per event; the attack and three look-alikes run in parallel.'
-    : `${rounds} rounds include Blue strategy replay and Red adaptation. Use 1 round while iterating; use ${rounds} for the full learning-loop demonstration.`;
+    ? 'One round: Red plans once, Blue reviews each reached event, and the Referee scores once. No adaptation replay is performed.'
+    : `${rounds} rounds: after each non-final round, Blue tests a candidate defense and Red receives limited Referee feedback before the next battle.`;
 }
 
 function currentRound() {
@@ -378,14 +383,14 @@ function renderLifecycle(report) {
     const title = pretty(phase);
     if (item.status === 'prevented_before_phase') {
       return `<article class="phase-card protected">
-        <div class="phase-head"><div class="phase-name"><small>0${index + 1} · ${escapeHtml(pretty(item.status))}</small><h3>${escapeHtml(title)}</h3></div><div class="phase-score">✓</div></div>
-        <div class="phase-message">Blue stopped progression before this phase began.<br><b>${escapeHtml(pretty(item.first_actionable_event))}</b> was never reached.</div>
-        <div class="phase-foot"><span>0 / ${Number(item.event_count) || 0} events evaluated</span><span>EARLIER CONTROL HELD</span></div>
+        <div class="phase-head"><div class="phase-name"><small>0${index + 1} · STOPPED EARLIER</small><h3>${escapeHtml(title)}</h3><span>${escapeHtml(phaseExplanations[phase])}</span></div><div class="phase-score" title="Blue prevented the attack from reaching this stage">✓</div></div>
+        <div class="phase-message">Blue stopped the attack before this payment stage began.<br><b>${escapeHtml(pretty(item.first_actionable_event))}</b> was never reached.</div>
+        <div class="phase-foot"><span>0 of ${Number(item.event_count) || 0} planned events reviewed</span><span>PROTECTED BY EARLIER ACTION</span></div>
       </article>`;
     }
     if (item.status !== 'reached') {
       return `<article class="phase-card empty">
-        <div class="phase-head"><div class="phase-name"><small>0${index + 1} · NOT IN SCENARIO</small><h3>${escapeHtml(title)}</h3></div><div class="phase-score">—</div></div>
+        <div class="phase-head"><div class="phase-name"><small>0${index + 1} · NOT TESTED</small><h3>${escapeHtml(title)}</h3><span>${escapeHtml(phaseExplanations[phase])}</span></div><div class="phase-score">—</div></div>
         <div class="phase-message">This attack family did not exercise this lifecycle phase.</div>
       </article>`;
     }
@@ -393,20 +398,20 @@ function renderLifecycle(report) {
     const phaseScore = Number(item.phase_score) || 0;
     const tone = phaseScore >= 75 ? 'good' : phaseScore >= 50 ? 'watch' : 'weak';
     const transition = item.transition_escape_rate == null
-      ? 'FINAL PHASE'
+      ? 'LAST STAGE'
       : item.transition_escape_rate > 0
-        ? 'ATTACK ADVANCED'
-        : 'TRANSITION STOPPED';
+        ? 'ATTACK REACHED NEXT STAGE'
+        : 'ATTACK STOPPED HERE';
     const response = item.response_time_seconds == null
-      ? 'No actionable response'
-      : `${Number(item.response_time_seconds)}s from opportunity`;
+      ? 'Blue did not take an alerting action in this stage'
+      : `Blue responded ${Number(item.response_time_seconds)}s later in simulated time`;
     return `<article class="phase-card ${tone}">
-      <div class="phase-head"><div class="phase-name"><small>0${index + 1} · ${item.opportunity_detected ? 'DETECTED' : 'MISSED'}</small><h3>${escapeHtml(title)}</h3></div><div class="phase-score">${Math.round(phaseScore)}</div></div>
-      <div class="phase-opportunity"><b>${escapeHtml(pretty(item.first_actionable_event))}</b>${escapeHtml(response)}</div>
-      ${metricBar('Response speed', item.response_score)}
-      ${metricBar('Consequence controlled', item.consequence_control_ratio)}
-      ${metricBar('Legitimate customer safety', item.legitimate_safety_rate)}
-      <div class="phase-foot"><span>${Number(item.evaluated_event_count) || 0} / ${Number(item.event_count) || 0} events</span><span>${transition}</span></div>
+      <div class="phase-head"><div class="phase-name"><small>0${index + 1} · ${item.opportunity_detected ? 'WARNING DETECTED' : 'WARNING MISSED'}</small><h3>${escapeHtml(title)}</h3><span>${escapeHtml(phaseExplanations[phase])}</span></div><div class="phase-score" title="Defense score for this payment stage, out of 100">${Math.round(phaseScore)}</div></div>
+      <div class="phase-opportunity"><b>First chance to act: ${escapeHtml(pretty(item.first_actionable_event))}</b>${escapeHtml(response)}</div>
+      ${metricBar('How quickly Blue reacted', item.response_score)}
+      ${metricBar('Potential harm stopped', item.consequence_control_ratio)}
+      ${metricBar('Legitimate users left unharmed', item.legitimate_safety_rate)}
+      <div class="phase-foot"><span>${Number(item.evaluated_event_count) || 0} of ${Number(item.event_count) || 0} events reviewed</span><span>${transition}</span></div>
     </article>`;
   }).join('');
 }
@@ -423,10 +428,10 @@ function renderImpact(report, scenario) {
 
   $('#redCapability').textContent = score(capability);
   $('#redCapabilityNote').textContent = lifecycleCount
-    ? `Reached or challenged ${lifecycleCount} lifecycle phase${lifecycleCount === 1 ? '' : 's'}, including stealth and stage depth.`
-    : 'Lifecycle reach, stealth, breadth and stage depth.';
+    ? `This attack exercised ${lifecycleCount} payment stage${lifecycleCount === 1 ? '' : 's'}. The score also rewards stealth and deeper event sequences.`
+    : 'Measures how far the attack progressed, how quietly it moved, and how many stages it tested.';
   $('#realizedImpact').textContent = money(realized);
-  $('#realizedImpactRatio').textContent = `${pct(realizedRatio)} of potential harm remained`;
+  $('#realizedImpactRatio').textContent = `${pct(realizedRatio)} of at-risk synthetic money was lost`;
   $('#attackPotential').textContent = money(potential);
   $('#valueProtected').textContent = money(protectedValue);
   $('#valueAtRisk').textContent = `of ${money(potential)} at risk`;
@@ -479,7 +484,9 @@ function renderRound(index) {
   renderLifecycle(report);
   renderImpact(report, scenario);
   $('#outcome').textContent = pretty(report.outcome);
-  $('#detectionTime').textContent = report.time_to_detect_seconds == null ? 'Not detected' : `detected in ${report.time_to_detect_seconds}s`;
+  $('#detectionTime').textContent = report.time_to_detect_seconds == null
+    ? 'No warning was detected'
+    : `warning detected at ${report.time_to_detect_seconds}s in simulated time`;
   $('#falsePositives').textContent = pct(report.hard_false_positive_rate);
   $('#strategyFamily').textContent = `${scenario.attack_family || '—'} · ${pretty(scenario.difficulty)} · ${pretty(plan.target_lifecycle_phase || 'lifecycle not recorded')}`;
   $('#strategyObjective').textContent = plan.objective || 'No objective was recorded.';
@@ -515,20 +522,75 @@ function renderRun(scrollToResults = true) {
   if (scrollToResults) $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function rotateRunMessage() {
-  const messages = [
-    'Red is planning a bounded lifecycle campaign…',
-    'Safety gate is validating synthetic behavior…',
-    'Blue is investigating isolated cases in parallel…',
-    'Referee is opening sealed truth…',
-    'Blue is replay-testing a candidate defense…',
+function runProgressStages(totalRounds) {
+  const stages = [
+    { key: 'red_planning', label: '1 · Red plans' },
+    { key: 'simulation', label: '2 · Arena builds events' },
+    { key: 'blue_investigation', label: '3 · Blue decides' },
+    { key: 'referee_scoring', label: '4 · Referee scores' },
   ];
-  let index = 0;
-  $('#runStateText').textContent = messages[0];
-  return setInterval(() => {
-    index = (index + 1) % messages.length;
-    $('#runStateText').textContent = messages[index];
-  }, 3000);
+  if (Number(totalRounds) > 1) stages.push({ key: 'blue_adaptation', label: '5 · Blue tests an update' });
+  stages.push({ key: 'completed', label: `${stages.length + 1} · Report ready` });
+  return stages;
+}
+
+function renderRunProgress(progress) {
+  const totalRounds = Number(progress.total_rounds) || Number($('#rounds').value) || 1;
+  const roundNumber = clamp(progress.round_number || 1, 1, totalRounds);
+  const steps = runProgressStages(totalRounds);
+  const normalizedStage = progress.stage === 'blue_replay' ? 'blue_adaptation' : progress.stage;
+  let currentIndex = steps.findIndex(item => item.key === normalizedStage);
+  const intermediateRoundComplete = progress.stage === 'round_complete' && roundNumber < totalRounds;
+  if (progress.stage === 'completed' || (progress.stage === 'round_complete' && !intermediateRoundComplete)) {
+    currentIndex = steps.length - 1;
+  } else if (intermediateRoundComplete) {
+    currentIndex = steps.length - 1;
+  }
+
+  $('#runRoundLabel').textContent = `ROUND ${roundNumber} OF ${totalRounds} · ${progress.status === 'error' ? 'STOPPED' : 'LIVE'}`;
+  $('#runStateTitle').textContent = progress.headline || 'Running the synthetic battle';
+  $('#runStateText').textContent = progress.detail || 'Waiting for a verified stage update.';
+  $('#runProgressSteps').classList.toggle('has-adaptation', totalRounds > 1);
+  $('#runProgressSteps').innerHTML = steps.map((step, index) => {
+    const stateClass = progress.stage === 'completed' || index < currentIndex
+      ? 'done'
+      : index === currentIndex && !intermediateRoundComplete
+        ? 'current'
+        : '';
+    return `<li class="${stateClass}">${escapeHtml(step.label)}</li>`;
+  }).join('');
+
+  const completedEvents = Number(progress.completed_events);
+  const totalCapacity = Number(progress.total_event_capacity);
+  if (Number.isFinite(completedEvents) && Number.isFinite(totalCapacity)) {
+    $('#runProgressCount').textContent = `${integer(completedEvents)} event decisions completed · up to ${integer(totalCapacity)} events across ${integer(progress.case_count)} isolated cases`;
+  } else if (progress.stage === 'simulation') {
+    $('#runProgressCount').textContent = `${integer(progress.attack_event_count)} attack events · ${integer(progress.control_case_count)} legitimate look-alike cases · answer key still sealed`;
+  } else if (progress.stage === 'completed') {
+    $('#runProgressCount').textContent = `Completed in ${duration(progress.duration_ms)} · opening the scored report`;
+  } else {
+    $('#runProgressCount').textContent = 'Verified live update from the server orchestration pipeline.';
+  }
+}
+
+function startProgressPolling(progressId) {
+  let stopped = false;
+  let timer = null;
+  const poll = async () => {
+    if (stopped) return;
+    try {
+      const response = await fetch(`/api/v2/run-progress/${encodeURIComponent(progressId)}`, { cache: 'no-store' });
+      if (response.ok) renderRunProgress(await response.json());
+    } catch (_error) {
+      // The battle request remains authoritative; a missed telemetry poll must not stop it.
+    }
+    if (!stopped) timer = window.setTimeout(poll, 750);
+  };
+  poll();
+  return () => {
+    stopped = true;
+    if (timer) window.clearTimeout(timer);
+  };
 }
 
 $('#previousEvent').addEventListener('click', () => renderSelectedTurn(state.turnIndex - 1));
@@ -563,7 +625,18 @@ $('#runForm').addEventListener('submit', async (event) => {
   $('#errorState').classList.add('hidden');
   $('#runState').classList.remove('hidden');
   $('#runButton').disabled = true;
-  const messageTimer = rotateRunMessage();
+  const progressId = globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID()
+    : `browser-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  renderRunProgress({
+    status: 'running',
+    stage: 'preparing',
+    headline: 'Preparing the synthetic payment arena',
+    detail: 'The browser sent the selected battle settings to the server.',
+    round_number: 1,
+    total_rounds: Number($('#rounds').value),
+  });
+  const stopProgressPolling = startProgressPolling(progressId);
   const startedAt = Date.now();
   $('#runElapsed').textContent = 'Elapsed 0s';
   const elapsedTimer = setInterval(() => {
@@ -578,6 +651,7 @@ $('#runForm').addEventListener('submit', async (event) => {
         difficulty: $('#difficulty').value,
         rounds: Number($('#rounds').value),
         seed: Date.now() % 100000000,
+        progress_id: progressId,
       }),
     });
     const payload = await response.json();
@@ -590,7 +664,7 @@ $('#runForm').addEventListener('submit', async (event) => {
     $('#errorState').textContent = error.message;
     $('#errorState').classList.remove('hidden');
   } finally {
-    clearInterval(messageTimer);
+    stopProgressPolling();
     clearInterval(elapsedTimer);
     $('#runState').classList.add('hidden');
     $('#runButton').disabled = false;

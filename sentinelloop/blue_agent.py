@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
+from typing import Any, Callable
 
 from .config import AgentLabConfig
 from .contracts import (
@@ -704,6 +704,7 @@ class GenAIBlueAgent:
         seed: int,
         stop_on_decisive_action: bool = True,
         playbook: DefensePlaybook | None = None,
+        event_completed: Callable[[ObservedEvent, BlueTurn], None] | None = None,
     ) -> list[BlueTurn]:
         active_playbook = playbook or DefensePlaybook.baseline()
         turns: list[BlueTurn] = []
@@ -718,6 +719,8 @@ class GenAIBlueAgent:
                 seed=seed + index * 10,
             )
             turns.append(turn)
+            if event_completed is not None:
+                event_completed(event, turn)
             if stop_on_decisive_action and turn.decision.action == "block":
                 break
         return turns

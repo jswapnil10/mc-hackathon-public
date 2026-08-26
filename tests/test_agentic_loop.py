@@ -208,6 +208,28 @@ class InformationBoundaryTests(unittest.TestCase):
 
 
 class ClosedLoopTests(unittest.TestCase):
+    def test_one_round_progress_is_truthful_and_does_not_claim_adaptation(self) -> None:
+        updates: list[dict[str, Any]] = []
+        gateway = TestGateway()
+        SentinelLoopOrchestrator(
+            config=AgentLabConfig(),
+            gateway=gateway,
+            progress_callback=updates.append,
+        ).run(attack_family="ATO-01", rounds=1, seed=40)
+
+        stages = [update["stage"] for update in updates]
+        self.assertEqual(stages.count("red_planning"), 1)
+        self.assertEqual(stages.count("simulation"), 1)
+        self.assertEqual(stages.count("referee_scoring"), 1)
+        self.assertEqual(stages.count("completed"), 1)
+        self.assertNotIn("blue_adaptation", stages)
+        self.assertNotIn("blue_replay", stages)
+        self.assertGreaterEqual(stages.count("blue_investigation"), 2)
+        blue_updates = [
+            update for update in updates if update["stage"] == "blue_investigation"
+        ]
+        self.assertGreater(blue_updates[-1]["completed_events"], 0)
+
     def test_policy_guard_promotes_hold_medium_to_high(self) -> None:
         decision = BlueDecision(
             event_id="syn_evt_1",
