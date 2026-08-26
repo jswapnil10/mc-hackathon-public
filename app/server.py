@@ -338,7 +338,10 @@ def create_app() -> Flask:
             return jsonify(
                 {
                     "error": str(error),
-                    "hint": "Verify that the configured Qwen/vLLM endpoint is reachable from the web service.",
+                    "hint": (
+                        "Verify endpoint reachability and structured-output compatibility. For "
+                        "Ollama Qwen 3-class models, set MODEL_REASONING_EFFORT=none and restart."
+                    ),
                 }
             ), 502
         except ValueError as error:

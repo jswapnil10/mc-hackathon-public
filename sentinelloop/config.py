@@ -77,6 +77,7 @@ class AgentLabConfig:
     blue_model_id: str = DEFAULT_QWEN_MODEL
     request_timeout_seconds: int = 120
     structured_output_mode: str = "json_schema"
+    reasoning_effort: str = "none"
     red_temperature: float = 0.65
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
@@ -109,6 +110,9 @@ class AgentLabConfig:
             structured_output_mode=os.environ.get(
                 "MODEL_STRUCTURED_OUTPUT_MODE", cls.structured_output_mode
             ).lower(),
+            reasoning_effort=os.environ.get(
+                "MODEL_REASONING_EFFORT", cls.reasoning_effort
+            ).lower(),
             red_temperature=_float_env("RED_AGENT_TEMPERATURE", cls.red_temperature),
             blue_temperature=_float_env("BLUE_AGENT_TEMPERATURE", cls.blue_temperature),
             max_output_tokens=_int_env("MODEL_MAX_OUTPUT_TOKENS", cls.max_output_tokens),
@@ -132,6 +136,10 @@ class AgentLabConfig:
         if self.structured_output_mode not in {"json_schema", "json_object", "prompt"}:
             raise ValueError(
                 "MODEL_STRUCTURED_OUTPUT_MODE must be json_schema, json_object, or prompt."
+            )
+        if self.reasoning_effort not in {"none", "low", "medium", "high", "omit"}:
+            raise ValueError(
+                "MODEL_REASONING_EFFORT must be none, low, medium, high, or omit."
             )
         for name, value in (
             ("RED_AGENT_TEMPERATURE", self.red_temperature),

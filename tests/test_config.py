@@ -16,6 +16,7 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.model_base_url, LOCAL_OLLAMA_BASE_URL)
         self.assertEqual(config.red_model_id, "qwen3-coder:latest")
         self.assertEqual(config.blue_model_id, "qwen3-coder:latest")
+        self.assertEqual(config.reasoning_effort, "none")
         self.assertTrue(config.ml_detector_enabled)
         self.assertEqual(config.retrain_every, 0)
 
@@ -27,6 +28,7 @@ class AgentLabConfigTests(unittest.TestCase):
                 "MODEL_BASE_URL": "https://private-model.example/v1",
                 "RED_MODEL_ID": "custom-red",
                 "BLUE_MODEL_ID": "custom-blue",
+                "MODEL_REASONING_EFFORT": "low",
             },
             clear=True,
         ):
@@ -35,6 +37,7 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.model_base_url, "https://private-model.example/v1")
         self.assertEqual(config.red_model_id, "custom-red")
         self.assertEqual(config.blue_model_id, "custom-blue")
+        self.assertEqual(config.reasoning_effort, "low")
 
     @patch("sentinelloop.config._detect_local_ollama_qwen")
     def test_blue_hybrid_settings_are_explicit_and_do_not_change_red(self, detect):

@@ -151,6 +151,7 @@ def main() -> None:
                     "red_model_id": config.red_model_id,
                     "blue_model_id": config.blue_model_id,
                     "structured_output_mode": config.structured_output_mode,
+                    "reasoning_effort": config.reasoning_effort,
                     "case_parallelism": config.case_parallelism,
                     "note": "The API key is intentionally not displayed.",
                 },

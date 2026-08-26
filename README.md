@@ -381,6 +381,7 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | `RED_MODEL_ID` | Auto-detected Qwen or `Qwen/Qwen3.5-9B` | Red planner model |
 | `BLUE_MODEL_ID` | Auto-detected Qwen or `Qwen/Qwen3.5-9B` | Blue investigator/decision model |
 | `MODEL_STRUCTURED_OUTPUT_MODE` | `json_schema` | `json_schema`, `json_object` or `prompt` |
+| `MODEL_REASONING_EFFORT` | `none` | Keeps Qwen's contract-bound output budget on final JSON; use `omit` only for an older server that rejects reasoning control |
 | `MODEL_TIMEOUT_SECONDS` | `120` | Timeout for one model call |
 | `MODEL_MAX_OUTPUT_TOKENS` | `1400` | Maximum generated tokens per call |
 | `CASE_PARALLELISM` | `4` | Maximum isolated attack/control cases evaluated concurrently; set to `1` for a model server that already performs its own batching |

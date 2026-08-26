@@ -89,6 +89,11 @@ class OpenAICompatibleGateway:
             "max_tokens": self.config.max_output_tokens,
             "seed": seed,
         }
+        # Ollama enables thinking by default for Qwen 3-class models. For contract-bound agent
+        # calls we need the output budget spent on the final JSON, not a private reasoning field.
+        # `omit` remains available for older OpenAI-compatible servers that reject this field.
+        if self.config.reasoning_effort != "omit":
+            payload["reasoning_effort"] = self.config.reasoning_effort
         response_format = self._response_format(schema_name, schema)
         if response_format is not None:
             payload["response_format"] = response_format
@@ -124,7 +129,16 @@ class OpenAICompatibleGateway:
 
         try:
             message = body["choices"][0]["message"]
-            content = _extract_json_text(message.get("content"))
+            raw_content = message.get("content")
+            if not isinstance(raw_content, (str, list)) or not raw_content:
+                finish_reason = body.get("choices", [{}])[0].get("finish_reason", "unknown")
+                if message.get("reasoning"):
+                    raise RuntimeError(
+                        "Model returned reasoning but no final JSON content "
+                        f"(finish_reason={finish_reason}). Set MODEL_REASONING_EFFORT=none and "
+                        "restart the web service."
+                    )
+            content = _extract_json_text(raw_content)
             result = json.loads(content)
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"Model returned invalid structured JSON for {agent_name}.") from exc
