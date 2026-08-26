@@ -18,11 +18,11 @@
       <span class="brand-copy"><strong>MasterGuard AI</strong><small>Attack. Adapt. Defend.</small></span>
     </a>
     <nav class="topnav" aria-label="Page sections">
+      <a href="#battleControls">Arena</a>
       <a href="#threatAtlas">Identify</a>
       <a href="#scenarioFoundry">Generate</a>
       <a href="#defenseBenchmark">Defend</a>
-      <a href="#externalValidation">Validate</a>
-      <a href="#battleControls">Arena</a>
+      <a href="#externalValidation">External proof</a>
       <a href="/static/run-guide.html" target="_blank" rel="noopener">Run guide ↗</a>
     </nav>
     <div class="system-state"><span class="pulse"></span><span id="systemMode">Open-model arena</span></div>
@@ -61,16 +61,20 @@
       </aside>
     </section>
 
-    <section class="pillar-strip" aria-label="Three-pillar solution">
-      <a href="#threatAtlas"><small>01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Source-backed landscape →</span></a>
-      <a href="#scenarioFoundry"><small>02 · GENERATE</small><strong>Scenario Foundry</strong><span>Population-scale simulations →</span></a>
-      <a href="#defenseBenchmark"><small>03 · DEFEND</small><strong>Defense Benchmark</strong><span>Sealed efficacy proof →</span></a>
+    <section class="pillar-strip" aria-label="Evidence behind the Arena">
+      <a href="#threatAtlas"><small>EVIDENCE 01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Research catalogue and source links →</span></a>
+      <a href="#scenarioFoundry"><small>EVIDENCE 02 · GENERATE</small><strong>Scenario Foundry</strong><span>Latest reproducible synthetic build →</span></a>
+      <a href="#defenseBenchmark"><small>EVIDENCE 03 · DEFEND</small><strong>Defense Benchmark</strong><span>Results on sealed synthetic test data →</span></a>
     </section>
 
     <section id="threatAtlas" class="atlas-section">
       <div class="section-heading">
-        <div><div class="section-kicker">01 · IDENTIFY</div><h2>Research becomes an executable Threat Atlas</h2><p>Every vector is source-backed, mapped to real payment surfaces, and connected to a bounded simulator family.</p></div>
-        <div class="atlas-summary-line"><span><b id="atlasVectorCount">—</b> vectors</span><span><b id="atlasSourceCount">—</b> sources</span><span><b id="atlasRailCount">—</b> rails</span></div>
+        <div><div class="section-kicker">EVIDENCE 01 · IDENTIFY · RESEARCH CATALOGUE</div><h2>Research becomes an executable Threat Atlas</h2><p>These counts describe the curated catalogue—not the latest agent battle. Every vector is mapped to supporting research, payment surfaces and one bounded simulator family.</p></div>
+        <div class="atlas-summary-line">
+          <span><b id="atlasVectorCount">—</b> researched vectors<small>Source · Threat Atlas catalogue</small></span>
+          <span><b id="atlasSourceCount">—</b> unique research sources<small>Source · Threat Atlas bibliography</small></span>
+          <span><b id="atlasRailCount">—</b> payment rails<small>Source · distinct vector mappings</small></span>
+        </div>
       </div>
       <div class="atlas-toolbar">
         <label>Attack category<select id="atlasCategory"><option value="all">All categories</option></select></label>
@@ -83,41 +87,41 @@
 
     <section id="scenarioFoundry" class="foundry-section">
       <div class="foundry-copy">
-        <div class="section-kicker">02 · GENERATE</div>
+        <div class="section-kicker">EVIDENCE 02 · GENERATE · LATEST SYNTHETIC BUILD</div>
         <h2>Turn every idea into a safe payment population</h2>
-        <p>Red compiles bounded variants. The arena materializes longitudinal customer behavior, attack sequences and verified look-alikes. Labels stay sealed from the defense.</p>
+        <p>These numbers come from the latest reproducible Scenario Foundry build—not the current Arena battle. Red compiles bounded variants while the generator creates attack events, ordinary payments and difficult legitimate look-alikes.</p>
         <div class="foundry-flow" aria-label="Scenario generation flow">
           <span>Threat vector</span><i>→</i><span>Bounded Red plan</span><i>→</i><span>Observable events</span><i>→</i><span>Sealed split</span>
         </div>
       </div>
       <div class="foundry-console">
-        <header><span>SCENARIO FOUNDRY · LATEST BUILD</span><b id="foundryQualityState">—</b></header>
+        <header><span>SCENARIO FOUNDRY · LATEST REPRODUCIBLE BUILD</span><b id="foundryQualityState">—</b></header>
         <div class="foundry-stats">
-          <div><small>EVENTS</small><strong id="foundryEvents">—</strong></div>
-          <div><small>CAMPAIGNS</small><strong id="foundryCampaigns">—</strong></div>
-          <div><small>VECTORS</small><strong id="foundryVectors">—</strong></div>
-          <div><small>SIMULATION REALISM</small><strong id="foundryFidelity">—</strong></div>
+          <div><small>SYNTHETIC EVENT ROWS</small><strong id="foundryEvents">—</strong><span>Source · latest Foundry build</span></div>
+          <div><small>ATTACK SCENARIO VARIANTS</small><strong id="foundryCampaigns">—</strong><span>Source · generated vector variants</span></div>
+          <div><small>ATLAS VECTORS COVERED</small><strong id="foundryVectors">—</strong><span>Source · build coverage report</span></div>
+          <div><small>FIDELITY VS DECLARED PRIORS</small><strong id="foundryFidelity">—</strong><span>Source · fidelity calculation</span></div>
         </div>
         <div id="splitBars" class="split-bars"></div>
         <button id="runFoundry" class="foundry-button" type="button"><span>Regenerate & benchmark</span><b>↗</b></button>
-        <p id="foundryState">Uses fixed, reproducible defaults and does not call the Qwen endpoint.</p>
+        <p id="foundryState">Uses fixed, reproducible defaults and does not call the Qwen endpoint. No real customer or payment data is used.</p>
       </div>
     </section>
 
     <section id="defenseBenchmark" class="benchmark-section">
       <div class="section-heading">
-        <div><div class="section-kicker">03 · DEFEND</div><h2>Prove detection on data the defense never trained on</h2><p>The winning detector is selected on validation only, then frozen before known-pattern and novel-vector test sets are opened.</p></div>
+        <div><div class="section-kicker">EVIDENCE 03 · DEFEND · SEALED SYNTHETIC BENCHMARK</div><h2>Prove detection on data the defense never trained on</h2><p>These metrics come from the latest Scenario Foundry benchmark—not a single Arena battle. A detector is selected on validation data, frozen, and then evaluated on sealed known-pattern and withheld-vector events.</p></div>
         <span id="benchmarkModel" class="proof-badge">NO BENCHMARK YET</span>
       </div>
       <div class="benchmark-kpis">
-        <article><small>FRAUD RANKING QUALITY (PR-AUC)</small><strong id="benchmarkPrauc">—</strong><p>How well fraud rises above legitimate payments when fraud is rare. Higher is better.</p></article>
-        <article><small>NEW ATTACKS CAUGHT (RECALL)</small><strong id="benchmarkNovelRecall">—</strong><p>Share of attacks caught when their complete vector ID was hidden during training. Higher is better.</p></article>
-        <article><small>DETECTION BALANCE (F1)</small><strong id="benchmarkF1">—</strong><p>One score balancing fraud caught against incorrect alerts. Higher is better.</p></article>
-        <article><small>LEGITIMATE LOOK-ALIKES FLAGGED</small><strong id="benchmarkFpr">—</strong><p>Verified legitimate cases incorrectly treated as fraud. Lower is better.</p></article>
+        <article><small>SEALED SYNTHETIC TEST · PR-AUC</small><strong id="benchmarkPrauc">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkPraucNote">How well fraud ranks above legitimate events when fraud is rare. Higher is better.</p></article>
+        <article><small>WITHHELD VECTORS · ATTACK EVENTS CAUGHT</small><strong id="benchmarkNovelRecall">—</strong><span class="metric-source">Source · novel-vector test split</span><p id="benchmarkNovelRecallNote">Share caught when the complete attack vector was excluded from training. Higher is better.</p></article>
+        <article><small>SEALED SYNTHETIC TEST · F1</small><strong id="benchmarkF1">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkF1Note">One score balancing attacks caught against incorrect alerts. Higher is better.</p></article>
+        <article><small>HARD LEGITIMATE CONTROLS · FALSE ALERT RATE</small><strong id="benchmarkFpr">—</strong><span class="metric-source">Source · hard-control test cases</span><p id="benchmarkFprNote">Difficult legitimate look-alikes incorrectly treated as fraud. Lower is better.</p></article>
       </div>
       <div class="benchmark-detail-grid">
         <article class="confusion-card">
-          <header><div><small>SEALED TEST OUTCOMES</small><h3>Confusion matrix</h3></div><span id="benchmarkThreshold">Threshold —</span></header>
+          <header><div><small>SEALED SYNTHETIC EVENT OUTCOMES</small><h3>What the detector got right and wrong</h3></div><span id="benchmarkThreshold">Technical threshold —</span></header>
           <div class="confusion-grid">
             <div class="correct"><small>TRUE NEGATIVE</small><strong id="matrixTn">—</strong><span>legitimate passed</span></div>
             <div class="wrong"><small>FALSE POSITIVE</small><strong id="matrixFp">—</strong><span>customer friction</span></div>
@@ -143,10 +147,10 @@
         <span id="externalAssessment" class="proof-badge validation-caveat">LOADING VALIDATION…</span>
       </div>
       <div class="validation-kpis">
-        <article><small>FRAUD RANKING QUALITY (PR-AUC)</small><strong id="externalPrauc">—</strong><p id="externalPraucCi">95% interval —</p></article>
-        <article><small>ALERT ACCURACY (PRECISION)</small><strong id="externalPrecision">—</strong><p>Of payments flagged, how many were actually fraud. Higher is better.</p></article>
-        <article><small>FRAUD CAUGHT (RECALL)</small><strong id="externalRecall">—</strong><p>Of fraud payments, how many were caught. Higher is better.</p></article>
-        <article><small>LEGITIMATE PAYMENTS FLAGGED</small><strong id="externalFpr">—</strong><p>Legitimate payments incorrectly flagged. Lower is better.</p></article>
+        <article><small>FRAUD RANKING QUALITY (PR-AUC)</small><strong id="externalPrauc">—</strong><span class="metric-source">Source · public ULB card dataset</span><p id="externalPraucCi">95% interval —</p></article>
+        <article><small>ALERT ACCURACY (PRECISION)</small><strong id="externalPrecision">—</strong><span class="metric-source">Source · held-out future transactions</span><p>Of payments flagged, how many were actually fraud. Higher is better.</p></article>
+        <article><small>FRAUD CAUGHT (RECALL)</small><strong id="externalRecall">—</strong><span class="metric-source">Source · held-out future transactions</span><p>Of fraud payments, how many were caught. Higher is better.</p></article>
+        <article><small>LEGITIMATE PAYMENTS FLAGGED</small><strong id="externalFpr">—</strong><span class="metric-source">Source · held-out future transactions</span><p>Legitimate payments incorrectly flagged. Lower is better.</p></article>
       </div>
       <div class="validation-grid">
         <article class="validation-proof-card">
@@ -175,15 +179,15 @@
 
     <section id="evaluationProfile" class="criteria-section" aria-label="Submission evaluation coverage">
       <div class="section-heading">
-        <div><div class="section-kicker">JUDGE-READY EVIDENCE</div><h2>Built against the five evaluation criteria</h2><p>Every claim below is computed from the catalogue, event contracts, or the latest scored battle.</p></div>
-        <span class="proof-badge">SOURCE-BACKED · REPRODUCIBLE</span>
+        <div><div class="section-kicker">JUDGE-READY EVIDENCE SUMMARY</div><h2>Built against the five evaluation criteria</h2><p>This summary stays tied to the research catalogue, latest reproducible benchmark and system architecture. Results for one specific run remain in its Arena battle report above.</p></div>
+        <span class="proof-badge">CATALOGUE + BENCHMARK + ARCHITECTURE</span>
       </div>
       <div class="criteria-grid">
-        <article><small>01 · ATTACK DIVERSITY</small><strong id="criteriaDiversity">—</strong><p id="criteriaDiversityNote">Loading catalogue coverage…</p></article>
-        <article><small>02 · SIMULATION REALISM (FIDELITY)</small><strong id="criteriaFidelity">Declared-prior score</strong><p id="criteriaFidelityNote">Seeded events, look-alikes, and sealed truth.</p></article>
-        <article><small>03 · DETECTION QUALITY (EFFICACY)</small><strong id="criteriaDetection">Two-speed defense</strong><p id="criteriaDetectionNote">Fast sequence guard plus Qwen investigation.</p></article>
-        <article><small>04 · WHAT IS NEW (NOVELTY)</small><strong id="criteriaNovelty">Dual learning loops</strong><p id="criteriaNoveltyNote">Red evolves attacks; Blue promotes only measured gains.</p></article>
-        <article><small>05 · CAN IT RUN LIVE? (FEASIBILITY)</small><strong id="criteriaLive">Inline guard</strong><p id="criteriaLiveNote">Open-model reasoning stays asynchronous and outside the authorization lane.</p></article>
+        <article><small>01 · ATTACK DIVERSITY</small><strong id="criteriaDiversity">—</strong><span class="metric-source">Source · Threat Atlas catalogue</span><p id="criteriaDiversityNote">Loading catalogue coverage…</p></article>
+        <article><small>02 · SIMULATION REALISM (FIDELITY)</small><strong id="criteriaFidelity">Declared-prior score</strong><span class="metric-source">Source · latest Foundry build</span><p id="criteriaFidelityNote">Seeded events, look-alikes, and sealed truth.</p></article>
+        <article><small>03 · DETECTION QUALITY (EFFICACY)</small><strong id="criteriaDetection">Two-speed defense</strong><span class="metric-source">Source · sealed synthetic test</span><p id="criteriaDetectionNote">Fast sequence guard plus Qwen investigation.</p></article>
+        <article><small>04 · WHAT IS NEW (NOVELTY)</small><strong id="criteriaNovelty">Dual learning loops</strong><span class="metric-source">Source · system architecture</span><p id="criteriaNoveltyNote">Red evolves attacks; Blue promotes only measured gains.</p></article>
+        <article><small>05 · CAN IT RUN LIVE? (FEASIBILITY)</small><strong id="criteriaLive">Inline guard</strong><span class="metric-source">Source · system architecture</span><p id="criteriaLiveNote">Open-model reasoning stays asynchronous and outside the authorization lane.</p></article>
       </div>
     </section>
 
@@ -243,10 +247,10 @@
       </aside>
 
       <section class="outcome-board" aria-label="Battle outcome">
-        <article class="outcome-primary"><small>OVERALL DEFENSE SCORE · HIGHER IS BETTER</small><strong id="balancedScore">—</strong><span>/ 100</span><p>60% average performance plus 40% of the weakest payment stage, so one strong stage cannot hide another stage's gap.</p></article>
-        <article><small>ATTACK STRENGTH · HIGHER IS HARDER</small><strong id="redCapability">—</strong><span>/ 100</span><p id="redCapabilityNote">How far the attack progressed, how quietly it moved, and how many stages it exercised.</p></article>
-        <article><small>SYNTHETIC MONEY LOST · LOWER IS BETTER</small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after Blue acted</span><p id="impactVerdict">Waiting for a completed battle.</p></article>
-        <article><small>FINAL RESULT</small><strong id="outcome">—</strong><span id="detectionTime">No result</span><p><b id="falsePositives">—</b> of legitimate look-alikes were wrongly held or blocked.</p></article>
+        <article class="outcome-primary"><small>OVERALL DEFENSE SCORE · HIGHER IS BETTER</small><strong id="balancedScore">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p>60% average performance plus 40% of the weakest payment stage, so one strong stage cannot hide another stage's gap.</p></article>
+        <article><small>ATTACK STRENGTH · HIGHER IS HARDER</small><strong id="redCapability">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p id="redCapabilityNote">How far the attack progressed, how quietly it moved, and how many stages it exercised.</p></article>
+        <article><small>SYNTHETIC MONEY LOST · LOWER IS BETTER</small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after Blue acted</span><em class="metric-source">Source · current battle sealed truth</em><p id="impactVerdict">Waiting for a completed battle.</p></article>
+        <article><small>FINAL RESULT</small><strong id="outcome">—</strong><span id="detectionTime">No result</span><em class="metric-source">Source · current battle Referee</em><p><b id="falsePositives">—</b> of legitimate look-alikes were wrongly held or blocked.</p></article>
       </section>
 
       <section id="lifecycleScorecard" class="lifecycle-section">

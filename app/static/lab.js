@@ -106,7 +106,11 @@ function renderBenchmark(data) {
   const novel = (defense.metrics || {}).novel_vector_test || {};
   const confusion = metrics.confusion_matrix || {};
 
-  $('#foundryQualityState').textContent = quality.status === 'passed' ? 'ALL QUALITY GATES PASSED' : 'QUALITY REVIEW NEEDED';
+  const checks = quality.checks || [];
+  const passedChecks = checks.filter(item => item.passed).length;
+  $('#foundryQualityState').textContent = quality.status === 'passed'
+    ? `${passedChecks} / ${checks.length} DATA CHECKS PASSED`
+    : `${passedChecks} / ${checks.length} DATA CHECKS PASSED · REVIEW NEEDED`;
   $('#foundryEvents').textContent = integer(dataset.event_count);
   $('#foundryCampaigns').textContent = integer(dataset.scenario_count);
   $('#foundryVectors').textContent = integer(dataset.attack_vector_count);
@@ -114,14 +118,23 @@ function renderBenchmark(data) {
   const splitCounts = dataset.split_counts || {};
   const maximumSplit = Math.max(1, ...Object.values(splitCounts).map(Number));
   $('#splitBars').innerHTML = Object.entries(splitCounts).map(([name, count]) => `<div class="split-row"><span>${escapeHtml(pretty(name))}</span><progress max="${maximumSplit}" value="${Number(count) || 0}">${Number(count) || 0}</progress><b>${integer(count)}</b></div>`).join('');
-  $('#foundryState').textContent = `${integer(quality.row_count)} rows · ${Number(quality.checks?.length) || 0} checks · generated ${new Date(data.generated_at).toLocaleString()}.`;
+  $('#foundryState').textContent = `${integer(dataset.attack_event_count)} attack events + ${integer(dataset.legitimate_event_count)} legitimate events = ${integer(quality.row_count)} total rows · fixed seed ${dataset.seed} · generated ${new Date(data.generated_at).toLocaleString()}.`;
 
-  $('#benchmarkModel').textContent = `${pretty(defense.selected_model)} · validation-selected`;
+  $('#benchmarkModel').textContent = `SYNTHETIC BENCHMARK · ${pretty(defense.selected_model)} · VALIDATION-SELECTED`;
   $('#benchmarkPrauc').textContent = precisePct(metrics.pr_auc, 2);
   $('#benchmarkNovelRecall').textContent = precisePct(novel.recall, 1);
   $('#benchmarkF1').textContent = precisePct(metrics.f1, 1);
   $('#benchmarkFpr').textContent = precisePct(metrics.hard_false_positive_rate ?? metrics.false_positive_rate, 2);
-  $('#benchmarkThreshold').textContent = `Threshold ${Number(defense.threshold_selected_on_validation || 0).toFixed(3)}`;
+  $('#benchmarkThreshold').textContent = `Technical threshold ${Number(defense.threshold_selected_on_validation || 0).toFixed(3)}`;
+  const detectedAttacks = Number(confusion.tp) || 0;
+  const missedAttacks = Number(confusion.fn) || 0;
+  const legitimatePassed = Number(confusion.tn) || 0;
+  const falseAlerts = Number(confusion.fp) || 0;
+  const novelConfusion = novel.confusion_matrix || {};
+  $('#benchmarkPraucNote').textContent = `Ranking quality across ${integer(metrics.event_count)} sealed synthetic events. Higher is better.`;
+  $('#benchmarkNovelRecallNote').textContent = `${integer(novelConfusion.tp)} of ${integer(novel.fraud_event_count)} attack events from completely withheld vectors were caught.`;
+  $('#benchmarkF1Note').textContent = `${integer(detectedAttacks)} attacks caught · ${integer(missedAttacks)} missed · ${integer(falseAlerts)} legitimate events falsely alerted.`;
+  $('#benchmarkFprNote').textContent = `Rate measured across ${integer(metrics.hard_control_event_count)} difficult legitimate-control events. Lower is better.`;
   $('#matrixTn').textContent = integer(confusion.tn);
   $('#matrixFp').textContent = integer(confusion.fp);
   $('#matrixFn').textContent = integer(confusion.fn);
@@ -133,7 +146,7 @@ function renderBenchmark(data) {
     return `<div class="benchmark-phase"><div class="benchmark-phase-head"><span>${escapeHtml(pretty(phase))}</span><b>${precisePct(item.recall, 1)} fraud caught</b></div><progress max="100" value="${clamp((Number(item.recall) || 0) * 100, 0, 100)}">${precisePct(item.recall, 1)}</progress><small>${integer(item.events)} hidden-test events · ${precisePct(1 - (Number(item.false_positive_rate) || 0), 1)} legitimate users protected</small></div>`;
   }).join('');
   $('#familyResults').innerHTML = Object.entries(defense.family_results || {}).sort().map(([family, item]) => `<tr><td>${escapeHtml(family)}</td><td>${integer(item.events)}</td><td>${precisePct(item.recall, 1)}</td><td>${precisePct(item.value_weighted_recall, 1)}</td><td>${precisePct(item.mean_risk_score, 1)}</td></tr>`).join('');
-  $('#benchmarkGenerated').textContent = `${integer(metrics.event_count)} sealed test events · ${integer((data.threat_atlas || {}).novel_holdout_vector_count)} novel vectors`;
+  $('#benchmarkGenerated').textContent = `${integer(detectedAttacks)} of ${integer(detectedAttacks + missedAttacks)} attacks caught · ${integer(falseAlerts)} of ${integer(legitimatePassed + falseAlerts)} legitimate events flagged`;
 
   $('#criteriaDiversity').textContent = `${integer((data.threat_atlas || {}).vector_count)} vectors`;
   $('#criteriaDiversityNote').textContent = `${integer((data.threat_atlas || {}).attack_family_count)} families · ${integer((data.threat_atlas || {}).rail_count)} rails · ${integer((data.threat_atlas || {}).source_count)} authoritative sources.`;
@@ -214,33 +227,6 @@ async function loadExternalValidation() {
   }
   if (!response.ok) throw new Error(`external validation endpoint returned ${response.status}`);
   renderExternalValidation(await response.json());
-}
-
-function renderRoundEvaluation(evaluation, report, round = {}) {
-  if (!evaluation || !Object.keys(evaluation).length) return;
-  const fidelity = (evaluation && evaluation.fidelity) || {};
-  const efficacy = (evaluation && evaluation.detection_efficacy) || {};
-  const live = (evaluation && evaluation.live_feasibility) || {};
-  $('#criteriaFidelity').textContent = `${score(fidelity.score)} / 100`;
-  $('#criteriaFidelityNote').textContent = `${Number(fidelity.legitimate_look_alike_cases) || 0} legitimate look-alikes tested · ${fidelity.truth_boundary_clean ? 'Blue never saw the answer key' : 'answer-key boundary needs review'}.`;
-  $('#criteriaDetection').textContent = `${pct(efficacy.value_prevented_ratio ?? report.value_prevented_ratio)} protected`;
-  $('#criteriaDetectionNote').textContent = `${pct(efficacy.hard_false_positive_rate ?? report.hard_false_positive_rate)} of legitimate look-alikes wrongly stopped · ${score(efficacy.balanced_lifecycle_defense_score ?? report.balanced_lifecycle_defense_score)} overall defense score.`;
-  $('#criteriaNovelty').textContent = 'Two-speed defense';
-  const storedGuardedEvents = Number(efficacy.fast_guard_actionable_event_count);
-  const guardedEvents = Number.isFinite(storedGuardedEvents)
-    ? storedGuardedEvents
-    : (((round.blue || {}).attack_turns || []).filter(turn => ['step_up', 'hold', 'block'].includes(((turn.risk_synthesis || {}).operational_minimum_action || (turn.risk_synthesis || {}).minimum_action))).length);
-  const modelEscalations = Number(efficacy.fast_guard_intervention_count) || 0;
-  $('#criteriaNoveltyNote').textContent = `${guardedEvents} events had an immediate minimum-safe action before GenAI finished · ${modelEscalations} weaker model action${modelEscalations === 1 ? '' : 's'} corrected.`;
-  $('#criteriaLive').textContent = live.round_duration_ms == null
-    ? `${pct(live.pre_model_fast_path_coverage)} fast path`
-    : `${duration(live.round_duration_ms)} battle`;
-  const callSummary = live.blue_model_call_count == null
-    ? ''
-    : `${Number(live.blue_model_call_count)} Blue calls · ${Number(live.model_calls_per_blue_event || 0).toFixed(1)} per event · `;
-  $('#criteriaLiveNote').textContent = live.model_call_p95_ms == null
-    ? `${callSummary}Inline guard is separate from asynchronous open-model reasoning.`
-    : `${callSummary}95% of Qwen calls finished within ${duration(live.model_call_p95_ms)} · ${Number(live.case_parallelism) || 1} isolated cases can run in parallel.`;
 }
 
 function updateLatencyEstimate() {
@@ -479,8 +465,6 @@ function renderRound(index) {
   const plan = round.red.plan || {};
   const scenario = round.red.scenario || {};
   const feedback = round.feedback_released_to_red || {};
-  renderRoundEvaluation(round.submission_evaluation || {}, report, round);
-
   renderLifecycle(report);
   renderImpact(report, scenario);
   $('#outcome').textContent = pretty(report.outcome);
