@@ -103,6 +103,9 @@ class AgentLabConfig:
     ml_detector_enabled: bool = True
     ml_model_dir: str = "data/loop/models/champion"
     training_log_path: str = "data/loop/training_log.jsonl"
+    # UI battles return before this full retrain begins. Set 0 to disable the background cadence.
+    retrain_every_battles: int = 5
+    # Optional synchronous, within-run cadence retained for controlled CLI experiments.
     retrain_every: int = 0
     include_ambient_evaluation: bool = False
     ambient_sample: int = 8
@@ -124,6 +127,8 @@ class AgentLabConfig:
             cls.reasoning_attempt_timeout_seconds,
             max(1, request_timeout_seconds - 1),
         )
+        retrain_every = _int_env("BATTLE_RETRAIN_EVERY", cls.retrain_every)
+        retrain_every_battles_default = 0 if retrain_every else cls.retrain_every_battles
         config = cls(
             model_base_url=(configured_base_url or default_base_url).rstrip("/"),
             model_api_key=os.environ.get("MODEL_API_KEY", cls.model_api_key),
@@ -156,7 +161,10 @@ class AgentLabConfig:
             ml_detector_enabled=_bool_env("ML_DETECTOR_ENABLED", cls.ml_detector_enabled),
             ml_model_dir=os.environ.get("ML_MODEL_DIR", cls.ml_model_dir),
             training_log_path=os.environ.get("BATTLE_TRAINING_LOG", cls.training_log_path),
-            retrain_every=_int_env("BATTLE_RETRAIN_EVERY", cls.retrain_every),
+            retrain_every_battles=_int_env(
+                "RETRAIN_EVERY_BATTLES", retrain_every_battles_default
+            ),
+            retrain_every=retrain_every,
             include_ambient_evaluation=_bool_env(
                 "BATTLE_INCLUDE_AMBIENT", cls.include_ambient_evaluation
             ),
@@ -201,6 +209,12 @@ class AgentLabConfig:
             raise ValueError("CASE_PARALLELISM must be between 1 and 8.")
         if self.retrain_every < 0:
             raise ValueError("BATTLE_RETRAIN_EVERY cannot be negative.")
+        if self.retrain_every_battles < 0:
+            raise ValueError("RETRAIN_EVERY_BATTLES cannot be negative.")
+        if self.retrain_every and self.retrain_every_battles:
+            raise ValueError(
+                "Configure either BATTLE_RETRAIN_EVERY or RETRAIN_EVERY_BATTLES, not both."
+            )
         if self.ambient_sample < 0 or self.trap_sample_each < 0:
             raise ValueError("Ambient and trap sample sizes cannot be negative.")
 

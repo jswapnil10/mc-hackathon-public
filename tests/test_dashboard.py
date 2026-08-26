@@ -77,6 +77,13 @@ class DashboardTests(unittest.TestCase):
         )
         self.assertEqual(payload["latency_profile"]["model_call_timeout_seconds"], 120)
         self.assertEqual(payload["latency_profile"]["case_parallelism"], 2)
+        self.assertTrue(payload["learning_loop"]["blue_post_referee_logging"])
+        self.assertTrue(payload["learning_loop"]["auto_retrain_enabled"])
+        self.assertEqual(payload["learning_loop"]["auto_retrain_every_battles"], 5)
+        self.assertEqual(
+            payload["learning_loop"]["promotion_gate"],
+            "grouped_k_fold_champion_challenger",
+        )
         self.assertEqual(len(payload["attack_families"]), 9)
         self.assertEqual(payload["submission_profile"]["diversity"]["attack_family_count"], 9)
         self.assertEqual(payload["submission_profile"]["fidelity"]["lab_only_event_types_allowed"], [])

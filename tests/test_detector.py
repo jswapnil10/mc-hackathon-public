@@ -3,13 +3,15 @@ budget threshold, end-to-end train/score/summarise, and joblib round-trip."""
 
 import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 
 from red_team_agent.planner import RedTeamAgent
 
 from sentinelloop.blue_agent import GenAIBlueAgent
-from sentinelloop.blue_ml.detector import FraudDetector
+from sentinelloop.blue_ml.detector import DEFAULT_MODEL_DIR, FraudDetector
 from sentinelloop.blue_ml.feature_frame import build_feature_frame_from_seed
 from sentinelloop.blue_ml.features import FEATURES, FORBIDDEN_MODEL_INPUTS, audit_leakage
 from sentinelloop.blue_ml.metrics import summarise, threshold_for_budget
@@ -24,6 +26,11 @@ class DetectorTests(unittest.TestCase):
 
     def test_allowlist_clean(self):
         self.assertEqual(audit_leakage(), [])
+
+    def test_repository_ships_a_loadable_frozen_champion(self):
+        self.assertTrue((DEFAULT_MODEL_DIR / "model.joblib").is_file())
+        champion = FraudDetector.load(DEFAULT_MODEL_DIR)
+        self.assertIsNotNone(champion.threshold)
 
     def test_matrix_matches_allowlist_and_no_forbidden(self):
         self.assertEqual(list(self.X.columns), FEATURES)
@@ -69,6 +76,20 @@ class DetectorTests(unittest.TestCase):
             self.assertEqual(packet.tool_name, "ml_risk_score")
             self.assertIn("cumulative_session_risk", facts)
             self.assertNotIn("attack_family", packet.to_dict())
+
+    def test_failed_save_does_not_replace_champion_or_leave_temporary_file(self):
+        detector = FraudDetector().fit(self.X, self.y)
+        with tempfile.TemporaryDirectory() as tmp:
+            champion = Path(tmp) / "model.joblib"
+            champion.write_bytes(b"existing-champion")
+            with patch(
+                "sentinelloop.blue_ml.detector.joblib.dump",
+                side_effect=OSError("simulated write failure"),
+            ):
+                with self.assertRaisesRegex(OSError, "simulated write failure"):
+                    detector.save(tmp)
+            self.assertEqual(champion.read_bytes(), b"existing-champion")
+            self.assertEqual(list(Path(tmp).glob("*.tmp")), [])
 
 
 if __name__ == "__main__":

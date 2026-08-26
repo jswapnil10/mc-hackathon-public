@@ -8,6 +8,8 @@ sibling lacked: joblib persistence so a champion model can be reused at inferenc
 
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -64,16 +66,29 @@ class FraudDetector:
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / "model.joblib"
-        joblib.dump(
-            {
-                "clf": self.clf,
-                "features": FEATURES,
-                "params": self.params,
-                "threshold": self.threshold,
-                "meta": meta or {},
-            },
-            path,
-        )
+        bundle = {
+            "clf": self.clf,
+            "features": FEATURES,
+            "params": self.params,
+            "threshold": self.threshold,
+            "meta": meta or {},
+        }
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                dir=directory,
+                prefix=".model.",
+                suffix=".joblib.tmp",
+                delete=False,
+            ) as temporary:
+                temporary_path = Path(temporary.name)
+            joblib.dump(bundle, temporary_path)
+            # Readers see the complete previous champion or the complete new champion. They can
+            # never observe a partially-written pickle while background retraining promotes it.
+            os.replace(temporary_path, path)
+        finally:
+            if temporary_path is not None and temporary_path.exists():
+                temporary_path.unlink()
         return path
 
     @classmethod

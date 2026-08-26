@@ -350,6 +350,11 @@ async function loadStatus() {
   const data = await response.json();
   state.status = data;
   renderSubmissionProfile(data.submission_profile);
+  const learningLoop = data.learning_loop || {};
+  if (learningLoop.auto_retrain_enabled) {
+    $('#criteriaNovelty').textContent = `Retrains every ${integer(learningLoop.auto_retrain_every_battles)} battles`;
+    $('#criteriaNoveltyNote').textContent = `Blue learns only after the Referee opens truth, then a grouped k-fold champion/challenger gate decides whether the update is safe to promote. ${integer(learningLoop.completed_battle_count)} completed battles are recorded in this runtime.`;
+  }
   $('#systemMode').textContent = String(data.mode || 'open model arena').replaceAll('_', ' ');
   $('#redModel').textContent = data.models.red;
   $('#blueModel').textContent = data.models.blue_detector_active

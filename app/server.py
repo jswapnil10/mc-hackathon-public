@@ -33,6 +33,9 @@ AGENT_RUN_LOCK = threading.Lock()
 RUN_PROGRESS_LOCK = threading.Lock()
 RUN_PROGRESS: dict[str, dict[str, Any]] = {}
 RUN_PROGRESS_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{8,80}$")
+BATTLE_COUNT_PATH = PROJECT_ROOT / "data" / "loop" / "battle_count.txt"
+BATTLE_COUNT_LOCK = threading.Lock()
+BACKGROUND_RETRAIN_LOCK = threading.Lock()
 BENCHMARK_DIR = PROJECT_ROOT / "data" / "benchmark"
 LATEST_BENCHMARK_PATH = BENCHMARK_DIR / "latest.json"
 BENCHMARK_RUN_LOCK = threading.Lock()
@@ -55,6 +58,116 @@ def _set_run_progress(progress_id: str, payload: dict[str, Any]) -> None:
                 key=lambda key: RUN_PROGRESS[key].get("updated_at_epoch_ms", 0),
             )
             RUN_PROGRESS.pop(oldest, None)
+
+
+def _read_battle_count() -> int:
+    try:
+        return int(BATTLE_COUNT_PATH.read_text(encoding="utf-8").strip())
+    except (FileNotFoundError, OSError, ValueError):
+        return 0
+
+
+def _bump_battle_count() -> int:
+    """Atomically record one successful web battle for the retraining cadence."""
+    with BATTLE_COUNT_LOCK:
+        battle_number = _read_battle_count() + 1
+        BATTLE_COUNT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = BATTLE_COUNT_PATH.with_suffix(".tmp")
+        temporary_path.write_text(str(battle_number), encoding="utf-8")
+        temporary_path.replace(BATTLE_COUNT_PATH)
+        return battle_number
+
+
+def _project_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def _background_retrain(
+    *,
+    training_log_path: str,
+    champion_dir: str,
+    generation: int,
+) -> None:
+    """Retrain outside the request path; single-flight and failure-isolated."""
+    if not BACKGROUND_RETRAIN_LOCK.acquire(blocking=False):
+        trace(
+            "app.retrain.skipped",
+            "A background retrain is already in flight; the current champion remains active.",
+            generation=generation,
+        )
+        return
+    try:
+        from sentinelloop.blue_ml.retrain import retrain
+
+        decision = retrain(
+            _project_path(training_log_path),
+            champion_dir=_project_path(champion_dir),
+            generation=generation,
+        )
+        trace(
+            "app.retrain.done",
+            "Background champion/challenger evaluation finished.",
+            generation=generation,
+            promoted=decision.get("promoted"),
+            challenger=decision.get("challenger"),
+        )
+    except Exception as error:  # noqa: BLE001 - retraining must not crash the web process
+        trace(
+            "app.retrain.failed",
+            "Background retraining failed; the current champion remains active.",
+            generation=generation,
+            error=str(error),
+        )
+    finally:
+        BACKGROUND_RETRAIN_LOCK.release()
+
+
+def _record_learning_loop(config: AgentLabConfig) -> dict[str, Any]:
+    """Count a completed battle and schedule a due retrain without delaying the response."""
+    every = config.retrain_every_battles
+    enabled = bool(config.ml_detector_enabled and config.training_log_path and every)
+    try:
+        battle_number = _bump_battle_count()
+    except OSError as error:
+        trace(
+            "app.battle_count.failed",
+            "The battle completed, but its local learning-loop counter could not be persisted.",
+            error=str(error),
+        )
+        return {
+            "battle_number": None,
+            "auto_retrain_every_battles": every,
+            "enabled": enabled,
+            "retrain_scheduled": False,
+        }
+
+    due = bool(enabled and battle_number % every == 0)
+    if due:
+        generation = battle_number // every
+        trace(
+            "app.retrain.scheduled",
+            "The completed-battle threshold was reached; retraining continues in the background.",
+            battle_number=battle_number,
+            generation=generation,
+            every=every,
+        )
+        threading.Thread(
+            target=_background_retrain,
+            kwargs={
+                "training_log_path": config.training_log_path,
+                "champion_dir": config.ml_model_dir,
+                "generation": generation,
+            },
+            daemon=True,
+            name=f"masterguard-retrain-{generation}",
+        ).start()
+    return {
+        "battle_number": battle_number,
+        "auto_retrain_every_battles": every,
+        "enabled": enabled,
+        "retrain_scheduled": due,
+    }
 
 
 def _load_data() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
@@ -227,6 +340,17 @@ def create_app() -> Flask:
                     },
                     "model_call_timeout_seconds": config.request_timeout_seconds,
                 },
+                "learning_loop": {
+                    "blue_post_referee_logging": bool(config.training_log_path),
+                    "auto_retrain_enabled": bool(
+                        config.ml_detector_enabled
+                        and config.training_log_path
+                        and config.retrain_every_battles
+                    ),
+                    "auto_retrain_every_battles": config.retrain_every_battles,
+                    "completed_battle_count": _read_battle_count(),
+                    "promotion_gate": "grouped_k_fold_champion_challenger",
+                },
                 "attack_families": [
                     {
                         "id": card.attack_family,
@@ -389,6 +513,7 @@ def create_app() -> Flask:
                 retrain_every=config.retrain_every or None,
             )
             payload = result.to_dict()
+            payload["learning_loop"] = _record_learning_loop(config)
             AGENT_RUNS_DIR.mkdir(parents=True, exist_ok=True)
             temporary_path = AGENT_RUNS_DIR / f".{result.run_id}.tmp"
             temporary_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

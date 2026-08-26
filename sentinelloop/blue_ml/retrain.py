@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedGroupKFold
 
@@ -47,15 +48,34 @@ def update_replay_buffer(df: pd.DataFrame, path: Path = REPLAY_PATH, cap: int = 
 
 # --------------------------------------------------------------------------- evaluation + gate
 def _evaluate(df: pd.DataFrame, seed: int, alert_rate: float, test_share: float) -> dict[str, Any]:
+    """Evaluate a challenger with the same grouped k-fold protocol used for the champion.
+
+    A single held-out fold is not comparable with the incumbent's cross-validation mean and can
+    promote or reject a model because of split luck. Averaging every grouped fold keeps complete
+    attack chains together and makes the champion/challenger gate apples-to-apples.
+    """
     X, y, groups, meta = build_feature_frame(df)
     strat = meta["attack_family"].fillna("none")
     n_splits = max(2, round(1 / test_share))
     sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-    train_idx, test_idx = next(sgkf.split(X, strat, groups))
-    det = FraudDetector().fit(X.iloc[train_idx], y.iloc[train_idx])
-    scores = det.score(X.iloc[test_idx])
-    thr = threshold_for_budget(scores, max(1, round(alert_rate * len(test_idx))))
-    return summarise(meta.iloc[test_idx], y.iloc[test_idx], scores, thr)
+    fold_reports: list[dict[str, Any]] = []
+    for train_idx, test_idx in sgkf.split(X, strat, groups):
+        detector = FraudDetector().fit(X.iloc[train_idx], y.iloc[train_idx])
+        scores = detector.score(X.iloc[test_idx])
+        threshold = threshold_for_budget(scores, max(1, round(alert_rate * len(test_idx))))
+        fold_reports.append(summarise(meta.iloc[test_idx], y.iloc[test_idx], scores, threshold))
+    keys = (
+        "chain_recall",
+        "hard_false_positive_rate",
+        "chain_precision",
+        "prevented_share",
+        "row_recall",
+        "row_precision",
+    )
+    return {
+        key: round(float(np.mean([report[key] for report in fold_reports])), 4)
+        for key in keys
+    }
 
 
 def _gate_metrics(meta: dict[str, Any]) -> dict[str, float] | None:

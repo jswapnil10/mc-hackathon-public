@@ -23,6 +23,7 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.reasoning_attempt_timeout_seconds, 45)
         self.assertEqual(config.case_parallelism, 2)
         self.assertTrue(config.ml_detector_enabled)
+        self.assertEqual(config.retrain_every_battles, 5)
         self.assertEqual(config.retrain_every, 0)
 
     @patch("sentinelloop.config._detect_local_ollama_qwen")
@@ -62,8 +63,13 @@ class AgentLabConfigTests(unittest.TestCase):
         detect.assert_not_called()
         self.assertEqual(config.red_model_id, "red-qwen")
         self.assertFalse(config.ml_detector_enabled)
+        self.assertEqual(config.retrain_every_battles, 0)
         self.assertEqual(config.retrain_every, 3)
         self.assertTrue(config.include_ambient_evaluation)
+
+    def test_retraining_cadences_cannot_overlap(self):
+        with self.assertRaisesRegex(ValueError, "either BATTLE_RETRAIN_EVERY"):
+            AgentLabConfig(retrain_every=2, retrain_every_battles=5).validate()
 
 
 if __name__ == "__main__":

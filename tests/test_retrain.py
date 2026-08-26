@@ -4,11 +4,15 @@ retrain that promotes with no incumbent and then runs the gate against the fresh
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
 
 from red_team_agent.planner import RedTeamAgent
 
 from sentinelloop.blue_ml.labeling import load_log, log_round
-from sentinelloop.blue_ml.retrain import _should_promote, retrain
+from sentinelloop.blue_ml.retrain import _evaluate, _should_promote, retrain
 from sentinelloop.simulation import simulate_attack, simulate_legitimate_controls
 
 
@@ -29,6 +33,37 @@ class LabelingTests(unittest.TestCase):
 
 
 class GateTests(unittest.TestCase):
+    def test_challenger_evaluation_averages_every_grouped_fold(self):
+        X = pd.DataFrame({"feature": [0, 1, 2, 3, 4, 5]})
+        y = pd.Series([0, 1, 0, 1, 0, 1])
+        groups = pd.Series(["a", "a", "b", "b", "c", "c"])
+        meta = pd.DataFrame({"attack_family": ["none", "ATO-01"] * 3})
+        folds = [
+            (np.array([2, 3, 4, 5]), np.array([0, 1])),
+            (np.array([0, 1, 4, 5]), np.array([2, 3])),
+            (np.array([0, 1, 2, 3]), np.array([4, 5])),
+        ]
+        fold_reports = [
+            {"chain_recall": 0.6, "hard_false_positive_rate": 0.03, "chain_precision": 0.7, "prevented_share": 0.5, "row_recall": 0.6, "row_precision": 0.7},
+            {"chain_recall": 0.9, "hard_false_positive_rate": 0.00, "chain_precision": 0.8, "prevented_share": 0.8, "row_recall": 0.9, "row_precision": 0.8},
+            {"chain_recall": 0.3, "hard_false_positive_rate": 0.06, "chain_precision": 0.6, "prevented_share": 0.2, "row_recall": 0.3, "row_precision": 0.6},
+        ]
+        splitter = MagicMock()
+        splitter.split.return_value = folds
+        fake_detector = MagicMock()
+        fake_detector.fit.return_value = fake_detector
+        fake_detector.score.return_value = np.array([0.2, 0.8])
+        with (
+            patch("sentinelloop.blue_ml.retrain.build_feature_frame", return_value=(X, y, groups, meta)),
+            patch("sentinelloop.blue_ml.retrain.StratifiedGroupKFold", return_value=splitter),
+            patch("sentinelloop.blue_ml.retrain.FraudDetector", return_value=fake_detector),
+            patch("sentinelloop.blue_ml.retrain.summarise", side_effect=fold_reports) as summarise_mock,
+        ):
+            report = _evaluate(pd.DataFrame(), seed=42, alert_rate=0.1, test_share=0.3)
+        self.assertEqual(summarise_mock.call_count, 3)
+        self.assertEqual(report["chain_recall"], 0.6)
+        self.assertEqual(report["hard_false_positive_rate"], 0.03)
+
     def test_gate_promotes_and_rejects(self):
         inc = {"chain_recall": 0.9, "hard_false_positive_rate": 0.05}
         self.assertTrue(_should_promote({"chain_recall": 0.92, "hard_false_positive_rate": 0.04}, inc, 0.01))

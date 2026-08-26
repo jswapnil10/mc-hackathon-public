@@ -212,7 +212,7 @@ Then choose **Start agent battle**. One round is the fast demonstration path. Bl
 
 After a new battle, the report first shows the five submission criteria, balanced lifecycle defense score and weakest phase, then separate pre-transaction, transaction and post-transaction cards. The capability-versus-consequence view distinguishes a weak attack from a capable attack that Blue successfully contained. Select any replay event to inspect the source stream, live-payment lane, fast-guard risk synthesis, Blue evidence tools, reason codes, action and mitigation.
 
-Every completed Referee round appends post-outcome rows to `data/loop/training_log.jsonl`. Automatic retraining is deliberately disabled in the fast UI path because it adds latency. For a dedicated multi-round learning demonstration, set `BATTLE_RETRAIN_EVERY=2`; a challenger is promoted only after measurable improvement while recall and legitimate-customer safety remain inside strict tolerances.
+Every completed Referee round appends post-outcome rows to `data/loop/training_log.jsonl`. After every five successful web battles, MasterGuard returns the battle report first and launches one background retraining job. The challenger is evaluated with the same grouped k-fold protocol as the champion and is promoted atomically only after a measurable improvement while recall and legitimate-customer safety remain inside strict tolerances. Set `RETRAIN_EVERY_BATTLES=0` to disable this cadence. `BATTLE_RETRAIN_EVERY` remains available as a separate synchronous mode for controlled CLI experiments; do not enable both cadences together.
 
 ### Why the gradient-boosting model is Blue-only
 
@@ -405,7 +405,8 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | `ML_DETECTOR_ENABLED` | `1` | Enables the Blue-only gradient-boosting evidence layer when a champion model is available |
 | `ML_MODEL_DIR` | `data/loop/models/champion` | Local champion detector directory |
 | `BATTLE_TRAINING_LOG` | `data/loop/training_log.jsonl` | Append-only post-Referee Blue learning rows |
-| `BATTLE_RETRAIN_EVERY` | `0` | Completed rounds per challenger retrain; `0` keeps retraining out of the fast UI path |
+| `RETRAIN_EVERY_BATTLES` | `5` | Successful web battles per non-blocking background champion/challenger retrain; `0` disables it |
+| `BATTLE_RETRAIN_EVERY` | `0` | Optional synchronous completed-round cadence for controlled CLI experiments; do not combine with the web cadence |
 | `BATTLE_INCLUDE_AMBIENT` | `0` | Include ordinary and hard-negative traffic in live Referee scoring |
 | `BATTLE_AMBIENT_SAMPLE` | `8` | Ordinary cases added when ambient evaluation is enabled |
 | `BATTLE_TRAP_SAMPLE_EACH` | `2` | Look-alike cases per trap type when ambient evaluation is enabled |
