@@ -1,5 +1,14 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { run: null, roundIndex: 0, turnIndex: 0, status: null, atlas: null, benchmark: null, externalValidation: null };
+const state = {
+  run: null,
+  roundIndex: 0,
+  turnIndex: 0,
+  status: null,
+  atlas: null,
+  benchmark: null,
+  externalValidation: null,
+  activeRun: null,
+};
 const phases = ['pre_transaction', 'transaction', 'post_transaction'];
 const phaseExplanations = {
   pre_transaction: 'Before money moves',
@@ -29,6 +38,95 @@ const duration = (milliseconds) => {
   const seconds = totalSeconds % 60;
   return minutes ? `${minutes}m ${String(seconds).padStart(2, '0')}s` : `${seconds}s`;
 };
+const approximateDuration = (seconds) => {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  if (safeSeconds < 45) return 'less than 1 min';
+  const minutes = Math.max(1, Math.round(safeSeconds / 60));
+  if (minutes < 60) return `about ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `about ${hours}h ${remainingMinutes}m` : `about ${hours}h`;
+};
+
+function battleWorkUnits(rounds) {
+  const safeRounds = Math.max(1, Number(rounds) || 1);
+  return (safeRounds * 1.2) + (Math.max(0, safeRounds - 1) * 1.1);
+}
+
+function latestTimingCalibration() {
+  const rounds = Number(state.run && state.run.rounds && state.run.rounds.length);
+  const seconds = Number(state.run && state.run.duration_ms) / 1000;
+  if (!Number.isFinite(rounds) || rounds < 1 || !Number.isFinite(seconds) || seconds <= 0) return null;
+  return { rounds, seconds };
+}
+
+function estimatedTotalSeconds(rounds) {
+  const safeRounds = Math.max(1, Number(rounds) || 1);
+  const calibration = latestTimingCalibration();
+  if (calibration) {
+    return calibration.seconds * (battleWorkUnits(safeRounds) / battleWorkUnits(calibration.rounds));
+  }
+  return ({ 1: 360, 2: 900, 3: 1500 })[safeRounds] || safeRounds * 500;
+}
+
+function completedWorkUnits(progress, totalRounds) {
+  if (!progress) return 0;
+  if (progress.stage === 'completed') return battleWorkUnits(totalRounds);
+
+  const roundNumber = clamp(progress.round_number || 1, 1, totalRounds);
+  const priorRounds = Math.max(0, roundNumber - 1) * 2.3;
+  const eventCapacity = Number(progress.total_event_capacity);
+  const completedEvents = Number(progress.completed_events);
+  const eventFraction = Number.isFinite(eventCapacity) && eventCapacity > 0 && Number.isFinite(completedEvents)
+    ? clamp(completedEvents / eventCapacity, 0, 1)
+    : 0;
+  const withinRound = {
+    preparing: 0.01,
+    red_planning: 0.04,
+    simulation: 0.18,
+    blue_investigation: 0.2 + (eventFraction * 0.9),
+    referee_scoring: 1.18,
+    blue_adaptation: 1.24,
+    blue_replay: 1.38 + (eventFraction * 0.85),
+    round_complete: roundNumber < totalRounds ? 2.3 : 1.2,
+  }[progress.stage] || 0.01;
+  return clamp(priorRounds + withinRound, 0, battleWorkUnits(totalRounds));
+}
+
+function renderRunEta(progress = null) {
+  if (!state.activeRun) return;
+  const totalRounds = state.activeRun.totalRounds;
+  if (progress && progress.stage === 'completed') {
+    $('#runEta').textContent = 'Estimate complete · report ready';
+    return;
+  }
+  if (progress && progress.status === 'error') {
+    $('#runEta').textContent = 'ETA unavailable · battle stopped';
+    return;
+  }
+
+  const elapsedSeconds = Math.max(0, (Date.now() - state.activeRun.startedAt) / 1000);
+  const totalUnits = battleWorkUnits(totalRounds);
+  const completedUnits = completedWorkUnits(progress || state.activeRun.progress, totalRounds);
+  const fraction = clamp(completedUnits / totalUnits, 0, 0.995);
+  let estimatedTotal = state.activeRun.baselineSeconds;
+  if (fraction >= 0.03 && elapsedSeconds > 2) {
+    const observedTotal = elapsedSeconds / fraction;
+    const confidence = clamp(fraction * 0.55, 0.05, 0.55);
+    estimatedTotal = (estimatedTotal * (1 - confidence)) + (observedTotal * confidence);
+    estimatedTotal = clamp(
+      estimatedTotal,
+      state.activeRun.baselineSeconds * 0.65,
+      state.activeRun.baselineSeconds * 1.75,
+    );
+  }
+  const remainingSeconds = Math.max(0, estimatedTotal - elapsedSeconds);
+  const completionTime = new Date(Date.now() + (remainingSeconds * 1000)).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  $('#runEta').textContent = `Estimated remaining ${approximateDuration(remainingSeconds)} · around ${completionTime}`;
+}
 
 function chips(items, tone = '') {
   if (!items || !items.length) return '<span class="chip">None recorded</span>';
@@ -231,9 +329,15 @@ async function loadExternalValidation() {
 
 function updateLatencyEstimate() {
   const rounds = Number($('#rounds').value) || 1;
-  $('#latencyEstimate').textContent = rounds === 1
-    ? 'One round: Red plans once, Blue reviews each reached event, and the Referee scores once. A local 9B model may take several minutes; the observable guard remains available if an explanation call is slow.'
-    : `${rounds} rounds: after each non-final round, Blue tests a candidate defense and Red receives limited Referee feedback before the next battle. Local open-model inference may take several minutes per round.`;
+  const estimate = approximateDuration(estimatedTotalSeconds(rounds));
+  const calibration = latestTimingCalibration();
+  const source = calibration
+    ? `calibrated from the latest completed ${calibration.rounds}-round battle (${duration(calibration.seconds * 1000)})`
+    : 'based on the default local open-model timing profile';
+  const flow = rounds === 1
+    ? 'Red plans once, Blue reviews each reached event, and the Referee scores once.'
+    : `After each non-final round, Blue tests a candidate defense and Red receives limited Referee feedback.`;
+  $('#latencyEstimate').textContent = `Estimated total ${estimate} · ${source}. ${flow} Actual time varies with model and hardware.`;
 }
 
 function currentRound() {
@@ -272,6 +376,7 @@ async function loadLatest() {
   state.run = savedRun;
   state.roundIndex = Math.max(0, state.run.rounds.length - 1);
   state.turnIndex = 0;
+  updateLatencyEstimate();
   renderRun(false, 'saved');
 }
 
@@ -568,6 +673,10 @@ function renderRunProgress(progress) {
   } else {
     $('#runProgressCount').textContent = 'Verified live update from the server orchestration pipeline.';
   }
+  if (state.activeRun) {
+    state.activeRun.progress = progress;
+    renderRunEta(progress);
+  }
 }
 
 function startProgressPolling(progressId) {
@@ -626,19 +735,27 @@ $('#runForm').addEventListener('submit', async (event) => {
   const progressId = globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
     ? globalThis.crypto.randomUUID()
     : `browser-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  const selectedRounds = Number($('#rounds').value) || 1;
+  const startedAt = Date.now();
+  state.activeRun = {
+    startedAt,
+    totalRounds: selectedRounds,
+    baselineSeconds: estimatedTotalSeconds(selectedRounds),
+    progress: null,
+  };
   renderRunProgress({
     status: 'running',
     stage: 'preparing',
     headline: 'Preparing the synthetic payment arena',
     detail: 'The browser sent the selected battle settings to the server.',
     round_number: 1,
-    total_rounds: Number($('#rounds').value),
+    total_rounds: selectedRounds,
   });
   const stopProgressPolling = startProgressPolling(progressId);
-  const startedAt = Date.now();
   $('#runElapsed').textContent = 'Elapsed 0s';
   const elapsedTimer = setInterval(() => {
     $('#runElapsed').textContent = `Elapsed ${duration(Date.now() - startedAt)}`;
+    renderRunEta();
   }, 1000);
   try {
     const response = await fetch('/api/v2/run', {
@@ -647,7 +764,7 @@ $('#runForm').addEventListener('submit', async (event) => {
       body: JSON.stringify({
         attack_family: $('#attackFamily').value,
         difficulty: $('#difficulty').value,
-        rounds: Number($('#rounds').value),
+        rounds: selectedRounds,
         seed: Date.now() % 100000000,
         progress_id: progressId,
       }),
@@ -657,6 +774,7 @@ $('#runForm').addEventListener('submit', async (event) => {
     state.run = payload;
     state.roundIndex = payload.rounds.length - 1;
     state.turnIndex = 0;
+    updateLatencyEstimate();
     renderRun(true, 'current');
   } catch (error) {
     $('#errorState').textContent = `This battle attempt failed and did not create a new report. ${error.message}`;
@@ -667,6 +785,7 @@ $('#runForm').addEventListener('submit', async (event) => {
     clearInterval(elapsedTimer);
     $('#runState').classList.add('hidden');
     $('#runButton').disabled = false;
+    state.activeRun = null;
   }
 });
 

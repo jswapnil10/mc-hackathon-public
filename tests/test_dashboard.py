@@ -28,9 +28,12 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"Reality-check the defense beyond our simulator", response.data)
         self.assertIn(b"Mastercard Innovation Challenge 2026", response.data)
         self.assertIn(b"Run guide", response.data)
+        self.assertIn(b'id="runEta"', response.data)
         script = self.client.get("/static/lab.js")
         self.assertEqual(script.status_code, 200)
         self.assertIn(b"CURRENT ATTEMPT FAILED", script.data)
+        self.assertIn(b"Estimated remaining", script.data)
+        self.assertIn(b"calibrated from the latest completed", script.data)
 
     def test_run_state_guide_explains_every_output_boundary(self):
         with self.client.get("/static/run-guide.html") as response:

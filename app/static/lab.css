@@ -287,7 +287,9 @@ button { border: 0; cursor: pointer; }
 .run-state strong, .run-state span { display: block; }
 .run-state strong { margin-top: 5px; font-size: 16px; }
 .run-state-copy > span { margin-top: 4px; color: #aaa49e; font-size: 11px; line-height: 1.55; }
+.run-timers { display: grid; gap: 5px; justify-items: end; text-align: right; }
 .run-state #runElapsed { color: #f79e1b; font: 500 10px var(--font-mono); white-space: nowrap; }
+.run-state #runEta { color: #d5d0ca; font: 500 9px var(--font-mono); line-height: 1.45; white-space: nowrap; }
 .run-progress-steps { margin: 21px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; }
 .run-progress-steps.has-adaptation { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .run-progress-steps li { position: relative; min-width: 0; padding: 17px 10px 0 0; color: #68635e; border-top: 2px solid #343434; font: 500 9px var(--font-mono); line-height: 1.45; }
@@ -606,7 +608,7 @@ footer { font-size: 10px; line-height: 1.55; }
   .criteria-grid article { border-left: 0; }
   .run-button { justify-content: center; }
   .run-state-head { grid-template-columns: auto 1fr; }
-  .run-state #runElapsed { grid-column: 2; }
+  .run-timers { grid-column: 2; justify-items: start; text-align: left; }
   .run-progress-steps, .run-progress-steps.has-adaptation { grid-template-columns: 1fr; gap: 0; }
   .run-progress-steps li { min-height: 38px; padding: 8px 0 8px 22px; border-top: 0; border-left: 2px solid #343434; }
   .run-progress-steps li::before { top: 11px; left: -6px; }
