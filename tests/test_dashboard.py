@@ -26,6 +26,19 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"Defense Benchmark", response.data)
         self.assertIn(b"Reality-check the defense beyond our simulator", response.data)
         self.assertIn(b"Mastercard Innovation Challenge 2026", response.data)
+        self.assertIn(b"Run guide", response.data)
+
+    def test_run_state_guide_explains_every_output_boundary(self):
+        with self.client.get("/static/run-guide.html") as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"What happens after you click", response.data)
+            self.assertIn(b"Red designs a bounded attack plan", response.data)
+            self.assertIn(b"The arena materializes payment events", response.data)
+            self.assertIn(b"Blue investigates and acts on each event", response.data)
+            self.assertIn(b"The Referee opens sealed truth", response.data)
+            self.assertIn(b"Blue tests an update", response.data)
+            self.assertIn(b"The report is assembled and saved", response.data)
+            self.assertIn(b"SIMULATED DETECTION TIME", response.data)
 
     def test_dashboard_api_has_required_sections(self):
         response = self.client.get("/api/dashboard")

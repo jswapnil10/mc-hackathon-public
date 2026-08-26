@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A plain-English guide to every state and output in a MasterGuard AI battle.">
+  <title>MasterGuard AI · Run State Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/run-guide.css">
+</head>
+<body>
+  <header class="guide-topbar">
+    <a class="guide-brand" href="/" aria-label="Return to MasterGuard AI">
+      <span class="guide-brand-mark"><i></i><i></i></span>
+      <span><strong>MasterGuard AI</strong><small>Attack. Adapt. Defend.</small></span>
+    </a>
+    <a class="guide-return" href="/">← Return to the arena</a>
+  </header>
+
+  <main>
+    <section class="guide-hero">
+      <div>
+        <span class="guide-kicker">LIVE ARENA EXPLAINER</span>
+        <h1>What happens after you click<br><em>Start Agent Battle?</em></h1>
+        <p>Every label in the progress panel represents a real backend milestone. This guide explains what is executing, what information it receives, and what kind of output it produces.</p>
+      </div>
+      <aside>
+        <strong>Important boundary</strong>
+        <p>The UI shows structured decisions and audit summaries—not private chain-of-thought. Fraud labels remain sealed from Blue until the Referee scores the completed case.</p>
+      </aside>
+    </section>
+
+    <nav class="state-track" aria-label="Battle state sequence">
+      <a href="#preparing"><b>00</b><span>Preparing</span></a>
+      <i>→</i>
+      <a href="#red-plans"><b>01</b><span>Red plans</span></a>
+      <i>→</i>
+      <a href="#simulation"><b>02</b><span>Arena builds</span></a>
+      <i>→</i>
+      <a href="#blue-decides"><b>03</b><span>Blue decides</span></a>
+      <i>→</i>
+      <a href="#referee"><b>04</b><span>Referee scores</span></a>
+      <i>→</i>
+      <a class="optional" href="#adaptation"><b>05</b><span>Adaptation*</span></a>
+      <i>→</i>
+      <a href="#complete"><b>06</b><span>Report ready</span></a>
+    </nav>
+    <p class="optional-note">*Adaptation exists only when two or three feedback rounds are selected.</p>
+
+    <section class="state-list" aria-label="Detailed battle states">
+      <article id="preparing" class="state-card">
+        <header><span>00</span><div><small>REQUEST SETUP</small><h2>Preparing the synthetic arena</h2></div><b>NO MODEL OUTPUT YET</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>The server validates the selected attack family, difficulty, number of rounds, and seed. It confirms that no other battle is already running, loads the model configuration, and creates a private progress record for this browser run.</p></section>
+          <section><h3>What it receives</h3><ul><li>Attack family</li><li>Difficulty</li><li>One to three rounds</li><li>Random seed and progress ID</li></ul></section>
+          <section class="output"><h3>Output represented</h3><p>A temporary run-status message:</p><code>status · stage · round_number · total_rounds</code><p class="plain">It means “the request is valid and accepted.” No attack plan or payment event exists yet.</p></section>
+        </div>
+      </article>
+
+      <article id="red-plans" class="state-card red-state">
+        <header><span>01</span><div><small>GENAI RED AGENT</small><h2>Red designs a bounded attack plan</h2></div><b>ONE PLAN PER ROUND</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>Red receives a safe attack-family card and asks the open model for a structured plan. A deterministic compiler converts that plan into a scenario, and a safety gate rejects parameters, identifiers, or behaviors outside the simulator’s approved bounds.</p></section>
+          <section><h3>What it receives</h3><ul><li>Selected family and difficulty</li><li>Allowed stages and parameter bounds</li><li>Source-backed attack context</li><li>Coarse prior-round feedback, only from round two onward</li></ul></section>
+          <section class="output"><h3>Output represented</h3><code>red.plan</code><p>Objective, target payment phase, focus stages, bounded parameter changes, adaptation goal and hypothesis.</p><code>red.scenario</code><p>Scenario ID, ordered stage templates, safe parameters, controls and safety constraints.</p></section>
+        </div>
+      </article>
+
+      <article id="simulation" class="state-card arena-state">
+        <header><span>02</span><div><small>DETERMINISTIC SYNTHETIC ARENA</small><h2>The arena materializes payment events</h2></div><b>NO NEW MODEL CALL</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>The simulator turns Red’s scenario into an ordered customer journey. It also creates legitimate look-alike cases to test whether Blue causes unnecessary customer friction. Observable behavior and the answer key are created as separate objects.</p></section>
+          <section><h3>What Blue can see</h3><ul><li>Event type and simulated time</li><li>Payment lifecycle phase</li><li>Observable signals and attributes</li><li>Prior events inside the same isolated case</li></ul><p class="sealed">Blue cannot see attack labels, scenario truth, value at risk, or intervention answers.</p></section>
+          <section class="output"><h3>Output represented</h3><code>simulation.attack_case.events</code><p>Ordered observable events for the attack case.</p><code>legitimate_control_count</code><p>The number of hard legitimate look-alikes.</p><code>sealed truth</code><p>Attack labels and value consequences reserved for the Referee.</p></section>
+        </div>
+      </article>
+
+      <article id="blue-decides" class="state-card blue-state">
+        <header><span>03</span><div><small>TWO-SPEED BLUE DEFENSE</small><h2>Blue investigates and acts on each event</h2></div><b>ONE TURN PER REACHED EVENT</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>The fast detector and sequence guard produce immediate risk signals. The Blue open-model investigator reviews the observable event and evidence packets, then proposes an action. A policy gate checks that action before it is accepted.</p><p>A <b>block</b> ends that isolated case. A <b>hold</b> is temporary, so later events may still be evaluated.</p></section>
+          <section><h3>Possible decisions</h3><ul><li><b>Allow:</b> continue normally</li><li><b>Monitor:</b> watch for a pattern</li><li><b>Step up:</b> request stronger verification</li><li><b>Hold:</b> pause value movement temporarily</li><li><b>Block:</b> stop the case</li></ul></section>
+          <section class="output"><h3>Output represented</h3><code>blue.attack_turns[]</code><p>For each reached event: investigation focus, requested evidence tools, evidence packets, action, risk level, confidence, reason codes, mitigation, detector signals and policy adjustments.</p><p class="plain">The live counter means completed Blue decisions—not model tokens or rotating status text.</p></section>
+        </div>
+      </article>
+
+      <article id="referee" class="state-card referee-state">
+        <header><span>04</span><div><small>DETERMINISTIC REFEREE</small><h2>The Referee opens sealed truth and scores the run</h2></div><b>NO MODEL JUDGMENT</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>Only after Blue finishes, the Referee compares Blue’s decisions with the sealed attack and legitimate-case truth. It calculates whether the attack was stopped, when the first useful response happened, how much value was protected, and whether legitimate users were harmed.</p></section>
+          <section><h3>Outcome meanings</h3><ul><li><b>Prevented:</b> no synthetic value was lost</li><li><b>Contained:</b> some loss occurred but was limited</li><li><b>Detected:</b> Blue warned, without proven value protection</li><li><b>Missed:</b> no actionable warning</li></ul></section>
+          <section class="output"><h3>Output represented</h3><code>referee</code><p>Outcome, overall defense score, attack strength, simulated detection time, value at risk, value protected, money lost, customer-friction rates and per-stage lifecycle scores.</p><code>feedback_released_to_red</code><p>Only outcome, detected stage, timing, protected ratio, false-positive rate and coarse reason categories.</p></section>
+        </div>
+      </article>
+
+      <article id="adaptation" class="state-card adapt-state">
+        <header><span>05</span><div><small>OPTIONAL FEEDBACK LOOP</small><h2>Blue tests an update; Red evolves next round</h2></div><b>ONLY FOR 2–3 ROUNDS</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>Blue’s strategist proposes a new defense playbook from post-outcome evidence. The candidate is replayed against the same attack and legitimate controls. A deterministic promotion gate accepts it only if it improves measurable defense without increasing customer harm.</p><p>Separately, Red receives its smaller coarse feedback packet and creates a child scenario in the next round.</p></section>
+          <section><h3>Promotion checks</h3><ul><li>Defense score does not fall</li><li>Protected value does not fall</li><li>Lifecycle weakness does not worsen</li><li>Legitimate friction does not rise</li><li>At least one measurable gain exists</li></ul></section>
+          <section class="output"><h3>Output represented</h3><code>blue_adaptation</code><p>Proposed playbook, replay decisions, replay score, promoted true/false, and the promotion reason.</p><code>next round red.scenario</code><p>Parent scenario ID, mutation number, adaptation hypothesis and new bounded parameter choices.</p></section>
+        </div>
+      </article>
+
+      <article id="complete" class="state-card complete-state">
+        <header><span>06</span><div><small>AUDIT RECORD</small><h2>The report is assembled and saved</h2></div><b>RUN COMPLETE</b></header>
+        <div class="state-columns">
+          <section><h3>What happens</h3><p>The orchestrator assembles every completed round into one auditable run record, saves the latest result, and returns it to the browser. The UI then opens the Battle Report, Payment Journey Scorecard, impact view, and event-by-event replay.</p></section>
+          <section><h3>What the viewer receives</h3><ul><li>Run ID and duration</li><li>Model configuration</li><li>Red plan and synthetic scenario</li><li>Blue event decisions</li><li>Referee metrics</li><li>Final promoted defense playbook</li></ul></section>
+          <section class="output"><h3>Output represented</h3><code>LabRun</code><p><b>run_id</b>, architecture, model configuration, all round results, final defense playbook, submission profile and wall-clock duration.</p><p class="plain">This is the complete JSON object behind the visual Battle Report.</p></section>
+        </div>
+      </article>
+    </section>
+
+    <section class="timing-guide">
+      <div><small>WALL-CLOCK ELAPSED</small><strong>How long your browser has waited</strong><p>This includes local-model generation and server processing.</p></div>
+      <div><small>SIMULATED DETECTION TIME</small><strong>Where Blue reacted in the synthetic story</strong><p>“Detected at 20s” refers to event offsets inside the scenario—not 20 seconds of real waiting.</p></div>
+      <div><small>UP TO N EVENTS</small><strong>The maximum events available for review</strong><p>The final count can be lower because a decisive block ends an isolated case early.</p></div>
+    </section>
+  </main>
+
+  <footer><span>MasterGuard AI · fully synthetic payment-security arena</span><span>No real customer, account, or payment rail is touched.</span></footer>
+</body>
+</html>
