@@ -258,6 +258,11 @@ request window before JSON is produced. Faster hosted inference can opt into adv
 profiles with `MODEL_REASONING_EFFORT=auto`. Optional reasoning attempts are time-bounded and
 retried directly when the server cancels abandoned requests promptly.
 
+The laptop-safe default evaluates two isolated cases concurrently. If a Blue explanation call
+misses its operational window, the battle no longer fails: the event is marked as degraded and
+the observable sequence guard plus Blue-only detector retain control. Model unavailability never
+causes a hard block by itself.
+
 Model guidance:
 
 | Choice | When to use it |
@@ -394,7 +399,7 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | `MODEL_TIMEOUT_SECONDS` | `120` | End-to-end request window for one agent response, including compatibility fallback |
 | `MODEL_REASONING_ATTEMPT_TIMEOUT_SECONDS` | `45` | Maximum first-attempt time for optional reasoning before a direct structured retry |
 | `MODEL_MAX_OUTPUT_TOKENS` | `1400` | Maximum generated tokens per call |
-| `CASE_PARALLELISM` | `4` | Maximum isolated attack/control cases evaluated concurrently; set to `1` for a model server that already performs its own batching |
+| `CASE_PARALLELISM` | `2` | Local-safe maximum isolated cases evaluated concurrently; a measured hosted vLLM deployment may raise it |
 | `RED_AGENT_TEMPERATURE` | `0.65` | Red planning diversity |
 | `BLUE_AGENT_TEMPERATURE` | `0.15` | Blue decision consistency |
 | `ML_DETECTOR_ENABLED` | `1` | Enables the Blue-only gradient-boosting evidence layer when a champion model is available |

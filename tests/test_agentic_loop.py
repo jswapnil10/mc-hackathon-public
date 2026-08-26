@@ -8,7 +8,7 @@ from typing import Any
 
 from sentinelloop.blue_agent import GenAIBlueAgent
 from sentinelloop.config import AgentLabConfig
-from sentinelloop.contracts import BlueDecision, ObservedEvent
+from sentinelloop.contracts import BlueDecision, DefensePlaybook, ObservedEvent
 from sentinelloop.model_gateway import ModelCall
 from sentinelloop.orchestrator import SentinelLoopOrchestrator
 from sentinelloop.red_agent import GenAIRedAgent
@@ -177,6 +177,13 @@ class PhaseMismatchGateway(TestGateway):
         return result, model_call
 
 
+class BlueTimeoutGateway(TestGateway):
+    def generate_json(self, **kwargs: Any) -> tuple[dict[str, Any], ModelCall]:
+        if kwargs["agent_name"] in {"blue_event_agent", "blue_event_repair"}:
+            raise RuntimeError("The local model missed its operational window.")
+        return super().generate_json(**kwargs)
+
+
 def _all_keys(value: Any) -> set[str]:
     keys: set[str] = set()
     if isinstance(value, dict):
@@ -190,6 +197,28 @@ def _all_keys(value: Any) -> set[str]:
 
 
 class InformationBoundaryTests(unittest.TestCase):
+    def test_blue_model_timeout_keeps_deterministic_control_lane_available(self) -> None:
+        case = simulate_attack(
+            RedTeamAgent().plan(attack_family="ATO-01", difficulty="medium", seed=2026)
+        )
+        blue = GenAIBlueAgent(
+            gateway=BlueTimeoutGateway(),
+            config=AgentLabConfig(ml_detector_enabled=False),
+        )
+        turn = blue.investigate_event(
+            event=case.events[0],
+            visible_history=[case.events[0]],
+            prior_turns=[],
+            playbook=DefensePlaybook.baseline(),
+            seed=2026,
+        )
+        self.assertIn(turn.decision.action, {"monitor", "step_up", "hold"})
+        self.assertEqual(turn.model_calls, [])
+        self.assertIn("Qwen did not complete", turn.decision.decision_summary)
+        self.assertTrue(
+            any("Availability fallback" in item for item in turn.policy_adjustments)
+        )
+
     def test_red_normalizes_phase_label_from_bounded_focus_stage(self) -> None:
         agent = GenAIRedAgent(
             gateway=PhaseMismatchGateway(),

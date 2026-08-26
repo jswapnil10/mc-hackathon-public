@@ -73,6 +73,7 @@ class DashboardTests(unittest.TestCase):
             },
         )
         self.assertEqual(payload["latency_profile"]["model_call_timeout_seconds"], 120)
+        self.assertEqual(payload["latency_profile"]["case_parallelism"], 2)
         self.assertEqual(len(payload["attack_families"]), 9)
         self.assertEqual(payload["submission_profile"]["diversity"]["attack_family_count"], 9)
         self.assertEqual(payload["submission_profile"]["fidelity"]["lab_only_event_types_allowed"], [])

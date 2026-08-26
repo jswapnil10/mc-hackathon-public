@@ -21,6 +21,7 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.reasoning_effort_for("blue_event_agent"), "none")
         self.assertEqual(config.reasoning_effort_for("blue_strategist"), "none")
         self.assertEqual(config.reasoning_attempt_timeout_seconds, 45)
+        self.assertEqual(config.case_parallelism, 2)
         self.assertTrue(config.ml_detector_enabled)
         self.assertEqual(config.retrain_every, 0)
 

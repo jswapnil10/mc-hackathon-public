@@ -95,7 +95,9 @@ class AgentLabConfig:
     red_temperature: float = 0.65
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
-    case_parallelism: int = 4
+    # Two isolated cases at a time keeps one local Ollama/Qwen process responsive. A hosted
+    # vLLM deployment can explicitly raise this after measuring its own batching capacity.
+    case_parallelism: int = 2
     # This detector is exclusively a Blue data-plane capability. Red receives only coarse
     # Referee feedback and never sees model scores, features, thresholds, or weights.
     ml_detector_enabled: bool = True

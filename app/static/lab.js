@@ -232,8 +232,8 @@ async function loadExternalValidation() {
 function updateLatencyEstimate() {
   const rounds = Number($('#rounds').value) || 1;
   $('#latencyEstimate').textContent = rounds === 1
-    ? 'One round: Red plans once, Blue reviews each reached event, and the Referee scores once. No adaptation replay is performed.'
-    : `${rounds} rounds: after each non-final round, Blue tests a candidate defense and Red receives limited Referee feedback before the next battle.`;
+    ? 'One round: Red plans once, Blue reviews each reached event, and the Referee scores once. A local 9B model may take several minutes; the observable guard remains available if an explanation call is slow.'
+    : `${rounds} rounds: after each non-final round, Blue tests a candidate defense and Red receives limited Referee feedback before the next battle. Local open-model inference may take several minutes per round.`;
 }
 
 function currentRound() {

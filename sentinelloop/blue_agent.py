@@ -364,6 +364,146 @@ class GenAIBlueAgent:
             decision = replace(decision, risk_level=normalized_risk)
         return decision, adjustments
 
+    @staticmethod
+    def _availability_fallback_turn(
+        *,
+        event: ObservedEvent,
+        evidence: list[EvidencePacket],
+        selected_tools: list[str],
+        risk_synthesis: dict[str, Any],
+        ml_risk_info: dict[str, Any] | None,
+        error: RuntimeError,
+        model_calls: list[dict[str, Any]] | None = None,
+    ) -> BlueTurn:
+        """Keep the payment control plane available when the explanatory model is slow.
+
+        This lane never invents a fraud label and never hard-blocks on model availability. It
+        applies the observable sequence floor, with a reversible step-up when the Blue-only
+        statistical signal is above threshold, and records the degraded mode in the audit trail.
+        """
+        action_rank = {"allow": 0, "monitor": 1, "step_up": 2, "hold": 3, "block": 4}
+        action = str(risk_synthesis.get("operational_minimum_action", "allow"))
+        if action == "allow":
+            action = "monitor"
+        if (
+            ml_risk_info
+            and ml_risk_info.get("above_threshold")
+            and action_rank[action] < action_rank["step_up"]
+        ):
+            action = "step_up"
+
+        indicator_codes = {
+            str(item.get("code", "")) for item in risk_synthesis.get("indicators", [])
+        }
+        reason_codes: list[str] = []
+        reason_map = (
+            ({"new_device"}, "device_novelty"),
+            ({"new_network"}, "network_novelty"),
+            ({"new_beneficiary", "novel_payout_destination"}, "beneficiary_novelty"),
+            (
+                {"amount_deviation", "subtle_amount_deviation", "extreme_amount_deviation"},
+                "amount_anomaly",
+            ),
+            (
+                {
+                    "repeated_value_movement",
+                    "cumulative_value_sequence",
+                    "rapid_outflow",
+                    "sales_velocity_shift",
+                },
+                "velocity",
+            ),
+            ({"cross_phase_progression"}, "cross_phase_pattern"),
+            ({"shared_infrastructure", "fan_in_concentration"}, "graph_concentration"),
+        )
+        for signals, reason in reason_map:
+            if signals.intersection(indicator_codes) and reason not in reason_codes:
+                reason_codes.append(reason)
+        if ml_risk_info and ml_risk_info.get("above_threshold"):
+            reason_codes.append("behavior_sequence")
+        if not reason_codes:
+            reason_codes = ["insufficient_evidence"]
+        reason_codes = list(dict.fromkeys(reason_codes))[:5]
+
+        risk_level = {
+            "allow": "low",
+            "monitor": "medium",
+            "step_up": "high" if risk_synthesis.get("observable_risk_score", 0) >= 5 else "medium",
+            "hold": "high",
+            "block": "critical",
+        }[action]
+        evidence_refs = [
+            packet.evidence_id
+            for packet in evidence
+            if packet.tool_name == "case_risk_synthesis"
+            or (
+                packet.tool_name == "ml_risk_score"
+                and ml_risk_info
+                and ml_risk_info.get("above_threshold")
+            )
+        ][:5]
+        investigation = InvestigationRequest(
+            preliminary_risk=(
+                "The explanatory GenAI service missed its operational window; the always-on "
+                "observable defense lane retained control."
+            ),
+            requested_tools=selected_tools,
+            investigation_focus=[
+                "observable sequence floor",
+                "model availability",
+                "statistical risk evidence",
+            ],
+        )
+        mitigation = {
+            "monitor": (
+                "Continue monitoring and queue an asynchronous GenAI review; do not interrupt "
+                "the customer solely because the model was unavailable."
+            ),
+            "step_up": (
+                "Apply a reversible verification step and queue the GenAI explanation for review."
+            ),
+            "hold": (
+                "Preserve the observable safety hold and retry or route the investigation to a "
+                "healthy model worker."
+            ),
+            "block": "Preserve the existing block and route the case for review.",
+            "allow": "Continue normal monitoring.",
+        }[action]
+        decision = BlueDecision(
+            event_id=event.event_id,
+            action=action,
+            risk_level=risk_level,
+            confidence=0.78 if action in {"hold", "block"} else 0.64,
+            reason_codes=reason_codes,
+            evidence_refs=evidence_refs,
+            decision_summary=(
+                f"Qwen did not complete within the operational window. The deterministic "
+                f"observable defense lane applied {action}; no fraud label was inferred from "
+                "model availability."
+            ),
+            mitigation=mitigation,
+        )
+        trace(
+            "blue.model.availability_fallback",
+            "Blue continued on the deterministic data plane after the GenAI call failed.",
+            event_id=event.event_id,
+            action=action,
+            error=str(error),
+        )
+        return BlueTurn(
+            event=event,
+            investigation=investigation,
+            evidence=evidence,
+            decision=decision,
+            risk_synthesis=risk_synthesis,
+            ml_risk=ml_risk_info,
+            model_calls=model_calls or [],
+            policy_adjustments=[
+                "Availability fallback: Qwen missed the operational window, so the observable "
+                "guard and Blue-only detector retained control."
+            ],
+        )
+
     def investigate_event(
         self,
         *,
@@ -531,16 +671,26 @@ class GenAIBlueAgent:
             "tool_evidence": [item.to_dict() for item in evidence],
             "policy": policy,
         }
-        combined_result, decision_call = self.gateway.generate_json(
-            agent_name="blue_event_agent",
-            model=self.config.blue_model_id,
-            system_prompt=BLUE_EVENT_AGENT_SYSTEM_PROMPT,
-            user_payload=decision_payload,
-            schema_name="blue_event_response",
-            schema=BLUE_EVENT_RESPONSE_SCHEMA,
-            temperature=self.config.blue_temperature,
-            seed=seed,
-        )
+        try:
+            combined_result, decision_call = self.gateway.generate_json(
+                agent_name="blue_event_agent",
+                model=self.config.blue_model_id,
+                system_prompt=BLUE_EVENT_AGENT_SYSTEM_PROMPT,
+                user_payload=decision_payload,
+                schema_name="blue_event_response",
+                schema=BLUE_EVENT_RESPONSE_SCHEMA,
+                temperature=self.config.blue_temperature,
+                seed=seed,
+            )
+        except RuntimeError as error:
+            return self._availability_fallback_turn(
+                event=event,
+                evidence=evidence,
+                selected_tools=selected_tools,
+                risk_synthesis=risk_synthesis,
+                ml_risk_info=ml_risk_info,
+                error=error,
+            )
         try:
             investigation = InvestigationRequest.from_dict(
                 {
@@ -624,23 +774,34 @@ class GenAIBlueAgent:
                 event_id=event.event_id,
                 violations=decision_errors,
             )
-            repaired_result, repair_call = self.gateway.generate_json(
-                agent_name="blue_event_repair",
-                model=self.config.blue_model_id,
-                system_prompt=(
-                    f"{BLUE_DECIDER_SYSTEM_PROMPT}\n\nYour previous candidate violated the deterministic "
-                    "decision policy. Correct only the final decision using the listed violations."
-                ),
-                user_payload={
-                    **decision_payload,
-                    "rejected_candidate": decision.to_dict(),
-                    "policy_violations": decision_errors,
-                },
-                schema_name="blue_payment_decision_repair",
-                schema=BLUE_DECISION_SCHEMA,
-                temperature=0.0,
-                seed=seed + 2,
-            )
+            try:
+                repaired_result, repair_call = self.gateway.generate_json(
+                    agent_name="blue_event_repair",
+                    model=self.config.blue_model_id,
+                    system_prompt=(
+                        f"{BLUE_DECIDER_SYSTEM_PROMPT}\n\nYour previous candidate violated the deterministic "
+                        "decision policy. Correct only the final decision using the listed violations."
+                    ),
+                    user_payload={
+                        **decision_payload,
+                        "rejected_candidate": decision.to_dict(),
+                        "policy_violations": decision_errors,
+                    },
+                    schema_name="blue_payment_decision_repair",
+                    schema=BLUE_DECISION_SCHEMA,
+                    temperature=0.0,
+                    seed=seed + 2,
+                )
+            except RuntimeError as error:
+                return self._availability_fallback_turn(
+                    event=event,
+                    evidence=evidence,
+                    selected_tools=selected_tools,
+                    risk_synthesis=risk_synthesis,
+                    ml_risk_info=ml_risk_info,
+                    error=error,
+                    model_calls=model_calls,
+                )
             model_calls.append(repair_call.__dict__)
             try:
                 decision = BlueDecision.from_dict(repaired_result)
