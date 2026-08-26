@@ -38,7 +38,10 @@ services:
       RED_MODEL_ID: Qwen/Qwen3.5-9B
       BLUE_MODEL_ID: Qwen/Qwen3.5-9B
       MODEL_STRUCTURED_OUTPUT_MODE: json_schema
-      MODEL_REASONING_EFFORT: none
+      MODEL_REASONING_EFFORT: auto
+      RED_REASONING_EFFORT: medium
+      BLUE_REASONING_EFFORT: low
+      BLUE_STRATEGY_REASONING_EFFORT: medium
       MODEL_TIMEOUT_SECONDS: 120
       ML_DETECTOR_ENABLED: "1"
       ML_MODEL_DIR: data/loop/models/champion

@@ -16,7 +16,10 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.model_base_url, LOCAL_OLLAMA_BASE_URL)
         self.assertEqual(config.red_model_id, "qwen3-coder:latest")
         self.assertEqual(config.blue_model_id, "qwen3-coder:latest")
-        self.assertEqual(config.reasoning_effort, "none")
+        self.assertEqual(config.reasoning_effort, "auto")
+        self.assertEqual(config.reasoning_effort_for("red_planner"), "medium")
+        self.assertEqual(config.reasoning_effort_for("blue_event_agent"), "low")
+        self.assertEqual(config.reasoning_effort_for("blue_strategist"), "medium")
         self.assertTrue(config.ml_detector_enabled)
         self.assertEqual(config.retrain_every, 0)
 

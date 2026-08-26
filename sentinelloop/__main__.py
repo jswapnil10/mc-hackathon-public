@@ -152,6 +152,11 @@ def main() -> None:
                     "blue_model_id": config.blue_model_id,
                     "structured_output_mode": config.structured_output_mode,
                     "reasoning_effort": config.reasoning_effort,
+                    "role_reasoning_effort": {
+                        "red": config.reasoning_effort_for("red_planner"),
+                        "blue_live": config.reasoning_effort_for("blue_event_agent"),
+                        "blue_strategy": config.reasoning_effort_for("blue_strategist"),
+                    },
                     "case_parallelism": config.case_parallelism,
                     "note": "The API key is intentionally not displayed.",
                 },

@@ -77,7 +77,12 @@ class AgentLabConfig:
     blue_model_id: str = DEFAULT_QWEN_MODEL
     request_timeout_seconds: int = 120
     structured_output_mode: str = "json_schema"
-    reasoning_effort: str = "none"
+    # `auto` selects role-specific effort. A concrete value remains as an emergency global
+    # override, while `omit` supports endpoints with no reasoning-control parameter.
+    reasoning_effort: str = "auto"
+    red_reasoning_effort: str = "medium"
+    blue_reasoning_effort: str = "low"
+    blue_strategy_reasoning_effort: str = "medium"
     red_temperature: float = 0.65
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
@@ -113,6 +118,15 @@ class AgentLabConfig:
             reasoning_effort=os.environ.get(
                 "MODEL_REASONING_EFFORT", cls.reasoning_effort
             ).lower(),
+            red_reasoning_effort=os.environ.get(
+                "RED_REASONING_EFFORT", cls.red_reasoning_effort
+            ).lower(),
+            blue_reasoning_effort=os.environ.get(
+                "BLUE_REASONING_EFFORT", cls.blue_reasoning_effort
+            ).lower(),
+            blue_strategy_reasoning_effort=os.environ.get(
+                "BLUE_STRATEGY_REASONING_EFFORT", cls.blue_strategy_reasoning_effort
+            ).lower(),
             red_temperature=_float_env("RED_AGENT_TEMPERATURE", cls.red_temperature),
             blue_temperature=_float_env("BLUE_AGENT_TEMPERATURE", cls.blue_temperature),
             max_output_tokens=_int_env("MODEL_MAX_OUTPUT_TOKENS", cls.max_output_tokens),
@@ -137,10 +151,17 @@ class AgentLabConfig:
             raise ValueError(
                 "MODEL_STRUCTURED_OUTPUT_MODE must be json_schema, json_object, or prompt."
             )
-        if self.reasoning_effort not in {"none", "low", "medium", "high", "omit"}:
+        if self.reasoning_effort not in {"auto", "none", "low", "medium", "high", "omit"}:
             raise ValueError(
-                "MODEL_REASONING_EFFORT must be none, low, medium, high, or omit."
+                "MODEL_REASONING_EFFORT must be auto, none, low, medium, high, or omit."
             )
+        for name, value in (
+            ("RED_REASONING_EFFORT", self.red_reasoning_effort),
+            ("BLUE_REASONING_EFFORT", self.blue_reasoning_effort),
+            ("BLUE_STRATEGY_REASONING_EFFORT", self.blue_strategy_reasoning_effort),
+        ):
+            if value not in {"none", "low", "medium", "high", "omit"}:
+                raise ValueError(f"{name} must be none, low, medium, high, or omit.")
         for name, value in (
             ("RED_AGENT_TEMPERATURE", self.red_temperature),
             ("BLUE_AGENT_TEMPERATURE", self.blue_temperature),
@@ -159,3 +180,15 @@ class AgentLabConfig:
     @property
     def chat_completions_url(self) -> str:
         return f"{self.model_base_url}/chat/completions"
+
+    def reasoning_effort_for(self, agent_name: str) -> str:
+        """Choose test-time reasoning by role unless a global override is configured."""
+        if self.reasoning_effort != "auto":
+            return self.reasoning_effort
+        if agent_name == "red_planner" or agent_name.startswith("red_"):
+            return self.red_reasoning_effort
+        if agent_name == "blue_strategist":
+            return self.blue_strategy_reasoning_effort
+        if agent_name.startswith("blue_"):
+            return self.blue_reasoning_effort
+        return self.blue_reasoning_effort

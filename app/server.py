@@ -339,8 +339,10 @@ def create_app() -> Flask:
                 {
                     "error": str(error),
                     "hint": (
-                        "Verify endpoint reachability and structured-output compatibility. For "
-                        "Ollama Qwen 3-class models, set MODEL_REASONING_EFFORT=none and restart."
+                        "Verify endpoint reachability and structured-output compatibility. The "
+                        "gateway automatically retries unsupported reasoning parameters and "
+                        "reasoning-only responses; use MODEL_REASONING_EFFORT=none only as a "
+                        "manual fallback."
                     ),
                 }
             ), 502
