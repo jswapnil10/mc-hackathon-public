@@ -1,4 +1,6 @@
+import os
 import unittest
+from unittest.mock import patch
 
 from app.server import create_app
 
@@ -121,6 +123,37 @@ class DashboardTests(unittest.TestCase):
             json={"attack_family": "UNBOUNDED-99", "difficulty": "medium", "rounds": 2},
         )
         self.assertEqual(response.status_code, 400)
+
+    @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
+    def test_precomputed_demo_covers_every_family_and_difficulty_without_model_calls(self):
+        status = self.client.get("/api/v2/status").get_json()
+        combinations = {
+            (item["attack_family"], item["difficulty"])
+            for item in status["precomputed_demo"]["available_scenarios"]
+            if item["rounds"] == 1
+        }
+        expected = {
+            (family["id"], difficulty)
+            for family in status["attack_families"]
+            for difficulty in ("easy", "medium", "hard")
+        }
+        self.assertEqual(combinations, expected)
+        for family, difficulty in sorted(expected):
+            response = self.client.post(
+                "/api/v2/run",
+                json={
+                    "attack_family": family,
+                    "difficulty": difficulty,
+                    "rounds": 1,
+                    "seed": 20260826,
+                },
+            )
+            self.assertEqual(response.status_code, 200, (family, difficulty))
+            payload = response.get_json()
+            scenario = payload["rounds"][0]["red"]["scenario"]
+            self.assertEqual(scenario["attack_family"], family)
+            self.assertEqual(scenario["difficulty"], difficulty)
+            self.assertEqual(payload["demo_mode"], "precomputed_replay")
 
     def test_unknown_run_progress_is_explicit(self):
         response = self.client.get("/api/v2/run-progress/browser-test-0001")

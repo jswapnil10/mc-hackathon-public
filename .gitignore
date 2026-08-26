@@ -40,3 +40,7 @@ data/loop/models/archive/
 # Ship only the frozen champion so a clean checkout starts with the hybrid Blue stack active.
 !data/loop/models/champion/
 !data/loop/models/champion/model.joblib
+
+# Curated, safe-to-share replay artifacts for the public offline demo.
+!data/demo_runs/
+!data/demo_runs/*.json

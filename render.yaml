@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: masterguard-ai
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile
+    healthCheckPath: /healthz
+    plan: free
+    autoDeployTrigger: commit
+    envVars:
+      - key: DEMO_MODE
+        value: precomputed
+      # The public experience works with the bundled benchmark data and Blue detector.
+      # Leave model variables unset unless a private OpenAI-compatible endpoint is available.
+      - key: ML_DETECTOR_ENABLED
+        value: "1"

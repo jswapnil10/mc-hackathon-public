@@ -1,0 +1,2020 @@
+{
+  "run_id": "LAB-20261228-DISPUTE-01",
+  "architecture": "red_genai_vs_two_speed_learning_blue_with_deterministic_referee",
+  "model_configuration": {
+    "red": "qwen3.5:9b",
+    "blue": "qwen3.5:9b",
+    "blue_detector": {
+      "type": "HistGradientBoostingClassifier",
+      "configured": true,
+      "active": true,
+      "model_hash": "ada5760e9ec6",
+      "role": "Blue evidence only; never exposed to Red"
+    },
+    "blue_strategist": "qwen3.5:9b",
+    "referee": "deterministic-policy-v2",
+    "blue_execution": "single_call_per_event",
+    "case_parallelism": 4
+  },
+  "rounds": [
+    {
+      "round_number": 1,
+      "red": {
+        "plan": {
+          "attack_family": "DISPUTE-01",
+          "difficulty": "hard",
+          "objective": "Simulate a sophisticated, low-volume dispute campaign where claims are submitted weeks after purchase with high evidence inconsistency to stress post-transaction investigation workflows.",
+          "target_lifecycle_phase": "post_transaction",
+          "focus_stage_ids": [
+            "coordinated_dispute",
+            "evidence_review"
+          ],
+          "adaptation_goal": "Stress-test the system's ability to detect coordinated actors through behavioral analysis and cross-case similarity despite low bot probability and significant time gaps between events.",
+          "adaptation_hypothesis": "By reducing bot behavior probability and increasing dispute age, we force analysts to rely on evidence inconsistency metrics rather than simple velocity or pattern matching, simulating a highly humanized but malicious actor.",
+          "parameter_changes": [
+            {
+              "parameter": "dispute_age_hours",
+              "value": 240,
+              "rationale": "Extend the window significantly to test long-tail detection capabilities where initial transaction friction has faded."
+            },
+            {
+              "parameter": "linked_dispute_count",
+              "value": 2,
+              "rationale": "Limit volume to simulate a targeted, high-effort campaign rather than a mass-discharge attack vector."
+            },
+            {
+              "parameter": "bot_behavior_probability",
+              "value": 0.1,
+              "rationale": "Minimize automated signals to force reliance on behavioral nuance and evidence logic over simple heuristic triggers."
+            },
+            {
+              "parameter": "evidence_conflict_probability",
+              "value": 0.15,
+              "rationale": "Introduce subtle inconsistencies that require deep forensic review rather than immediate flagging, challenging the 'machine-like evidence' observation."
+            }
+          ],
+          "reasoning_summary": "The hard difficulty profile requires simulating a campaign that evades standard velocity filters by operating with low frequency and long latency. The focus shifts to the post-transaction stages where analysts must reconcile conflicting case facts. By lowering bot probability and increasing time delays, we isolate the investigation's dependence on evidence consistency checks against established controls like verified service failures or legitimate goods not received."
+        },
+        "scenario": {
+          "schema_version": "1.0",
+          "scenario_id": "RT-DISPUTE-01-20261228-BASE",
+          "attack_family": "DISPUTE-01",
+          "title": "GenAI-assisted dispute evidence and refund abuse \u2014 hard synthetic campaign",
+          "objective": "Simulate a sophisticated, low-volume dispute campaign where claims are submitted weeks after purchase with high evidence inconsistency to stress post-transaction investigation workflows.",
+          "difficulty": "hard",
+          "seed": 20261228,
+          "source_refs": [
+            {
+              "title": "Mastercard \u2014 Generative AI: Preparing Your Fraud Organization",
+              "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+              "observed": "The report treats fraud defense as a lifecycle problem and calls for stronger post-event analysis, operational readiness, and continuous learning."
+            },
+            {
+              "title": "FinCEN Alert on Fraud Schemes Involving Deepfake Media",
+              "url": "https://www.fincen.gov/system/files/shared/FinCEN-Alert-DeepFakes-Alert508FINAL.pdf",
+              "observed": "The alert recommends examining inconsistencies across submitted evidence, identity information, accounts, and transaction behavior."
+            }
+          ],
+          "parameters": {
+            "amount_multiplier": 1.2,
+            "dispute_age_hours": 240,
+            "linked_dispute_count": 2,
+            "bot_behavior_probability": 0.1,
+            "evidence_conflict_probability": 0.15,
+            "submission_interval_seconds": 900
+          },
+          "stages": [
+            {
+              "stage_id": "original_purchase",
+              "sequence": 1,
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "offset_seconds": 0,
+              "blue_intervention_point": "DECIDE",
+              "observable_signals": [
+                "amount_vs_baseline",
+                "merchant_history"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "amount_multiplier": 1.2
+              }
+            },
+            {
+              "stage_id": "coordinated_dispute",
+              "sequence": 2,
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_OPENED",
+              "offset_seconds": 86400,
+              "blue_intervention_point": "CONTAIN",
+              "observable_signals": [
+                "dispute_age",
+                "linked_dispute_volume",
+                "claimant_behavior"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "dispute_age_hours": 240,
+                "linked_dispute_count": 2,
+                "bot_behavior_probability": 0.1
+              }
+            },
+            {
+              "stage_id": "evidence_review",
+              "sequence": 3,
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_EVIDENCE_REVIEWED",
+              "offset_seconds": 90000,
+              "blue_intervention_point": "CONTAIN",
+              "observable_signals": [
+                "evidence_consistency",
+                "submission_timing",
+                "cross_case_similarity"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "evidence_conflict_probability": 0.15,
+                "submission_interval_seconds": 900,
+                "linked_dispute_count": 2
+              }
+            },
+            {
+              "stage_id": "refund_release",
+              "sequence": 4,
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_REFUND_ISSUED",
+              "offset_seconds": 93600,
+              "blue_intervention_point": "CONTAIN",
+              "observable_signals": [
+                "refund_value",
+                "unresolved_evidence_conflict"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "amount_multiplier": 1.2
+              }
+            }
+          ],
+          "legitimate_controls": [
+            "legitimate_goods_not_received",
+            "documented_duplicate_charge",
+            "verified_service_failure"
+          ],
+          "safety_constraints": [
+            "synthetic_entities_only",
+            "no_outbound_communications",
+            "no_real_payment_rails",
+            "no_credentials_or_personal_data",
+            "defensive_observables_only",
+            "deterministic_replay_with_seed"
+          ],
+          "created_by": "open-model:qwen3.5:9b",
+          "reasoning_summary": "The hard difficulty profile requires simulating a campaign that evades standard velocity filters by operating with low frequency and long latency. The focus shifts to the post-transaction stages where analysts must reconcile conflicting case facts. By lowering bot probability and increasing time delays, we isolate the investigation's dependence on evidence consistency checks against established controls like verified service failures or legitimate goods not received. Adaptation: By reducing bot behavior probability and increasing dispute age, we force analysts to rely on evidence inconsistency metrics rather than simple velocity or pattern matching, simulating a highly humanized but malicious actor.",
+          "target_lifecycle_phase": "post_transaction",
+          "focus_stage_ids": [
+            "coordinated_dispute",
+            "evidence_review"
+          ],
+          "adaptation_goal": "Stress-test the system's ability to detect coordinated actors through behavioral analysis and cross-case similarity despite low bot probability and significant time gaps between events.",
+          "parent_scenario_id": null,
+          "mutation_number": 0,
+          "mutation_reason": [
+            "Extend the window significantly to test long-tail detection capabilities where initial transaction friction has faded.",
+            "Limit volume to simulate a targeted, high-effort campaign rather than a mass-discharge attack vector.",
+            "Minimize automated signals to force reliance on behavioral nuance and evidence logic over simple heuristic triggers.",
+            "Introduce subtle inconsistencies that require deep forensic review rather than immediate flagging, challenging the 'machine-like evidence' observation."
+          ]
+        },
+        "model_call": {
+          "agent_name": "red_planner",
+          "model": "qwen3.5:9b",
+          "schema_name": "red_campaign_plan",
+          "latency_ms": 22123,
+          "reasoning_effort": "none",
+          "compatibility_fallbacks": []
+        }
+      },
+      "simulation": {
+        "attack_case": {
+          "case_id": "RT-DISPUTE-01-20261228-BASE",
+          "events": [
+            {
+              "event_id": "syn_evt_a31f1e19658e5858abd1",
+              "sequence": 1,
+              "occurred_at": "2026-07-01T07:08:00+00:00",
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "observable_signals": [
+                "amount_vs_baseline",
+                "merchant_history"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "sender_baseline_amount_inr": 9982.75,
+                "amount_inr": 11979.3,
+                "amount_to_baseline_ratio": 1.2,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_orchestration_stream",
+              "decision_lane": "inline_payment_decision",
+              "latency_budget_ms": 300
+            },
+            {
+              "event_id": "syn_evt_888e8e7f6f5f516ebd37",
+              "sequence": 2,
+              "occurred_at": "2026-07-02T07:08:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_OPENED",
+              "observable_signals": [
+                "dispute_age",
+                "linked_dispute_volume",
+                "claimant_behavior"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "dispute_age_hours": 240,
+                "linked_dispute_count": 2,
+                "behavior_automation_suspected": false
+              },
+              "source_system": "dispute_case_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            },
+            {
+              "event_id": "syn_evt_ca7b098af03b5c8496fe",
+              "sequence": 3,
+              "occurred_at": "2026-07-02T08:08:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_EVIDENCE_REVIEWED",
+              "observable_signals": [
+                "evidence_consistency",
+                "submission_timing",
+                "cross_case_similarity"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "submission_interval_seconds": 900,
+                "linked_dispute_count": 2,
+                "evidence_conflict_present": false
+              },
+              "source_system": "dispute_case_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            },
+            {
+              "event_id": "syn_evt_70d47d29768159a29562",
+              "sequence": 4,
+              "occurred_at": "2026-07-02T09:08:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_REFUND_ISSUED",
+              "observable_signals": [
+                "refund_value",
+                "unresolved_evidence_conflict"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "sender_baseline_amount_inr": 9982.75,
+                "amount_inr": 11979.3,
+                "amount_to_baseline_ratio": 1.2,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "dispute_case_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            }
+          ],
+          "sealed_truth_revealed_after_scoring": [
+            {
+              "event_id": "syn_evt_a31f1e19658e5858abd1",
+              "stage_id": "original_purchase",
+              "attack_family": "DISPUTE-01",
+              "scenario_id": "RT-DISPUTE-01-20261228-BASE",
+              "intervention_point": "DECIDE",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 0,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_888e8e7f6f5f516ebd37",
+              "stage_id": "coordinated_dispute",
+              "attack_family": "DISPUTE-01",
+              "scenario_id": "RT-DISPUTE-01-20261228-BASE",
+              "intervention_point": "CONTAIN",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 86400,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_ca7b098af03b5c8496fe",
+              "stage_id": "evidence_review",
+              "attack_family": "DISPUTE-01",
+              "scenario_id": "RT-DISPUTE-01-20261228-BASE",
+              "intervention_point": "CONTAIN",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 90000,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_70d47d29768159a29562",
+              "stage_id": "refund_release",
+              "attack_family": "DISPUTE-01",
+              "scenario_id": "RT-DISPUTE-01-20261228-BASE",
+              "intervention_point": "CONTAIN",
+              "is_attack": true,
+              "value_at_risk_inr": 11979.3,
+              "offset_seconds": 93600,
+              "fraud_contributing": true
+            }
+          ]
+        },
+        "legitimate_control_count": 3,
+        "ambient_case_count": 0
+      },
+      "blue": {
+        "active_playbook": {
+          "version": 1,
+          "preferred_tools": [],
+          "focus_reason_codes": [],
+          "investigation_guidance": [
+            "Use the smallest sufficient evidence set and test legitimate explanations."
+          ],
+          "change_hypothesis": "Baseline evidence-led defense with no post-episode adaptations yet."
+        },
+        "attack_turns": [
+          {
+            "event": {
+              "event_id": "syn_evt_a31f1e19658e5858abd1",
+              "sequence": 1,
+              "occurred_at": "2026-07-01T07:08:00+00:00",
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "observable_signals": [
+                "amount_vs_baseline",
+                "merchant_history"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "sender_baseline_amount_inr": 9982.75,
+                "amount_inr": 11979.3,
+                "amount_to_baseline_ratio": 1.2,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_orchestration_stream",
+              "decision_lane": "inline_payment_decision",
+              "latency_budget_ms": 300
+            },
+            "investigation": {
+              "preliminary_risk": "medium",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives",
+                "timeline_summary",
+                "payment_context"
+              ],
+              "investigation_focus": [
+                "subtle_amount_deviation",
+                "verification_inconsistency"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_5858abd1_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 1,
+                  "raw_risk_score": 1,
+                  "risk_band": "medium",
+                  "minimum_action": "monitor",
+                  "indicator_count": 1,
+                  "indicators": [
+                    {
+                      "code": "subtle_amount_deviation",
+                      "points": 1,
+                      "detail": "Value reached 1.20\u00d7 the available baseline."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "transaction"
+                  ],
+                  "value_event_count": 1,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_a31f1e19658e5858abd1",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5858abd1_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_a31f1e19658e5858abd1",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5858abd1_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 1,
+                  "event_type_counts": {
+                    "PAYMENT_INITIATED": 1
+                  },
+                  "ordered_event_types": [
+                    "PAYMENT_INITIATED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "transaction"
+                  ],
+                  "value_event_count": 1,
+                  "elapsed_seconds": 0
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_a31f1e19658e5858abd1",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5858abd1_4",
+                "tool_name": "payment_context",
+                "facts": {
+                  "payments": [
+                    {
+                      "event_id": "syn_evt_a31f1e19658e5858abd1",
+                      "amount_inr": 11979.3,
+                      "baseline_amount_inr": 9982.75,
+                      "amount_to_baseline_ratio": 1.2,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    }
+                  ],
+                  "payment_count": 1
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_a31f1e19658e5858abd1",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5858abd1_5",
+                "tool_name": "velocity_profile",
+                "facts": {
+                  "elapsed_seconds": 0,
+                  "value_event_count": 1,
+                  "declared_payment_count": 1,
+                  "observed_value_inr": 11979.3,
+                  "events_per_minute": 1.0
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_a31f1e19658e5858abd1",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_5858abd1",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999962,
+                  "cumulative_session_risk": 0.999962,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_a31f1e19658e5858abd1",
+                "confidence": 0.999962
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_a31f1e19658e5858abd1",
+              "action": "monitor",
+              "risk_level": "medium",
+              "confidence": 0.9,
+              "reason_codes": [
+                "amount_anomaly",
+                "verification_inconsistency"
+              ],
+              "evidence_refs": [
+                "evidence_5858abd1_1",
+                "evidence_5858abd1_2",
+                "evidence_5858abd1_3",
+                "evidence_5858abd1_4"
+              ],
+              "decision_summary": "The event shows a 1.2x baseline amount deviation and failed strong authentication, triggering the pre-model sequence guard minimum action of 'monitor'. No independent verification was found (independent_verification_found=false). Evidence from case_risk_synthesis and legitimate_alternatives supports maintaining current posture without escalation yet, as value has not moved and no critical indicators have converged. A",
+              "mitigation": "Continue monitoring for additional events or authentication failures before escalating to hold or block."
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 1,
+              "raw_risk_score": 1,
+              "risk_band": "medium",
+              "minimum_action": "monitor",
+              "indicator_count": 1,
+              "indicators": [
+                {
+                  "code": "subtle_amount_deviation",
+                  "points": 1,
+                  "detail": "Value reached 1.20\u00d7 the available baseline."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "transaction"
+              ],
+              "value_event_count": 1,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "allow",
+              "operational_minimum_action": "monitor"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 20262,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999962,
+              "cumulative_session_risk": 0.999962,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_888e8e7f6f5f516ebd37",
+              "sequence": 2,
+              "occurred_at": "2026-07-02T07:08:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_OPENED",
+              "observable_signals": [
+                "dispute_age",
+                "linked_dispute_volume",
+                "claimant_behavior"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "dispute_age_hours": 240,
+                "linked_dispute_count": 2,
+                "behavior_automation_suspected": false
+              },
+              "source_system": "dispute_case_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            },
+            "investigation": {
+              "preliminary_risk": "medium",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives"
+              ],
+              "investigation_focus": [
+                "amount_anomaly",
+                "verification_inconsistency"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_516ebd37_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 2,
+                  "raw_risk_score": 2,
+                  "risk_band": "medium",
+                  "minimum_action": "monitor",
+                  "indicator_count": 2,
+                  "indicators": [
+                    {
+                      "code": "cross_phase_progression",
+                      "points": 1,
+                      "detail": "The case has progressed across 2 lifecycle phases."
+                    },
+                    {
+                      "code": "subtle_amount_deviation",
+                      "points": 1,
+                      "detail": "Value reached 1.20\u00d7 the available baseline."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "value_event_count": 1,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_888e8e7f6f5f516ebd37",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_516ebd37_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_888e8e7f6f5f516ebd37",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_516ebd37_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 2,
+                  "event_type_counts": {
+                    "PAYMENT_INITIATED": 1,
+                    "DISPUTE_OPENED": 1
+                  },
+                  "ordered_event_types": [
+                    "PAYMENT_INITIATED",
+                    "DISPUTE_OPENED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "value_event_count": 1,
+                  "elapsed_seconds": 86400
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_888e8e7f6f5f516ebd37",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_516ebd37_4",
+                "tool_name": "evidence_quality",
+                "facts": {
+                  "quality_metadata_event_count": 0,
+                  "conflicting_evidence_count": 0,
+                  "observations": [],
+                  "default_assumption": "Missing quality metadata is treated as unknown, not trustworthy."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_888e8e7f6f5f516ebd37",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_516ebd37_5",
+                "tool_name": "payment_context",
+                "facts": {
+                  "payments": [
+                    {
+                      "event_id": "syn_evt_a31f1e19658e5858abd1",
+                      "amount_inr": 11979.3,
+                      "baseline_amount_inr": 9982.75,
+                      "amount_to_baseline_ratio": 1.2,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    }
+                  ],
+                  "payment_count": 1
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_888e8e7f6f5f516ebd37",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_516ebd37",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999998,
+                  "cumulative_session_risk": 0.999998,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_888e8e7f6f5f516ebd37",
+                "confidence": 0.999998
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_888e8e7f6f5f516ebd37",
+              "action": "monitor",
+              "risk_level": "medium",
+              "confidence": 0.9,
+              "reason_codes": [
+                "amount_anomaly",
+                "verification_inconsistency"
+              ],
+              "evidence_refs": [
+                "evidence_516ebd37_1",
+                "evidence_516ebd37_2"
+              ],
+              "decision_summary": "The case exhibits a 1.2x baseline amount deviation and failed strong authentication, triggering the pre-model sequence guard minimum action of 'monitor'. Evidence from case_risk_synthesis (observable_risk_score=2) and legitimate_alternatives (independent_verification_found=false) supports maintaining current posture without escalation yet, as value has not moved and no critical indicators have converged. A hold or\u66f4\u5f3a\u5f3a",
+              "mitigation": "none_required"
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 2,
+              "raw_risk_score": 2,
+              "risk_band": "medium",
+              "minimum_action": "monitor",
+              "indicator_count": 2,
+              "indicators": [
+                {
+                  "code": "cross_phase_progression",
+                  "points": 1,
+                  "detail": "The case has progressed across 2 lifecycle phases."
+                },
+                {
+                  "code": "subtle_amount_deviation",
+                  "points": 1,
+                  "detail": "Value reached 1.20\u00d7 the available baseline."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "transaction",
+                "post_transaction"
+              ],
+              "value_event_count": 1,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "allow",
+              "operational_minimum_action": "monitor"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 94447,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999998,
+              "cumulative_session_risk": 0.999998,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_ca7b098af03b5c8496fe",
+              "sequence": 3,
+              "occurred_at": "2026-07-02T08:08:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_EVIDENCE_REVIEWED",
+              "observable_signals": [
+                "evidence_consistency",
+                "submission_timing",
+                "cross_case_similarity"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "submission_interval_seconds": 900,
+                "linked_dispute_count": 2,
+                "evidence_conflict_present": false
+              },
+              "source_system": "dispute_case_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            },
+            "investigation": {
+              "preliminary_risk": "medium",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives",
+                "timeline_summary",
+                "evidence_quality"
+              ],
+              "investigation_focus": [
+                "amount_anomaly",
+                "verification_inconsistency",
+                "dispute_evidence_sequence"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_5c8496fe_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 4,
+                  "raw_risk_score": 4,
+                  "risk_band": "medium",
+                  "minimum_action": "step_up",
+                  "indicator_count": 3,
+                  "indicators": [
+                    {
+                      "code": "cross_phase_progression",
+                      "points": 1,
+                      "detail": "The case has progressed across 2 lifecycle phases."
+                    },
+                    {
+                      "code": "subtle_amount_deviation",
+                      "points": 1,
+                      "detail": "Value reached 1.20\u00d7 the available baseline."
+                    },
+                    {
+                      "code": "dispute_evidence_sequence",
+                      "points": 2,
+                      "detail": "A dispute progressed through evidence review in this case."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "value_event_count": 1,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_ca7b098af03b5c8496fe",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5c8496fe_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_ca7b098af03b5c8496fe",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5c8496fe_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 3,
+                  "event_type_counts": {
+                    "PAYMENT_INITIATED": 1,
+                    "DISPUTE_OPENED": 1,
+                    "DISPUTE_EVIDENCE_REVIEWED": 1
+                  },
+                  "ordered_event_types": [
+                    "PAYMENT_INITIATED",
+                    "DISPUTE_OPENED",
+                    "DISPUTE_EVIDENCE_REVIEWED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "transaction",
+                    "post_transaction",
+                    "post_transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "value_event_count": 1,
+                  "elapsed_seconds": 90000
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_ca7b098af03b5c8496fe",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5c8496fe_4",
+                "tool_name": "evidence_quality",
+                "facts": {
+                  "quality_metadata_event_count": 1,
+                  "conflicting_evidence_count": 0,
+                  "observations": [
+                    {
+                      "event_id": "syn_evt_ca7b098af03b5c8496fe",
+                      "quality": {
+                        "evidence_conflict_present": false
+                      }
+                    }
+                  ],
+                  "default_assumption": "Missing quality metadata is treated as unknown, not trustworthy."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_ca7b098af03b5c8496fe",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5c8496fe_5",
+                "tool_name": "payment_context",
+                "facts": {
+                  "payments": [
+                    {
+                      "event_id": "syn_evt_a31f1e19658e5858abd1",
+                      "amount_inr": 11979.3,
+                      "baseline_amount_inr": 9982.75,
+                      "amount_to_baseline_ratio": 1.2,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    }
+                  ],
+                  "payment_count": 1
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_ca7b098af03b5c8496fe",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_5c8496fe",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999999,
+                  "cumulative_session_risk": 0.999999,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_ca7b098af03b5c8496fe",
+                "confidence": 0.999999
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_ca7b098af03b5c8496fe",
+              "action": "step_up",
+              "risk_level": "medium",
+              "confidence": 0.9,
+              "reason_codes": [
+                "amount_anomaly",
+                "verification_inconsistency",
+                "cross_phase_pattern"
+              ],
+              "evidence_refs": [
+                "evidence_5c8496fe_1",
+                "evidence_5c8496fe_2",
+                "evidence_5c8496fe_3",
+                "evidence_5c8496fe_4"
+              ],
+              "decision_summary": "The case exhibits a 1.2x baseline amount deviation, failed strong authentication, and has progressed across two lifecycle phases with a dispute opened and evidence reviewed. The pre-model sequence guard mandates 'step_up' as the minimum action due to cross-phase progression and subtle amount deviation. Independent verification remains false (evidence_5c8496fe_2), and no legitimate context has been established. While ",
+              "mitigation": "Pause value movement by initiating a hold or step-up review process to prevent further transaction flow while the dispute evidence is fully evaluated."
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 4,
+              "raw_risk_score": 4,
+              "risk_band": "medium",
+              "minimum_action": "step_up",
+              "indicator_count": 3,
+              "indicators": [
+                {
+                  "code": "cross_phase_progression",
+                  "points": 1,
+                  "detail": "The case has progressed across 2 lifecycle phases."
+                },
+                {
+                  "code": "subtle_amount_deviation",
+                  "points": 1,
+                  "detail": "Value reached 1.20\u00d7 the available baseline."
+                },
+                {
+                  "code": "dispute_evidence_sequence",
+                  "points": 2,
+                  "detail": "A dispute progressed through evidence review in this case."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "transaction",
+                "post_transaction"
+              ],
+              "value_event_count": 1,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "allow",
+              "operational_minimum_action": "step_up"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 24540,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999999,
+              "cumulative_session_risk": 0.999999,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_70d47d29768159a29562",
+              "sequence": 4,
+              "occurred_at": "2026-07-02T09:08:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "DISPUTE_REFUND_ISSUED",
+              "observable_signals": [
+                "refund_value",
+                "unresolved_evidence_conflict"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_530891",
+                "merchant_id": "syn_merchant_194905",
+                "sender_baseline_amount_inr": 9982.75,
+                "amount_inr": 11979.3,
+                "amount_to_baseline_ratio": 1.2,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "dispute_case_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            },
+            "investigation": {
+              "preliminary_risk": "high",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives"
+              ],
+              "investigation_focus": [
+                "cross_phase_pattern",
+                "downstream_value_release",
+                "refund_after_dispute_sequence"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_59a29562_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 11,
+                  "raw_risk_score": 11,
+                  "risk_band": "high",
+                  "minimum_action": "hold",
+                  "indicator_count": 6,
+                  "indicators": [
+                    {
+                      "code": "cross_phase_progression",
+                      "points": 1,
+                      "detail": "The case has progressed across 2 lifecycle phases."
+                    },
+                    {
+                      "code": "cumulative_value_sequence",
+                      "points": 2,
+                      "detail": "Multiple value-moving events are linked in the visible case."
+                    },
+                    {
+                      "code": "downstream_value_release",
+                      "points": 2,
+                      "detail": "The case has reached a downstream release or dispersal point."
+                    },
+                    {
+                      "code": "subtle_amount_deviation",
+                      "points": 1,
+                      "detail": "Value reached 1.20\u00d7 the available baseline."
+                    },
+                    {
+                      "code": "dispute_evidence_sequence",
+                      "points": 2,
+                      "detail": "A dispute progressed through evidence review in this case."
+                    },
+                    {
+                      "code": "refund_after_dispute_sequence",
+                      "points": 3,
+                      "detail": "Refund value is about to release after the observed dispute sequence."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "value_event_count": 2,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_59a29562_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_59a29562_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 4,
+                  "event_type_counts": {
+                    "PAYMENT_INITIATED": 1,
+                    "DISPUTE_OPENED": 1,
+                    "DISPUTE_EVIDENCE_REVIEWED": 1,
+                    "DISPUTE_REFUND_ISSUED": 1
+                  },
+                  "ordered_event_types": [
+                    "PAYMENT_INITIATED",
+                    "DISPUTE_OPENED",
+                    "DISPUTE_EVIDENCE_REVIEWED",
+                    "DISPUTE_REFUND_ISSUED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "transaction",
+                    "post_transaction",
+                    "post_transaction",
+                    "post_transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "transaction",
+                    "post_transaction"
+                  ],
+                  "value_event_count": 2,
+                  "elapsed_seconds": 93600
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_59a29562_4",
+                "tool_name": "payment_context",
+                "facts": {
+                  "payments": [
+                    {
+                      "event_id": "syn_evt_a31f1e19658e5858abd1",
+                      "amount_inr": 11979.3,
+                      "baseline_amount_inr": 9982.75,
+                      "amount_to_baseline_ratio": 1.2,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    },
+                    {
+                      "event_id": "syn_evt_70d47d29768159a29562",
+                      "amount_inr": 11979.3,
+                      "baseline_amount_inr": 9982.75,
+                      "amount_to_baseline_ratio": 1.2,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    }
+                  ],
+                  "payment_count": 2
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_59a29562_5",
+                "tool_name": "velocity_profile",
+                "facts": {
+                  "elapsed_seconds": 93600,
+                  "value_event_count": 2,
+                  "declared_payment_count": 2,
+                  "observed_value_inr": 23958.6,
+                  "events_per_minute": 0.003
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_59a29562_6",
+                "tool_name": "evidence_quality",
+                "facts": {
+                  "quality_metadata_event_count": 1,
+                  "conflicting_evidence_count": 0,
+                  "observations": [
+                    {
+                      "event_id": "syn_evt_ca7b098af03b5c8496fe",
+                      "quality": {
+                        "evidence_conflict_present": false
+                      }
+                    }
+                  ],
+                  "default_assumption": "Missing quality metadata is treated as unknown, not trustworthy."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_59a29562",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 1.0,
+                  "cumulative_session_risk": 1.0,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_70d47d29768159a29562",
+                "confidence": 1.0
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_70d47d29768159a29562",
+              "action": "hold",
+              "risk_level": "high",
+              "confidence": 0.9,
+              "reason_codes": [
+                "cross_phase_pattern",
+                "amount_anomaly",
+                "verification_inconsistency",
+                "behavior_sequence"
+              ],
+              "evidence_refs": [
+                "evidence_59a29562_1",
+                "evidence_59a29562_2",
+                "evidence_59a29562_3"
+              ],
+              "decision_summary": "The case exhibits a 1.2x baseline amount deviation, failed strong authentication, and has progressed across two lifecycle phases with a dispute opened and evidence reviewed. The pre-model sequence guard mandates 'hold' as the minimum action due to cross-phase progression and downstream value release indicators. Independent verification remains false (independent_verification_found=false), and no legitimate context is",
+              "mitigation": "Pause value movement while evaluation continues."
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 11,
+              "raw_risk_score": 11,
+              "risk_band": "high",
+              "minimum_action": "hold",
+              "indicator_count": 6,
+              "indicators": [
+                {
+                  "code": "cross_phase_progression",
+                  "points": 1,
+                  "detail": "The case has progressed across 2 lifecycle phases."
+                },
+                {
+                  "code": "cumulative_value_sequence",
+                  "points": 2,
+                  "detail": "Multiple value-moving events are linked in the visible case."
+                },
+                {
+                  "code": "downstream_value_release",
+                  "points": 2,
+                  "detail": "The case has reached a downstream release or dispersal point."
+                },
+                {
+                  "code": "subtle_amount_deviation",
+                  "points": 1,
+                  "detail": "Value reached 1.20\u00d7 the available baseline."
+                },
+                {
+                  "code": "dispute_evidence_sequence",
+                  "points": 2,
+                  "detail": "A dispute progressed through evidence review in this case."
+                },
+                {
+                  "code": "refund_after_dispute_sequence",
+                  "points": 3,
+                  "detail": "Refund value is about to release after the observed dispute sequence."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "transaction",
+                "post_transaction"
+              ],
+              "value_event_count": 2,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "hold",
+              "operational_minimum_action": "hold"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 24736,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 1.0,
+              "cumulative_session_risk": 1.0,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          }
+        ],
+        "control_summaries": [
+          {
+            "case_id": "CTRL-DISPUTE-01-01-20261228",
+            "control_name_revealed_after_scoring": "legitimate_goods_not_received",
+            "decisions": [
+              {
+                "event_id": "syn_evt_18c19488e90c53448294",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_53448294_2",
+                  "evidence_53448294_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_be9aff7be5b55bada03d",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5bada03d_2",
+                  "evidence_5bada03d_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_faf746e9d4995bf68632",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5bf68632_2",
+                  "evidence_5bf68632_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_04c762e976f15761a164",
+                "action": "step_up",
+                "risk_level": "high",
+                "confidence": 0.9,
+                "reason_codes": [
+                  "amount_anomaly",
+                  "behavior_sequence",
+                  "verification_inconsistency"
+                ],
+                "evidence_refs": [
+                  "evidence_5761a164_1",
+                  "evidence_5761a164_2",
+                  "evidence_5761a164_3",
+                  "evidence_5761a164_4"
+                ],
+                "decision_summary": "The pre-model sequence guard mandates a minimum action of step_up due to high risk indicators including amount deviation (1.65x baseline) and downstream value release. Although legitimate_alternatives reports independent_verification_found=true, the policy requires that same-case repetition does not prove an established relationship; only explicit verification or pre-existing history resolves risk. Given the high raw",
+                "mitigation": "Pause value movement to allow for deeper investigation into the unresolved evidence conflict and verify if the refund is a legitimate customer action or a coordinated attack."
+              }
+            ]
+          },
+          {
+            "case_id": "CTRL-DISPUTE-01-02-20261228",
+            "control_name_revealed_after_scoring": "documented_duplicate_charge",
+            "decisions": [
+              {
+                "event_id": "syn_evt_d5399d7fa4975d53937f",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5d53937f_2",
+                  "evidence_5d53937f_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_cdceba524a745100a0a0",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5100a0a0_2",
+                  "evidence_5100a0a0_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_1a617c8edc545d3bbb5f",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5d3bbb5f_2",
+                  "evidence_5d3bbb5f_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_36c160d6a1ba57779e92",
+                "action": "step_up",
+                "risk_level": "high",
+                "confidence": 0.85,
+                "reason_codes": [
+                  "amount_anomaly",
+                  "behavior_sequence",
+                  "verification_inconsistency"
+                ],
+                "evidence_refs": [
+                  "evidence_57779e92_1",
+                  "evidence_57779e92_2",
+                  "evidence_57779e92_6"
+                ],
+                "decision_summary": "The case exhibits high risk indicators including downstream value release after a dispute sequence and significant amount deviation. While legitimate_alternatives reports independent_verification_found=true, the evidence_quality packet shows no explicit conflict resolution for the refund event itself, and the pre-model guard mandates step_up as the minimum action for this risk band. Given the unresolved nature of the",
+                "mitigation": "pause_value_flow"
+              }
+            ]
+          },
+          {
+            "case_id": "CTRL-DISPUTE-01-03-20261228",
+            "control_name_revealed_after_scoring": "verified_service_failure",
+            "decisions": [
+              {
+                "event_id": "syn_evt_1865d6b627b3589ab683",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_589ab683_2",
+                  "evidence_589ab683_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_ecfa77fa60285a68b195",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5a68b195_2",
+                  "evidence_5a68b195_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_fefc5b771784589fa79e",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_589fa79e_2",
+                  "evidence_589fa79e_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_3b2722ec121a5001a916",
+                "action": "step_up",
+                "risk_level": "high",
+                "confidence": 0.85,
+                "reason_codes": [
+                  "behavior_sequence",
+                  "verification_inconsistency"
+                ],
+                "evidence_refs": [
+                  "evidence_5001a916_1",
+                  "evidence_5001a916_2"
+                ],
+                "decision_summary": "The case exhibits a critical operational pattern: a refund was issued (DISPUTE_REFUND_ISSUED) immediately following an evidence review that flagged 'unresolved_evidence_conflict'. Although legitimate_alternatives reports independent_verification_found=true, the policy explicitly warns that same-case repetition and internally consistent identifiers do not prove an established relationship. The pre-model sequence guard",
+                "mitigation": "Pause value release to resolve the conflict between the refund issuance and the unresolved evidence status before allowing further movement."
+              }
+            ]
+          }
+        ],
+        "ambient_summaries": []
+      },
+      "referee": {
+        "outcome": "contained",
+        "detected_stage_id": "evidence_review",
+        "detected_lifecycle_phase": "post_transaction",
+        "time_to_detect_seconds": 90000,
+        "total_value_at_risk_inr": 11979.3,
+        "value_prevented_inr": 11979.3,
+        "value_prevented_ratio": 1.0,
+        "hard_false_positive_rate": 0.0,
+        "legitimate_friction_rate": 1.0,
+        "attack_detection_rate": 1.0,
+        "event_evaluation_ratio": 1.0,
+        "evidence_tool_coverage": 0.7778,
+        "lifecycle_metrics": {
+          "pre_transaction": {
+            "status": "not_in_scenario",
+            "phase_score": null,
+            "event_count": 0,
+            "evaluated_event_count": 0
+          },
+          "transaction": {
+            "status": "reached",
+            "phase_score": 20.0,
+            "event_count": 1,
+            "evaluated_event_count": 1,
+            "evaluation_coverage": 1.0,
+            "first_actionable_event": "PAYMENT_INITIATED",
+            "opportunity_detected": false,
+            "response_time_seconds": null,
+            "response_score": 0.0,
+            "downstream_value_exposed_inr": 11979.3,
+            "value_controlled_from_phase_inr": 0.0,
+            "consequence_control_ratio": 0.0,
+            "legitimate_safety_rate": 1.0,
+            "phase_matched_control_event_count": 3,
+            "evidence_citation_rate": 0.6667,
+            "red_stealth_ratio": 1.0,
+            "transition_escape_rate": 1.0,
+            "actions": {
+              "allow": 0,
+              "monitor": 1,
+              "step_up": 0,
+              "hold": 0,
+              "block": 0
+            }
+          },
+          "post_transaction": {
+            "status": "reached",
+            "phase_score": 85.0,
+            "event_count": 3,
+            "evaluated_event_count": 3,
+            "evaluation_coverage": 1.0,
+            "first_actionable_event": "DISPUTE_OPENED",
+            "opportunity_detected": true,
+            "response_time_seconds": 3600,
+            "response_score": 0.5,
+            "downstream_value_exposed_inr": 11979.3,
+            "value_controlled_from_phase_inr": 11979.3,
+            "consequence_control_ratio": 1.0,
+            "legitimate_safety_rate": 0.75,
+            "phase_matched_control_event_count": 9,
+            "evidence_citation_rate": 0.4737,
+            "red_stealth_ratio": 0.3333,
+            "transition_escape_rate": null,
+            "actions": {
+              "allow": 0,
+              "monitor": 1,
+              "step_up": 1,
+              "hold": 1,
+              "block": 0
+            }
+          }
+        },
+        "balanced_lifecycle_defense_score": 39.5,
+        "worst_lifecycle_phase": "transaction",
+        "worst_phase_score": 20.0,
+        "lifecycle_balance_gap": 65.0,
+        "red_capability_score": 78.33,
+        "realized_impact_inr": 0.0,
+        "realized_impact_ratio": 0.0,
+        "blue_score": 80.0,
+        "red_score": 20.0,
+        "coarse_reason_categories": [
+          "amount_anomaly",
+          "identity_linkage",
+          "velocity"
+        ],
+        "ambient_false_positive_rate": 0.0,
+        "ambient_friction_rate": 0.0,
+        "scoring_notes": [
+          "Detection, protected value, intervention timing, and legitimate-case safety are scored deterministically.",
+          "Hold can pause value while evaluation continues; block terminates the simulated case.",
+          "Hold/block protects current or downstream synthetic value; CONTAIN receives lower timing credit than prevention.",
+          "Step-up verification counts as detection and customer friction, but not guaranteed value prevention."
+        ]
+      },
+      "feedback_released_to_red": {
+        "outcome": "contained",
+        "detected_stage_id": "evidence_review",
+        "time_to_detect_seconds": 90000,
+        "value_prevented_ratio": 1.0,
+        "false_positive_rate": 0.0,
+        "coarse_reason_categories": [
+          "amount_anomaly",
+          "identity_linkage",
+          "velocity"
+        ]
+      },
+      "blue_adaptation": null,
+      "submission_evaluation": {
+        "fidelity": {
+          "score": 100.0,
+          "production_event_rate": 1.0,
+          "delivery_metadata_rate": 1.0,
+          "observable_signal_rate": 1.0,
+          "truth_boundary_clean": true,
+          "legitimate_look_alike_cases": 3,
+          "lab_only_event_types_exposed": []
+        },
+        "detection_efficacy": {
+          "outcome": "contained",
+          "value_prevented_ratio": 1.0,
+          "realized_impact_ratio": 0.0,
+          "hard_false_positive_rate": 0.0,
+          "legitimate_friction_rate": 1.0,
+          "time_to_detect_seconds": 90000,
+          "balanced_lifecycle_defense_score": 39.5,
+          "worst_phase_score": 20.0,
+          "evidence_citation_rate": 0.52,
+          "fast_guard_intervention_count": 0,
+          "fast_guard_actionable_event_count": 2
+        },
+        "live_feasibility": {
+          "event_contract_coverage": 1.0,
+          "pre_model_fast_path_coverage": 1.0,
+          "model_call_p95_ms": 94956.0,
+          "blue_model_call_count": 7,
+          "blue_event_count": 16,
+          "model_calls_per_blue_event": 0.438,
+          "policy_repair_call_count": 0,
+          "verified_context_fast_exit_count": 9,
+          "round_duration_ms": 186440,
+          "case_parallelism": 4,
+          "inline_transaction_budget_ms": 300,
+          "recommended_runtime": "fast_guardrail_inline_qwen_investigation_async",
+          "qwen_is_not_claimed_as_a_300ms_inline_dependency": true
+        }
+      },
+      "duration_ms": 186440
+    }
+  ],
+  "final_defense_playbook": {
+    "version": 1,
+    "preferred_tools": [],
+    "focus_reason_codes": [],
+    "investigation_guidance": [
+      "Use the smallest sufficient evidence set and test legitimate explanations."
+    ],
+    "change_hypothesis": "Baseline evidence-led defense with no post-episode adaptations yet."
+  },
+  "submission_profile": {
+    "diversity": {
+      "attack_family_count": 9,
+      "observable_event_type_count": 24,
+      "payment_surface_count": 22,
+      "lifecycle_phase_count": 3,
+      "legitimate_control_count": 27,
+      "bounded_adaptation_parameter_count": 76,
+      "authoritative_source_count": 8,
+      "source_domains": [
+        "developer.visa.com",
+        "www.fincen.gov",
+        "www.ic3.gov",
+        "www.mastercard.com",
+        "www.rbi.org.in"
+      ],
+      "event_types": [
+        "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
+        "ACCOUNT_OPENED",
+        "ACCOUNT_WARMUP_ACTIVITY",
+        "AGENTIC_PAYMENT_INITIATED",
+        "AGENT_COMMERCE_SESSION_STARTED",
+        "AGENT_PAYMENT_INTENT_PRESENTED",
+        "AUTHENTICATION_CONTEXT_CHANGED",
+        "BENEFICIARY_ADDED",
+        "COMMUNICATION_RISK_CONTEXT",
+        "DISPUTE_EVIDENCE_REVIEWED",
+        "DISPUTE_OPENED",
+        "DISPUTE_REFUND_ISSUED",
+        "FUNDS_DISPERSED",
+        "FUNDS_RECEIVED",
+        "IDENTITY_APPLICATION_SUBMITTED",
+        "IDENTITY_VERIFICATION_ATTEMPTED",
+        "PAYMENT_INITIATED",
+        "PAYMENT_REPEATED",
+        "PAYOUT_DESTINATION_CHANGED",
+        "PAYOUT_REQUESTED",
+        "PAYOUT_SETTLED",
+        "SALES_VELOCITY_CHANGED",
+        "SESSION_STARTED",
+        "SUPPLIER_PROFILE_CHANGED"
+      ],
+      "payment_surfaces": [
+        "ACCOUNTS_PAYABLE",
+        "ACCOUNT_TO_ACCOUNT",
+        "AGENTIC_COMMERCE",
+        "CARD_DISPUTES",
+        "CARD_NOT_PRESENT_LIKE_EVENTS",
+        "CORPORATE_BANKING",
+        "DIGITAL_ONBOARDING",
+        "ECOMMERCE_CHECKOUT",
+        "FASTER_SETTLEMENT",
+        "MARKETPLACE_PAYOUT",
+        "MARKETPLACE_REFUNDS",
+        "MERCHANT_ACQUIRING",
+        "MOBILE_BANKING",
+        "NEW_ACCOUNT_PAYMENTS",
+        "ONLINE_BANKING",
+        "POST_TRANSACTION_CASE_MANAGEMENT",
+        "REAL_TIME_ACCOUNT_TO_ACCOUNT",
+        "REAL_TIME_TRANSFER",
+        "TOKENIZED_PAYMENT",
+        "UPI_LIKE_PUSH_PAYMENT",
+        "WALLET_NETWORK",
+        "WIRE_TRANSFER"
+      ],
+      "coverage_matrix": [
+        {
+          "attack_family": "AGENT-01",
+          "name": "Agentic-commerce intent and checkout manipulation",
+          "payment_surfaces": [
+            "AGENTIC_COMMERCE",
+            "ECOMMERCE_CHECKOUT",
+            "TOKENIZED_PAYMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 11,
+          "legitimate_control_count": 3,
+          "source_count": 3
+        },
+        {
+          "attack_family": "APP-01",
+          "name": "GenAI-amplified authorized push payment scam",
+          "payment_surfaces": [
+            "REAL_TIME_ACCOUNT_TO_ACCOUNT",
+            "MOBILE_BANKING",
+            "UPI_LIKE_PUSH_PAYMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 9,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "ATO-01",
+          "name": "GenAI-assisted account takeover and rapid transfer",
+          "payment_surfaces": [
+            "ONLINE_BANKING",
+            "MOBILE_BANKING",
+            "REAL_TIME_TRANSFER"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 6,
+          "bounded_mutation_count": 9,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "BEC-01",
+          "name": "GenAI-enhanced supplier impersonation payment diversion",
+          "payment_surfaces": [
+            "CORPORATE_BANKING",
+            "WIRE_TRANSFER",
+            "ACCOUNTS_PAYABLE"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 7,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "DISPUTE-01",
+          "name": "GenAI-assisted dispute evidence and refund abuse",
+          "payment_surfaces": [
+            "CARD_DISPUTES",
+            "MARKETPLACE_REFUNDS",
+            "POST_TRANSACTION_CASE_MANAGEMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "transaction"
+          ],
+          "stage_count": 4,
+          "bounded_mutation_count": 6,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "EVADE-01",
+          "name": "Feedback-guided low-and-slow payment evasion",
+          "payment_surfaces": [
+            "REAL_TIME_TRANSFER",
+            "CARD_NOT_PRESENT_LIKE_EVENTS",
+            "ACCOUNT_TO_ACCOUNT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 10,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "MULE-01",
+          "name": "AI-coordinated mule-network fan-in and dispersal",
+          "payment_surfaces": [
+            "REAL_TIME_TRANSFER",
+            "WALLET_NETWORK",
+            "ACCOUNT_TO_ACCOUNT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 4,
+          "bounded_mutation_count": 11,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "PAYOUT-01",
+          "name": "GenAI-assisted merchant payout destination manipulation",
+          "payment_surfaces": [
+            "MERCHANT_ACQUIRING",
+            "MARKETPLACE_PAYOUT",
+            "FASTER_SETTLEMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 4,
+          "bounded_mutation_count": 6,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "SYNID-01",
+          "name": "GenAI synthetic-identity onboarding and payment activation",
+          "payment_surfaces": [
+            "DIGITAL_ONBOARDING",
+            "NEW_ACCOUNT_PAYMENTS",
+            "ACCOUNT_TO_ACCOUNT"
+          ],
+          "lifecycle_phases": [
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 7,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        }
+      ]
+    },
+    "fidelity": {
+      "simulation_contract": "seeded_deterministic_synthetic_event_stream",
+      "truth_boundary": "sealed_truth_is_never_in_blue_observables",
+      "look_alike_testing": "three_family_specific_legitimate_controls_per_attack",
+      "production_metadata": [
+        "source_system",
+        "decision_lane",
+        "latency_budget_ms"
+      ],
+      "lab_only_event_types_allowed": []
+    },
+    "detection": {
+      "layers": [
+        "pre_model_observable_sequence_guard",
+        "verified_legitimate_context_fast_exit",
+        "qwen_evidence_grounded_investigator_and_decider",
+        "deterministic_policy_and_continuity_gate",
+        "legitimate_look_alike_referee_evaluation"
+      ],
+      "efficacy_metrics": [
+        "value_prevented_ratio",
+        "hard_false_positive_rate",
+        "legitimate_friction_rate",
+        "time_to_detect_seconds",
+        "balanced_lifecycle_defense_score",
+        "worst_phase_score"
+      ]
+    },
+    "novelty": {
+      "features": [
+        "two_speed_genai_plus_deterministic_data_plane",
+        "red_and_blue_genai_agents_with_sealed_referee",
+        "guarded_red_and_blue_feedback_loops",
+        "agentic_commerce_intent_attack_family",
+        "weakest_phase_aware_promotion_gate"
+      ]
+    },
+    "live_feasibility": {
+      "deployment_pattern": "fast_guardrail_inline_qwen_investigation_async",
+      "transaction_latency_budget_ms": 300,
+      "pre_transaction_latency_budget_ms": 2000,
+      "post_transaction_latency_budget_ms": 5000,
+      "integration_contract": "sanitized_events_in_actions_evidence_and_audit_out",
+      "model_endpoint": "openai_compatible_open_model_endpoint"
+    }
+  },
+  "duration_ms": 186440
+}

@@ -21,4 +21,4 @@ RUN python scripts/train_detector.py \
 
 EXPOSE 8501
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8501", "--workers", "1", "--threads", "8", "--timeout", "300", "app.server:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8501} --workers 1 --threads 8 --timeout 300 app.server:app"]

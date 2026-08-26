@@ -328,6 +328,10 @@ async function loadExternalValidation() {
 }
 
 function updateLatencyEstimate() {
+  if (state.status && state.status.mode === 'precomputed_replay') {
+    $('#latencyEstimate').textContent = 'Offline replay mode: a matching recorded run is loaded. No LLM or external API is called.';
+    return;
+  }
   const rounds = Number($('#rounds').value) || 1;
   const estimate = approximateDuration(estimatedTotalSeconds(rounds));
   const calibration = latestTimingCalibration();
@@ -369,6 +373,40 @@ async function loadStatus() {
     `<option value="${escapeHtml(family.id)}">${escapeHtml(family.id)} · ${escapeHtml(family.name)}</option>`
   )).join('');
   updateLatencyEstimate();
+  if (data.mode === 'precomputed_replay') {
+    const combinations = (data.precomputed_demo && data.precomputed_demo.available_scenarios) || [];
+    const familyNames = new Map(data.attack_families.map(family => [family.id, family.name]));
+    const availableFamilies = [...new Set(combinations.map(item => item.attack_family))];
+    $('#attackFamily').innerHTML = availableFamilies.map(family => (
+      `<option value="${escapeHtml(family)}">${escapeHtml(family)} · ${escapeHtml(familyNames.get(family) || family)}</option>`
+    )).join('');
+
+    const syncReplayRounds = () => {
+      const family = $('#attackFamily').value;
+      const difficulty = $('#difficulty').value;
+      const availableRounds = [...new Set(combinations
+        .filter(item => item.attack_family === family && item.difficulty === difficulty)
+        .map(item => Number(item.rounds)))].sort((left, right) => left - right);
+      $('#rounds').innerHTML = availableRounds.map(count => (
+        `<option value="${count}">${count} round${count === 1 ? '' : 's'} · recorded replay</option>`
+      )).join('');
+    };
+    const syncReplayDifficulties = () => {
+      const family = $('#attackFamily').value;
+      const availableDifficulties = [...new Set(combinations
+        .filter(item => item.attack_family === family)
+        .map(item => item.difficulty))];
+      $('#difficulty').innerHTML = availableDifficulties.map(difficulty => (
+        `<option value="${escapeHtml(difficulty)}">${escapeHtml(pretty(difficulty))}</option>`
+      )).join('');
+      syncReplayRounds();
+    };
+    $('#attackFamily').addEventListener('change', syncReplayDifficulties);
+    $('#difficulty').addEventListener('change', syncReplayRounds);
+    syncReplayDifficulties();
+    $('#runButton span').textContent = 'Load recorded replay';
+    $('#latencyEstimate').textContent = 'Offline replay mode: a matching recorded run is loaded. No LLM or external API is called.';
+  }
   if (data.latest_run_available) await loadLatest();
 }
 
@@ -607,10 +645,13 @@ function renderRun(scrollToResults = true, provenance = 'current') {
     current: 'CURRENT BATTLE · COMPLETED',
     saved: 'LATEST SAVED SUCCESS',
     stale: 'PREVIOUS SUCCESS · CURRENT ATTEMPT FAILED',
+    replay: 'PRECOMPUTED REPLAY · NO LIVE MODEL CALL',
   };
   $('#resultProvenance').className = `result-provenance ${provenance}`;
   $('#resultProvenance').textContent = provenanceLabels[provenance] || provenanceLabels.saved;
-  const sourceLabel = provenance === 'current' ? 'current battle' : 'latest saved successful battle';
+  const sourceLabel = provenance === 'current' ? 'current battle' : provenance === 'replay'
+    ? 'recorded replay'
+    : 'latest saved successful battle';
   document.querySelectorAll('.outcome-board .metric-source').forEach((element, index) => {
     element.textContent = index === 2
       ? `Source · ${sourceLabel} sealed truth`
@@ -780,7 +821,7 @@ $('#runForm').addEventListener('submit', async (event) => {
     state.roundIndex = payload.rounds.length - 1;
     state.turnIndex = 0;
     updateLatencyEstimate();
-    renderRun(true, 'current');
+    renderRun(true, payload.demo_mode === 'precomputed_replay' ? 'replay' : 'current');
   } catch (error) {
     $('#errorState').textContent = `This battle attempt failed and did not create a new report. ${error.message}`;
     $('#errorState').classList.remove('hidden');

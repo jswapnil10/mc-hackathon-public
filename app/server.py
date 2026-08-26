@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import random
 import threading
 import time
 from pathlib import Path
@@ -29,6 +30,7 @@ METRICS_PATH = DATA_DIR / "baseline_metrics.json"
 LEGACY_DEMO_DIR = PROJECT_ROOT / "app" / "legacy_demo"
 AGENT_RUNS_DIR = PROJECT_ROOT / "runs" / "agentic"
 LATEST_AGENT_RUN_PATH = AGENT_RUNS_DIR / "latest.json"
+PRECOMPUTED_DEMO_DIR = PROJECT_ROOT / "data" / "demo_runs"
 AGENT_RUN_LOCK = threading.Lock()
 RUN_PROGRESS_LOCK = threading.Lock()
 RUN_PROGRESS: dict[str, dict[str, Any]] = {}
@@ -41,6 +43,68 @@ LATEST_BENCHMARK_PATH = BENCHMARK_DIR / "latest.json"
 BENCHMARK_RUN_LOCK = threading.Lock()
 EXTERNAL_VALIDATION_DIR = PROJECT_ROOT / "data" / "external_validation"
 LATEST_EXTERNAL_VALIDATION_PATH = EXTERNAL_VALIDATION_DIR / "latest.json"
+
+
+def _precomputed_demo_enabled() -> bool:
+    return os.environ.get("DEMO_MODE", "").strip().lower() in {
+        "precomputed", "replay", "offline"
+    }
+
+
+def _load_precomputed_runs() -> list[dict[str, Any]]:
+    """Load complete, curated Agent Arena run artifacts for the no-LLM demo."""
+    runs: list[dict[str, Any]] = []
+    for path in sorted(PRECOMPUTED_DEMO_DIR.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload.get("rounds"), list) and payload["rounds"]:
+            payload["_demo_source"] = path.name
+            runs.append(payload)
+    return runs
+
+
+def _select_precomputed_run(
+    *, attack_family: str, difficulty: str, rounds: int, seed: int
+) -> dict[str, Any] | None:
+    matches = []
+    for payload in _load_precomputed_runs():
+        recorded_rounds = payload["rounds"]
+        scenario = recorded_rounds[0].get("red", {}).get("scenario", {})
+        if (
+            len(recorded_rounds) == rounds
+            and scenario.get("attack_family") == attack_family
+            and scenario.get("difficulty") == difficulty
+        ):
+            matches.append(payload)
+    if not matches:
+        return None
+    selected = random.Random(seed).choice(matches)
+    selected["demo_mode"] = "precomputed_replay"
+    selected["demo_provenance"] = {
+        "label": "Precomputed replay of a recorded, bounded agent run",
+        "source": selected.pop("_demo_source", "curated artifact"),
+    }
+    return selected
+
+
+def _precomputed_demo_catalog() -> list[dict[str, Any]]:
+    """Return only selectable replay combinations, preventing dead-end UI choices."""
+    combinations = {
+        (
+            rounds[0].get("red", {}).get("scenario", {}).get("attack_family"),
+            rounds[0].get("red", {}).get("scenario", {}).get("difficulty"),
+            len(rounds),
+        )
+        for payload in _load_precomputed_runs()
+        for rounds in [payload["rounds"]]
+    }
+    return [
+        {"attack_family": family, "difficulty": difficulty, "rounds": rounds}
+        for family, difficulty, rounds in sorted(combinations)
+        if family and difficulty
+    ]
 
 
 def _set_run_progress(progress_id: str, payload: dict[str, Any]) -> None:
@@ -297,6 +361,11 @@ def create_app() -> Flask:
     def index() -> str:
         return render_template("lab.html")
 
+    @app.get("/healthz")
+    def healthz() -> Any:
+        """Small dependency-free health check for managed web hosts."""
+        return jsonify({"status": "ok", "service": "masterguard-ai"})
+
     @app.get("/legacy")
     def legacy_dashboard() -> str:
         return render_template("index.html")
@@ -313,7 +382,7 @@ def create_app() -> Flask:
         return jsonify(
             {
                 "system": "MasterGuard AI - Attack. Adapt. Defend.",
-                "mode": "live_open_model",
+                "mode": "precomputed_replay" if _precomputed_demo_enabled() else "live_open_model",
                 "architecture": (
                     "Red GenAI → Synthetic Arena → Blue gradient-boosting detector + sequence guard + "
                     "GenAI Investigator → Deterministic Referee → separated Red/Blue feedback loops"
@@ -362,6 +431,12 @@ def create_app() -> Flask:
                 "latest_run_available": LATEST_AGENT_RUN_PATH.exists(),
                 "latest_benchmark_available": LATEST_BENCHMARK_PATH.exists(),
                 "latest_external_validation_available": LATEST_EXTERNAL_VALIDATION_PATH.exists(),
+                "precomputed_demo": {
+                    "enabled": _precomputed_demo_enabled(),
+                    "run_count": len(_load_precomputed_runs()),
+                    "available_scenarios": _precomputed_demo_catalog(),
+                    "disclosure": "Recorded, bounded agent runs; no model is called during replay.",
+                },
                 "threat_atlas": atlas.summary(),
                 "truth_boundary": "Blue receives sanitized observables only; Referee owns sealed labels.",
                 "submission_profile": catalog_submission_profile(catalog),
@@ -469,6 +544,36 @@ def create_app() -> Flask:
                 return jsonify({"error": "Difficulty must be easy, medium, or hard."}), 400
             if not 1 <= rounds <= 3:
                 return jsonify({"error": "The web demo supports between 1 and 3 rounds."}), 400
+
+            if _precomputed_demo_enabled():
+                result = _select_precomputed_run(
+                    attack_family=family,
+                    difficulty=difficulty,
+                    rounds=rounds,
+                    seed=seed,
+                )
+                if result is None:
+                    return jsonify(
+                        {
+                            "error": "No recorded replay matches this selection.",
+                            "hint": "Add a curated artifact for this family, difficulty, and round count.",
+                        }
+                    ), 404
+                if progress_id:
+                    _set_run_progress(
+                        progress_id,
+                        {
+                            "status": "completed",
+                            "stage": "completed",
+                            "headline": "Recorded replay loaded",
+                            "detail": "No model was called. This is a precomputed bounded agent run.",
+                            "round_number": rounds,
+                            "total_rounds": rounds,
+                            "run_id": result.get("run_id"),
+                            "duration_ms": 0,
+                        },
+                    )
+                return jsonify(result)
 
             if progress_id:
                 _set_run_progress(

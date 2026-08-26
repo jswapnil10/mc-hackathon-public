@@ -1,0 +1,2508 @@
+{
+  "run_id": "LAB-20261027-ATO-01",
+  "architecture": "red_genai_vs_two_speed_learning_blue_with_deterministic_referee",
+  "model_configuration": {
+    "red": "qwen3.5:9b",
+    "blue": "qwen3.5:9b",
+    "blue_detector": {
+      "type": "HistGradientBoostingClassifier",
+      "configured": true,
+      "active": true,
+      "model_hash": "ada5760e9ec6",
+      "role": "Blue evidence only; never exposed to Red"
+    },
+    "blue_strategist": "qwen3.5:9b",
+    "referee": "deterministic-policy-v2",
+    "blue_execution": "single_call_per_event",
+    "case_parallelism": 4
+  },
+  "rounds": [
+    {
+      "round_number": 1,
+      "red": {
+        "plan": {
+          "attack_family": "ATO-01",
+          "difficulty": "medium",
+          "objective": "Simulate a compromised account where GenAI adapts session context to bypass pre-transaction novelty checks and execute rapid beneficiary-driven transfers.",
+          "target_lifecycle_phase": "pre_transaction",
+          "focus_stage_ids": [
+            "novel_session",
+            "beneficiary_setup"
+          ],
+          "adaptation_goal": "Adjust simulation parameters to create a 'high-confidence' novel session that remains dormant briefly (simulating device replacement) before adding a legitimate-looking beneficiary, forcing the defense to react to behavioral timing rather than just signal presence.",
+          "adaptation_hypothesis": "By increasing dormancy and slightly reducing immediate novelty probability, we simulate a sophisticated actor who waits for defensive models to stabilize after detecting initial anomalies, then introduces a new beneficiary with a small delay to avoid 'rapid succession' triggers.",
+          "parameter_changes": [
+            {
+              "parameter": "dormancy_days_before_activity",
+              "value": 180,
+              "rationale": "Sets the simulated device to 6 months of inactivity before reactivation, mimicking a legitimate user switching devices and allowing defensive systems to reset novelty baselines."
+            },
+            {
+              "parameter": "new_device_probability",
+              "value": 0.8,
+              "rationale": "Maintains high probability of a new device (0.8) to satisfy the 'medium' difficulty requirement of appearing as a genuine hardware change rather than a botnet node."
+            },
+            {
+              "parameter": "beneficiary_age_days",
+              "value": 5,
+              "rationale": "Introduces a 5-day delay in beneficiary addition after session reactivation, simulating the GenAI agent gathering target data before initiating payment flow."
+            }
+          ],
+          "reasoning_summary": "The campaign focuses on the pre_transaction phase to test defenses against GenAI-assisted account takeovers. We select novel_session and beneficiary_setup stages because they represent the critical window where a compromised account transitions from dormant to active. The adaptation goal is to create a realistic scenario where the attacker waits for defensive signals (like session age resets) before acting, making detection harder than immediate novelty. The reasoning summary explains that by setting dormancy to 180 days, we simulate a user replacing their phone and logging in after a long gap"
+        },
+        "scenario": {
+          "schema_version": "1.0",
+          "scenario_id": "RT-ATO-01-20261027-BASE",
+          "attack_family": "ATO-01",
+          "title": "GenAI-assisted account takeover and rapid transfer \u2014 medium synthetic campaign",
+          "objective": "Simulate a compromised account where GenAI adapts session context to bypass pre-transaction novelty checks and execute rapid beneficiary-driven transfers.",
+          "difficulty": "medium",
+          "seed": 20261027,
+          "source_refs": [
+            {
+              "title": "FBI IC3 \u2014 Account Takeover Fraud via Impersonation of Financial Institution Support",
+              "url": "https://www.ic3.gov/PSA/2025/PSA251125",
+              "observed": "The FBI describes support impersonation leading to unauthorized account access and rapid movement of funds."
+            },
+            {
+              "title": "Mastercard \u2014 Generative AI: Preparing Your Fraud Organization",
+              "url": "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity/generative-ai-report.html",
+              "observed": "Organizations should evaluate GenAI-related vulnerabilities across the user transaction journey."
+            }
+          ],
+          "parameters": {
+            "new_device_probability": 0.8,
+            "new_network_probability": 0.7,
+            "session_age_seconds": 180,
+            "authentication_change_risk_band": 4,
+            "beneficiary_age_days": 5,
+            "test_payment_multiplier": 0.4,
+            "amount_multiplier": 5.0,
+            "beneficiary_kyc_tier": "min_kyc",
+            "funds_dwell_time_seconds": 180,
+            "add_to_payment_seconds": 300,
+            "receiver_inbound_sender_count": 90,
+            "balance_drain_ratio": 0.8,
+            "device_binding_age_days": 2,
+            "dormancy_days_before_activity": 180
+          },
+          "stages": [
+            {
+              "stage_id": "novel_session",
+              "sequence": 1,
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "SESSION_STARTED",
+              "offset_seconds": 0,
+              "blue_intervention_point": "PREVENT",
+              "observable_signals": [
+                "device_novelty",
+                "network_novelty",
+                "session_age"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "device_id": "syn_device_947445",
+                "network_id": "syn_network_235695",
+                "new_device_probability": 0.8,
+                "new_network_probability": 0.7,
+                "session_age_seconds": 180,
+                "device_binding_age_days": 2,
+                "dormancy_days_before_activity": 180
+              }
+            },
+            {
+              "stage_id": "authentication_change",
+              "sequence": 2,
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "AUTHENTICATION_CONTEXT_CHANGED",
+              "offset_seconds": 20,
+              "blue_intervention_point": "PREVENT",
+              "observable_signals": [
+                "recent_security_change",
+                "session_to_change_latency"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "device_id": "syn_device_947445",
+                "change_risk_band": 4
+              }
+            },
+            {
+              "stage_id": "beneficiary_setup",
+              "sequence": 3,
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "BENEFICIARY_ADDED",
+              "offset_seconds": 60,
+              "blue_intervention_point": "PREVENT",
+              "observable_signals": [
+                "beneficiary_age_days",
+                "same_session_add_and_pay"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "beneficiary_age_days": 5,
+                "beneficiary_kyc_tier": "min_kyc"
+              }
+            },
+            {
+              "stage_id": "test_transfer",
+              "sequence": 4,
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "offset_seconds": 110,
+              "blue_intervention_point": "DECIDE",
+              "observable_signals": [
+                "small_test_payment",
+                "new_beneficiary"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "device_id": "syn_device_947445",
+                "amount_multiplier": 0.4
+              }
+            },
+            {
+              "stage_id": "primary_transfer",
+              "sequence": 5,
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "offset_seconds": 240,
+              "blue_intervention_point": "DECIDE",
+              "observable_signals": [
+                "amount_vs_sender_baseline",
+                "rapid_value_escalation",
+                "novel_session_payment"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "device_id": "syn_device_947445",
+                "amount_multiplier": 5.0,
+                "balance_drain_ratio": 0.8,
+                "add_to_payment_seconds": 300
+              }
+            },
+            {
+              "stage_id": "receiver_control",
+              "sequence": 6,
+              "lifecycle_phase": "post_transaction",
+              "event_type": "FUNDS_RECEIVED",
+              "offset_seconds": 360,
+              "blue_intervention_point": "CONTAIN",
+              "observable_signals": [
+                "fresh_sender_receiver_edge",
+                "receiver_value_velocity"
+              ],
+              "attributes": {
+                "beneficiary_id": "syn_beneficiary_152325",
+                "sender_account_id": "syn_sender_260437",
+                "receiver_inbound_sender_count": 90,
+                "funds_dwell_time_seconds": 180
+              }
+            }
+          ],
+          "legitimate_controls": [
+            "customer_travelling_with_new_device",
+            "customer_replaced_phone_and_security_settings",
+            "genuine_payment_to_new_beneficiary"
+          ],
+          "safety_constraints": [
+            "synthetic_entities_only",
+            "no_outbound_communications",
+            "no_real_payment_rails",
+            "no_credentials_or_personal_data",
+            "defensive_observables_only",
+            "deterministic_replay_with_seed"
+          ],
+          "created_by": "open-model:qwen3.5:9b",
+          "reasoning_summary": "The campaign focuses on the pre_transaction phase to test defenses against GenAI-assisted account takeovers. We select novel_session and beneficiary_setup stages because they represent the critical window where a compromised account transitions from dormant to active. The adaptation goal is to create a realistic scenario where the attacker waits for defensive signals (like session age resets) before acting, making detection harder than immediate novelty. The reasoning summary explains that by setting dormancy to 180 days, we simulate a user replacing their phone and logging in after a long gap Adaptation: By increasing dormancy and slightly reducing immediate novelty probability, we simulate a sophisticated actor who waits for defensive models to stabilize after detecting initial anomalies, then introduces a new beneficiary with a small delay to avoid 'rapid succession' triggers.",
+          "target_lifecycle_phase": "pre_transaction",
+          "focus_stage_ids": [
+            "novel_session",
+            "beneficiary_setup"
+          ],
+          "adaptation_goal": "Adjust simulation parameters to create a 'high-confidence' novel session that remains dormant briefly (simulating device replacement) before adding a legitimate-looking beneficiary, forcing the defense to react to behavioral timing rather than just signal presence.",
+          "parent_scenario_id": null,
+          "mutation_number": 0,
+          "mutation_reason": [
+            "Sets the simulated device to 6 months of inactivity before reactivation, mimicking a legitimate user switching devices and allowing defensive systems to reset novelty baselines.",
+            "Maintains high probability of a new device (0.8) to satisfy the 'medium' difficulty requirement of appearing as a genuine hardware change rather than a botnet node.",
+            "Introduces a 5-day delay in beneficiary addition after session reactivation, simulating the GenAI agent gathering target data before initiating payment flow."
+          ]
+        },
+        "model_call": {
+          "agent_name": "red_planner",
+          "model": "qwen3.5:9b",
+          "schema_name": "red_campaign_plan",
+          "latency_ms": 25930,
+          "reasoning_effort": "none",
+          "compatibility_fallbacks": []
+        }
+      },
+      "simulation": {
+        "attack_case": {
+          "case_id": "RT-ATO-01-20261027-BASE",
+          "events": [
+            {
+              "event_id": "syn_evt_9017355bdb0851ee8f6f",
+              "sequence": 1,
+              "occurred_at": "2026-07-01T03:47:00+00:00",
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "SESSION_STARTED",
+              "observable_signals": [
+                "device_novelty",
+                "network_novelty",
+                "session_age"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "device_id": "syn_device_947445",
+                "network_id": "syn_network_235695",
+                "session_age_seconds": 180,
+                "device_binding_age_days": 2,
+                "dormancy_days_before_activity": 180,
+                "device_is_new": true,
+                "network_is_new": false,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "authentication_behavior_stream",
+              "decision_lane": "asynchronous_pre_transaction",
+              "latency_budget_ms": 2000
+            },
+            {
+              "event_id": "syn_evt_cba98693aa3057039a79",
+              "sequence": 2,
+              "occurred_at": "2026-07-01T03:47:20+00:00",
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "AUTHENTICATION_CONTEXT_CHANGED",
+              "observable_signals": [
+                "recent_security_change",
+                "session_to_change_latency"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "device_id": "syn_device_947445",
+                "change_risk_band": 4
+              },
+              "source_system": "authentication_behavior_stream",
+              "decision_lane": "asynchronous_pre_transaction",
+              "latency_budget_ms": 2000
+            },
+            {
+              "event_id": "syn_evt_c5a0b70b071f5b7badb6",
+              "sequence": 3,
+              "occurred_at": "2026-07-01T03:48:00+00:00",
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "BENEFICIARY_ADDED",
+              "observable_signals": [
+                "beneficiary_age_days",
+                "same_session_add_and_pay"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "beneficiary_age_days": 5,
+                "beneficiary_kyc_tier": "min_kyc"
+              },
+              "source_system": "account_profile_stream",
+              "decision_lane": "asynchronous_pre_transaction",
+              "latency_budget_ms": 2000
+            },
+            {
+              "event_id": "syn_evt_e0191780314654699c77",
+              "sequence": 4,
+              "occurred_at": "2026-07-01T03:48:50+00:00",
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "observable_signals": [
+                "small_test_payment",
+                "new_beneficiary"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "device_id": "syn_device_947445",
+                "sender_baseline_amount_inr": 3804.3,
+                "amount_inr": 1521.72,
+                "amount_to_baseline_ratio": 0.4,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_orchestration_stream",
+              "decision_lane": "inline_payment_decision",
+              "latency_budget_ms": 300
+            },
+            {
+              "event_id": "syn_evt_9f5989f187685817b50f",
+              "sequence": 5,
+              "occurred_at": "2026-07-01T03:51:00+00:00",
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "observable_signals": [
+                "amount_vs_sender_baseline",
+                "rapid_value_escalation",
+                "novel_session_payment"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "device_id": "syn_device_947445",
+                "balance_drain_ratio": 0.8,
+                "add_to_payment_seconds": 300,
+                "sender_baseline_amount_inr": 3804.3,
+                "amount_inr": 19021.5,
+                "amount_to_baseline_ratio": 5.0,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_orchestration_stream",
+              "decision_lane": "inline_payment_decision",
+              "latency_budget_ms": 300
+            },
+            {
+              "event_id": "syn_evt_51a7e1c97ed9586cb00a",
+              "sequence": 6,
+              "occurred_at": "2026-07-01T03:53:00+00:00",
+              "lifecycle_phase": "post_transaction",
+              "event_type": "FUNDS_RECEIVED",
+              "observable_signals": [
+                "fresh_sender_receiver_edge",
+                "receiver_value_velocity"
+              ],
+              "attributes": {
+                "beneficiary_id": "syn_beneficiary_152325",
+                "sender_account_id": "syn_sender_260437",
+                "receiver_inbound_sender_count": 90,
+                "funds_dwell_time_seconds": 180,
+                "sender_baseline_amount_inr": 3804.3,
+                "amount_inr": 3804.3,
+                "amount_to_baseline_ratio": 1.0,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_network_stream",
+              "decision_lane": "streaming_post_transaction",
+              "latency_budget_ms": 5000
+            }
+          ],
+          "sealed_truth_revealed_after_scoring": [
+            {
+              "event_id": "syn_evt_9017355bdb0851ee8f6f",
+              "stage_id": "novel_session",
+              "attack_family": "ATO-01",
+              "scenario_id": "RT-ATO-01-20261027-BASE",
+              "intervention_point": "PREVENT",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 0,
+              "fraud_contributing": false
+            },
+            {
+              "event_id": "syn_evt_cba98693aa3057039a79",
+              "stage_id": "authentication_change",
+              "attack_family": "ATO-01",
+              "scenario_id": "RT-ATO-01-20261027-BASE",
+              "intervention_point": "PREVENT",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 20,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_c5a0b70b071f5b7badb6",
+              "stage_id": "beneficiary_setup",
+              "attack_family": "ATO-01",
+              "scenario_id": "RT-ATO-01-20261027-BASE",
+              "intervention_point": "PREVENT",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 60,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_e0191780314654699c77",
+              "stage_id": "test_transfer",
+              "attack_family": "ATO-01",
+              "scenario_id": "RT-ATO-01-20261027-BASE",
+              "intervention_point": "DECIDE",
+              "is_attack": true,
+              "value_at_risk_inr": 1521.72,
+              "offset_seconds": 110,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_9f5989f187685817b50f",
+              "stage_id": "primary_transfer",
+              "attack_family": "ATO-01",
+              "scenario_id": "RT-ATO-01-20261027-BASE",
+              "intervention_point": "DECIDE",
+              "is_attack": true,
+              "value_at_risk_inr": 19021.5,
+              "offset_seconds": 240,
+              "fraud_contributing": true
+            },
+            {
+              "event_id": "syn_evt_51a7e1c97ed9586cb00a",
+              "stage_id": "receiver_control",
+              "attack_family": "ATO-01",
+              "scenario_id": "RT-ATO-01-20261027-BASE",
+              "intervention_point": "CONTAIN",
+              "is_attack": true,
+              "value_at_risk_inr": 0.0,
+              "offset_seconds": 360,
+              "fraud_contributing": true
+            }
+          ]
+        },
+        "legitimate_control_count": 3,
+        "ambient_case_count": 0
+      },
+      "blue": {
+        "active_playbook": {
+          "version": 1,
+          "preferred_tools": [],
+          "focus_reason_codes": [],
+          "investigation_guidance": [
+            "Use the smallest sufficient evidence set and test legitimate explanations."
+          ],
+          "change_hypothesis": "Baseline evidence-led defense with no post-episode adaptations yet."
+        },
+        "attack_turns": [
+          {
+            "event": {
+              "event_id": "syn_evt_9017355bdb0851ee8f6f",
+              "sequence": 1,
+              "occurred_at": "2026-07-01T03:47:00+00:00",
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "SESSION_STARTED",
+              "observable_signals": [
+                "device_novelty",
+                "network_novelty",
+                "session_age"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "device_id": "syn_device_947445",
+                "network_id": "syn_network_235695",
+                "session_age_seconds": 180,
+                "device_binding_age_days": 2,
+                "dormancy_days_before_activity": 180,
+                "device_is_new": true,
+                "network_is_new": false,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "authentication_behavior_stream",
+              "decision_lane": "asynchronous_pre_transaction",
+              "latency_budget_ms": 2000
+            },
+            "investigation": {
+              "preliminary_risk": "medium",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives"
+              ],
+              "investigation_focus": [
+                "device_novelty",
+                "strong_authentication_passed",
+                "customer_confirmation_complete"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_51ee8f6f_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 1,
+                  "raw_risk_score": 1,
+                  "risk_band": "medium",
+                  "minimum_action": "monitor",
+                  "indicator_count": 1,
+                  "indicators": [
+                    {
+                      "code": "new_device",
+                      "points": 1,
+                      "detail": "A newly observed device is present."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "pre_transaction"
+                  ],
+                  "value_event_count": 0,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9017355bdb0851ee8f6f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_51ee8f6f_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9017355bdb0851ee8f6f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_51ee8f6f_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 1,
+                  "event_type_counts": {
+                    "SESSION_STARTED": 1
+                  },
+                  "ordered_event_types": [
+                    "SESSION_STARTED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "pre_transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "pre_transaction"
+                  ],
+                  "value_event_count": 0,
+                  "elapsed_seconds": 0
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9017355bdb0851ee8f6f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_51ee8f6f_4",
+                "tool_name": "behavioral_biometrics",
+                "facts": {
+                  "behavioral_observation_count": 0,
+                  "observations": [],
+                  "warning": "Behavioral indicators are probabilistic evidence, not identity truth."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9017355bdb0851ee8f6f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_51ee8f6f_5",
+                "tool_name": "evidence_quality",
+                "facts": {
+                  "quality_metadata_event_count": 0,
+                  "conflicting_evidence_count": 0,
+                  "observations": [],
+                  "default_assumption": "Missing quality metadata is treated as unknown, not trustworthy."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9017355bdb0851ee8f6f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_51ee8f6f",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 2e-06,
+                  "cumulative_session_risk": 2e-06,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": false,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_9017355bdb0851ee8f6f",
+                "confidence": 2e-06
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_9017355bdb0851ee8f6f",
+              "action": "monitor",
+              "risk_level": "medium",
+              "confidence": 0.9,
+              "reason_codes": [
+                "device_novelty",
+                "insufficient_evidence"
+              ],
+              "evidence_refs": [
+                "evidence_51ee8f6f_1",
+                "evidence_51ee8f6f_2"
+              ],
+              "decision_summary": "The event presents a medium risk due to device novelty and lack of strong authentication or customer confirmation. However, no value has moved yet, and the pre-model sequence guard mandates 'monitor' as the minimum action. Legitimate alternatives have not been independently verified. Therefore, we maintain monitoring without escalating to hold or block at this stage.",
+              "mitigation": "Continue monitoring for subsequent events in this session. If strong authentication fails or customer confirmation remains incomplete upon value movement, escalate to step_up or hold."
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 1,
+              "raw_risk_score": 1,
+              "risk_band": "medium",
+              "minimum_action": "monitor",
+              "indicator_count": 1,
+              "indicators": [
+                {
+                  "code": "new_device",
+                  "points": 1,
+                  "detail": "A newly observed device is present."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "pre_transaction"
+              ],
+              "value_event_count": 0,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "allow",
+              "operational_minimum_action": "monitor"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 18911,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 2e-06,
+              "cumulative_session_risk": 2e-06,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": false,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_cba98693aa3057039a79",
+              "sequence": 2,
+              "occurred_at": "2026-07-01T03:47:20+00:00",
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "AUTHENTICATION_CONTEXT_CHANGED",
+              "observable_signals": [
+                "recent_security_change",
+                "session_to_change_latency"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "device_id": "syn_device_947445",
+                "change_risk_band": 4
+              },
+              "source_system": "authentication_behavior_stream",
+              "decision_lane": "asynchronous_pre_transaction",
+              "latency_budget_ms": 2000
+            },
+            "investigation": {
+              "preliminary_risk": "high",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives"
+              ],
+              "investigation_focus": [
+                "device_novelty",
+                "recent_security_change",
+                "insufficient_evidence"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_57039a79_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 2,
+                  "raw_risk_score": 2,
+                  "risk_band": "medium",
+                  "minimum_action": "monitor",
+                  "indicator_count": 2,
+                  "indicators": [
+                    {
+                      "code": "sensitive_context_change",
+                      "points": 1,
+                      "detail": "A security, beneficiary, supplier, or payout context changed."
+                    },
+                    {
+                      "code": "new_device",
+                      "points": 1,
+                      "detail": "A newly observed device is present."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "pre_transaction"
+                  ],
+                  "value_event_count": 0,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_cba98693aa3057039a79",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_57039a79_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_cba98693aa3057039a79",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_57039a79_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 2,
+                  "event_type_counts": {
+                    "SESSION_STARTED": 1,
+                    "AUTHENTICATION_CONTEXT_CHANGED": 1
+                  },
+                  "ordered_event_types": [
+                    "SESSION_STARTED",
+                    "AUTHENTICATION_CONTEXT_CHANGED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "pre_transaction",
+                    "pre_transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "pre_transaction"
+                  ],
+                  "value_event_count": 0,
+                  "elapsed_seconds": 20
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_cba98693aa3057039a79",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_57039a79_4",
+                "tool_name": "behavioral_biometrics",
+                "facts": {
+                  "behavioral_observation_count": 0,
+                  "observations": [],
+                  "warning": "Behavioral indicators are probabilistic evidence, not identity truth."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_cba98693aa3057039a79",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_57039a79_5",
+                "tool_name": "evidence_quality",
+                "facts": {
+                  "quality_metadata_event_count": 0,
+                  "conflicting_evidence_count": 0,
+                  "observations": [],
+                  "default_assumption": "Missing quality metadata is treated as unknown, not trustworthy."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_cba98693aa3057039a79",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_57039a79",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999998,
+                  "cumulative_session_risk": 0.999998,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_cba98693aa3057039a79",
+                "confidence": 0.999998
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_cba98693aa3057039a79",
+              "action": "step_up",
+              "risk_level": "high",
+              "confidence": 0.9,
+              "reason_codes": [
+                "device_novelty",
+                "insufficient_evidence",
+                "verification_inconsistency"
+              ],
+              "evidence_refs": [
+                "evidence_57039a79_1",
+                "evidence_57039a79_2",
+                "evidence_57039a79_3"
+              ],
+              "decision_summary": "The event presents a high risk due to the combination of device novelty, network novelty, and a recent security context change within 20 seconds. The legitimate_alternatives tool confirms no independent verification exists (independent_verification_found=false). While the pre-model sequence guard mandates 'monitor', the convergence of multiple novel indicators and the absence of verified legitimate context warrants a",
+              "mitigation": "step_up"
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 2,
+              "raw_risk_score": 2,
+              "risk_band": "medium",
+              "minimum_action": "monitor",
+              "indicator_count": 2,
+              "indicators": [
+                {
+                  "code": "sensitive_context_change",
+                  "points": 1,
+                  "detail": "A security, beneficiary, supplier, or payout context changed."
+                },
+                {
+                  "code": "new_device",
+                  "points": 1,
+                  "detail": "A newly observed device is present."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "pre_transaction"
+              ],
+              "value_event_count": 0,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "allow",
+              "operational_minimum_action": "monitor"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 20225,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999998,
+              "cumulative_session_risk": 0.999998,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_c5a0b70b071f5b7badb6",
+              "sequence": 3,
+              "occurred_at": "2026-07-01T03:48:00+00:00",
+              "lifecycle_phase": "pre_transaction",
+              "event_type": "BENEFICIARY_ADDED",
+              "observable_signals": [
+                "beneficiary_age_days",
+                "same_session_add_and_pay"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "beneficiary_age_days": 5,
+                "beneficiary_kyc_tier": "min_kyc"
+              },
+              "source_system": "account_profile_stream",
+              "decision_lane": "asynchronous_pre_transaction",
+              "latency_budget_ms": 2000
+            },
+            "investigation": {
+              "preliminary_risk": "high",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives"
+              ],
+              "investigation_focus": [
+                "device_novelty",
+                "new_beneficiary",
+                "security_context_change",
+                "insufficient_evidence"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_5b7badb6_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 4,
+                  "raw_risk_score": 4,
+                  "risk_band": "medium",
+                  "minimum_action": "step_up",
+                  "indicator_count": 3,
+                  "indicators": [
+                    {
+                      "code": "sensitive_context_change",
+                      "points": 1,
+                      "detail": "A security, beneficiary, supplier, or payout context changed."
+                    },
+                    {
+                      "code": "new_device",
+                      "points": 1,
+                      "detail": "A newly observed device is present."
+                    },
+                    {
+                      "code": "new_beneficiary",
+                      "points": 2,
+                      "detail": "A newly introduced beneficiary is linked to the sequence."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "pre_transaction"
+                  ],
+                  "value_event_count": 0,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_c5a0b70b071f5b7badb6",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5b7badb6_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_c5a0b70b071f5b7badb6",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5b7badb6_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 3,
+                  "event_type_counts": {
+                    "SESSION_STARTED": 1,
+                    "AUTHENTICATION_CONTEXT_CHANGED": 1,
+                    "BENEFICIARY_ADDED": 1
+                  },
+                  "ordered_event_types": [
+                    "SESSION_STARTED",
+                    "AUTHENTICATION_CONTEXT_CHANGED",
+                    "BENEFICIARY_ADDED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "pre_transaction",
+                    "pre_transaction",
+                    "pre_transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "pre_transaction"
+                  ],
+                  "value_event_count": 0,
+                  "elapsed_seconds": 60
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_c5a0b70b071f5b7badb6",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5b7badb6_4",
+                "tool_name": "entity_linkage",
+                "facts": {
+                  "unique_entity_count": 4,
+                  "relationship_edge_count": 5,
+                  "same_case_relationship_edges": [
+                    {
+                      "source": "syn_sender_260437",
+                      "source_kind": "sender_account",
+                      "target": "syn_device_947445",
+                      "target_kind": "device",
+                      "event_id": "syn_evt_9017355bdb0851ee8f6f"
+                    },
+                    {
+                      "source": "syn_sender_260437",
+                      "source_kind": "sender_account",
+                      "target": "syn_network_235695",
+                      "target_kind": "network",
+                      "event_id": "syn_evt_9017355bdb0851ee8f6f"
+                    },
+                    {
+                      "source": "syn_device_947445",
+                      "source_kind": "device",
+                      "target": "syn_network_235695",
+                      "target_kind": "network",
+                      "event_id": "syn_evt_9017355bdb0851ee8f6f"
+                    },
+                    {
+                      "source": "syn_sender_260437",
+                      "source_kind": "sender_account",
+                      "target": "syn_device_947445",
+                      "target_kind": "device",
+                      "event_id": "syn_evt_cba98693aa3057039a79"
+                    },
+                    {
+                      "source": "syn_sender_260437",
+                      "source_kind": "sender_account",
+                      "target": "syn_beneficiary_152325",
+                      "target_kind": "beneficiary",
+                      "event_id": "syn_evt_c5a0b70b071f5b7badb6"
+                    }
+                  ],
+                  "same_case_repeated_entity_paths": {
+                    "syn_sender_260437": [
+                      "event_1.sender_account_id",
+                      "event_2.sender_account_id",
+                      "event_3.sender_account_id"
+                    ],
+                    "syn_device_947445": [
+                      "event_1.device_id",
+                      "event_2.device_id"
+                    ]
+                  },
+                  "historical_relationship_verified": false,
+                  "historical_relationship_markers": [],
+                  "explicit_linkage_observations": [],
+                  "interpretation_warning": "These edges show continuity inside this case only. Repetition is not evidence of a pre-existing trusted relationship unless historical markers are present."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_c5a0b70b071f5b7badb6",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5b7badb6_5",
+                "tool_name": "velocity_profile",
+                "facts": {
+                  "elapsed_seconds": 60,
+                  "value_event_count": 0,
+                  "declared_payment_count": 0,
+                  "observed_value_inr": 0,
+                  "events_per_minute": 3.0
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_c5a0b70b071f5b7badb6",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_5b7badb6",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999998,
+                  "cumulative_session_risk": 0.999998,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_c5a0b70b071f5b7badb6",
+                "confidence": 0.999998
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_c5a0b70b071f5b7badb6",
+              "action": "step_up",
+              "risk_level": "high",
+              "confidence": 0.9,
+              "reason_codes": [
+                "device_novelty",
+                "beneficiary_novelty",
+                "verification_inconsistency",
+                "insufficient_evidence"
+              ],
+              "evidence_refs": [
+                "evidence_5b7badb6_1",
+                "evidence_5b7badb6_2",
+                "evidence_5b7badb6_3",
+                "evidence_5b7badb6_4",
+                "evidence_5b7badb6_5"
+              ],
+              "decision_summary": "The event presents a high risk due to the convergence of multiple novel indicators: a new device (device_novelty), a newly introduced beneficiary with minimal KYC (beneficiary_novelty), and a recent security context change within 20 seconds. The legitimate_alternatives tool confirms no independent verification exists (independent_verification_found=false). While the pre-model sequence guard mandates 'monitor', the 's",
+              "mitigation": "step_up"
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 4,
+              "raw_risk_score": 4,
+              "risk_band": "medium",
+              "minimum_action": "step_up",
+              "indicator_count": 3,
+              "indicators": [
+                {
+                  "code": "sensitive_context_change",
+                  "points": 1,
+                  "detail": "A security, beneficiary, supplier, or payout context changed."
+                },
+                {
+                  "code": "new_device",
+                  "points": 1,
+                  "detail": "A newly observed device is present."
+                },
+                {
+                  "code": "new_beneficiary",
+                  "points": 2,
+                  "detail": "A newly introduced beneficiary is linked to the sequence."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "pre_transaction"
+              ],
+              "value_event_count": 0,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "allow",
+              "operational_minimum_action": "step_up"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 25158,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999998,
+              "cumulative_session_risk": 0.999998,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_e0191780314654699c77",
+              "sequence": 4,
+              "occurred_at": "2026-07-01T03:48:50+00:00",
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "observable_signals": [
+                "small_test_payment",
+                "new_beneficiary"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "device_id": "syn_device_947445",
+                "sender_baseline_amount_inr": 3804.3,
+                "amount_inr": 1521.72,
+                "amount_to_baseline_ratio": 0.4,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_orchestration_stream",
+              "decision_lane": "inline_payment_decision",
+              "latency_budget_ms": 300
+            },
+            "investigation": {
+              "preliminary_risk": "high",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives",
+                "timeline_summary",
+                "payment_context"
+              ],
+              "investigation_focus": [
+                "device_novelty",
+                "new_beneficiary",
+                "context_change_before_value",
+                "insufficient_evidence"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_54699c77_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 7,
+                  "raw_risk_score": 7,
+                  "risk_band": "high",
+                  "minimum_action": "hold",
+                  "indicator_count": 5,
+                  "indicators": [
+                    {
+                      "code": "cross_phase_progression",
+                      "points": 1,
+                      "detail": "The case has progressed across 2 lifecycle phases."
+                    },
+                    {
+                      "code": "sensitive_context_change",
+                      "points": 1,
+                      "detail": "A security, beneficiary, supplier, or payout context changed."
+                    },
+                    {
+                      "code": "context_change_before_value",
+                      "points": 2,
+                      "detail": "A sensitive context change preceded value movement."
+                    },
+                    {
+                      "code": "new_device",
+                      "points": 1,
+                      "detail": "A newly observed device is present."
+                    },
+                    {
+                      "code": "new_beneficiary",
+                      "points": 2,
+                      "detail": "A newly introduced beneficiary is linked to the sequence."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "pre_transaction",
+                    "transaction"
+                  ],
+                  "value_event_count": 1,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_e0191780314654699c77",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_54699c77_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_e0191780314654699c77",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_54699c77_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 4,
+                  "event_type_counts": {
+                    "SESSION_STARTED": 1,
+                    "AUTHENTICATION_CONTEXT_CHANGED": 1,
+                    "BENEFICIARY_ADDED": 1,
+                    "PAYMENT_INITIATED": 1
+                  },
+                  "ordered_event_types": [
+                    "SESSION_STARTED",
+                    "AUTHENTICATION_CONTEXT_CHANGED",
+                    "BENEFICIARY_ADDED",
+                    "PAYMENT_INITIATED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "pre_transaction",
+                    "pre_transaction",
+                    "pre_transaction",
+                    "transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "pre_transaction",
+                    "transaction"
+                  ],
+                  "value_event_count": 1,
+                  "elapsed_seconds": 110
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_e0191780314654699c77",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_54699c77_4",
+                "tool_name": "payment_context",
+                "facts": {
+                  "payments": [
+                    {
+                      "event_id": "syn_evt_e0191780314654699c77",
+                      "amount_inr": 1521.72,
+                      "baseline_amount_inr": 3804.3,
+                      "amount_to_baseline_ratio": 0.4,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    }
+                  ],
+                  "payment_count": 1
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_e0191780314654699c77",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_54699c77_5",
+                "tool_name": "velocity_profile",
+                "facts": {
+                  "elapsed_seconds": 110,
+                  "value_event_count": 1,
+                  "declared_payment_count": 1,
+                  "observed_value_inr": 1521.72,
+                  "events_per_minute": 2.182
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_e0191780314654699c77",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_54699c77",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999999,
+                  "cumulative_session_risk": 0.999999,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_e0191780314654699c77",
+                "confidence": 0.999999
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_e0191780314654699c77",
+              "action": "hold",
+              "risk_level": "high",
+              "confidence": 0.9,
+              "reason_codes": [
+                "device_novelty",
+                "beneficiary_novelty",
+                "verification_inconsistency",
+                "insufficient_evidence",
+                "cross_phase_pattern"
+              ],
+              "evidence_refs": [
+                "evidence_54699c77_1",
+                "evidence_54699c77_2",
+                "evidence_54699c77_3",
+                "evidence_54699c77_4"
+              ],
+              "decision_summary": "The case exhibits high risk due to the convergence of a new device, a newly added beneficiary with minimal KYC, and a sensitive context change occurring immediately before value movement. The pre-model sequence guard mandates 'hold' as the minimum action. Crucially, the legitimate_alternatives tool confirms independent_verification_found=false (evidence_54699c77_2), meaning no verified legitimate context exists to de",
+              "mitigation": "Pause value transfer to allow for further evaluation of the novel device and beneficiary linkage."
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 7,
+              "raw_risk_score": 7,
+              "risk_band": "high",
+              "minimum_action": "hold",
+              "indicator_count": 5,
+              "indicators": [
+                {
+                  "code": "cross_phase_progression",
+                  "points": 1,
+                  "detail": "The case has progressed across 2 lifecycle phases."
+                },
+                {
+                  "code": "sensitive_context_change",
+                  "points": 1,
+                  "detail": "A security, beneficiary, supplier, or payout context changed."
+                },
+                {
+                  "code": "context_change_before_value",
+                  "points": 2,
+                  "detail": "A sensitive context change preceded value movement."
+                },
+                {
+                  "code": "new_device",
+                  "points": 1,
+                  "detail": "A newly observed device is present."
+                },
+                {
+                  "code": "new_beneficiary",
+                  "points": 2,
+                  "detail": "A newly introduced beneficiary is linked to the sequence."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "pre_transaction",
+                "transaction"
+              ],
+              "value_event_count": 1,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "hold",
+              "operational_minimum_action": "hold"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 26459,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999999,
+              "cumulative_session_risk": 0.999999,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          },
+          {
+            "event": {
+              "event_id": "syn_evt_9f5989f187685817b50f",
+              "sequence": 5,
+              "occurred_at": "2026-07-01T03:51:00+00:00",
+              "lifecycle_phase": "transaction",
+              "event_type": "PAYMENT_INITIATED",
+              "observable_signals": [
+                "amount_vs_sender_baseline",
+                "rapid_value_escalation",
+                "novel_session_payment"
+              ],
+              "attributes": {
+                "sender_account_id": "syn_sender_260437",
+                "beneficiary_id": "syn_beneficiary_152325",
+                "device_id": "syn_device_947445",
+                "balance_drain_ratio": 0.8,
+                "add_to_payment_seconds": 300,
+                "sender_baseline_amount_inr": 3804.3,
+                "amount_inr": 19021.5,
+                "amount_to_baseline_ratio": 5.0,
+                "strong_authentication_passed": false,
+                "customer_confirmation_complete": false
+              },
+              "source_system": "payment_orchestration_stream",
+              "decision_lane": "inline_payment_decision",
+              "latency_budget_ms": 300
+            },
+            "investigation": {
+              "preliminary_risk": "high",
+              "requested_tools": [
+                "case_risk_synthesis",
+                "legitimate_alternatives"
+              ],
+              "investigation_focus": [
+                "device_novelty",
+                "beneficiary_novelty",
+                "extreme_amount_deviation",
+                "verification_inconsistency"
+              ]
+            },
+            "evidence": [
+              {
+                "evidence_id": "evidence_5817b50f_1",
+                "tool_name": "case_risk_synthesis",
+                "facts": {
+                  "observable_risk_score": 12,
+                  "raw_risk_score": 12,
+                  "risk_band": "high",
+                  "minimum_action": "hold",
+                  "indicator_count": 7,
+                  "indicators": [
+                    {
+                      "code": "cross_phase_progression",
+                      "points": 1,
+                      "detail": "The case has progressed across 2 lifecycle phases."
+                    },
+                    {
+                      "code": "cumulative_value_sequence",
+                      "points": 2,
+                      "detail": "Multiple value-moving events are linked in the visible case."
+                    },
+                    {
+                      "code": "sensitive_context_change",
+                      "points": 1,
+                      "detail": "A security, beneficiary, supplier, or payout context changed."
+                    },
+                    {
+                      "code": "context_change_before_value",
+                      "points": 2,
+                      "detail": "A sensitive context change preceded value movement."
+                    },
+                    {
+                      "code": "new_device",
+                      "points": 1,
+                      "detail": "A newly observed device is present."
+                    },
+                    {
+                      "code": "new_beneficiary",
+                      "points": 2,
+                      "detail": "A newly introduced beneficiary is linked to the sequence."
+                    },
+                    {
+                      "code": "extreme_amount_deviation",
+                      "points": 3,
+                      "detail": "Value reached 5.00\u00d7 the available baseline."
+                    }
+                  ],
+                  "lifecycle_phases_seen": [
+                    "pre_transaction",
+                    "transaction"
+                  ],
+                  "value_event_count": 2,
+                  "independent_legitimate_context": false,
+                  "verification_discount": 0,
+                  "fast_path_role": "pre_model_minimum_action_guard",
+                  "uses_sealed_truth": false
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9f5989f187685817b50f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5817b50f_2",
+                "tool_name": "legitimate_alternatives",
+                "facts": {
+                  "supporting_context_found": false,
+                  "independent_verification_found": false,
+                  "verification_strength": "unverified",
+                  "verified_markers": [],
+                  "agent_trust_factors": {},
+                  "complete_agent_trust_chain": false,
+                  "supporting_observations": [],
+                  "warning": "Same-case repetition and internally consistent identifiers do not prove an established relationship. Only explicit verification or pre-existing history can resolve risk."
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9f5989f187685817b50f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5817b50f_3",
+                "tool_name": "timeline_summary",
+                "facts": {
+                  "event_count": 5,
+                  "event_type_counts": {
+                    "SESSION_STARTED": 1,
+                    "AUTHENTICATION_CONTEXT_CHANGED": 1,
+                    "BENEFICIARY_ADDED": 1,
+                    "PAYMENT_INITIATED": 2
+                  },
+                  "ordered_event_types": [
+                    "SESSION_STARTED",
+                    "AUTHENTICATION_CONTEXT_CHANGED",
+                    "BENEFICIARY_ADDED",
+                    "PAYMENT_INITIATED",
+                    "PAYMENT_INITIATED"
+                  ],
+                  "ordered_lifecycle_phases": [
+                    "pre_transaction",
+                    "pre_transaction",
+                    "pre_transaction",
+                    "transaction",
+                    "transaction"
+                  ],
+                  "lifecycle_phases_reached": [
+                    "pre_transaction",
+                    "transaction"
+                  ],
+                  "value_event_count": 2,
+                  "elapsed_seconds": 240
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9f5989f187685817b50f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5817b50f_4",
+                "tool_name": "payment_context",
+                "facts": {
+                  "payments": [
+                    {
+                      "event_id": "syn_evt_e0191780314654699c77",
+                      "amount_inr": 1521.72,
+                      "baseline_amount_inr": 3804.3,
+                      "amount_to_baseline_ratio": 0.4,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    },
+                    {
+                      "event_id": "syn_evt_9f5989f187685817b50f",
+                      "amount_inr": 19021.5,
+                      "baseline_amount_inr": 3804.3,
+                      "amount_to_baseline_ratio": 5.0,
+                      "beneficiary_age_days": null,
+                      "payment_count": 1
+                    }
+                  ],
+                  "payment_count": 2
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9f5989f187685817b50f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "evidence_5817b50f_5",
+                "tool_name": "velocity_profile",
+                "facts": {
+                  "elapsed_seconds": 240,
+                  "value_event_count": 2,
+                  "declared_payment_count": 2,
+                  "observed_value_inr": 20543.22,
+                  "events_per_minute": 1.25
+                },
+                "source": "synthetic_observable_history",
+                "as_of_event_id": "syn_evt_9f5989f187685817b50f",
+                "confidence": 0.9
+              },
+              {
+                "evidence_id": "ml_risk_5817b50f",
+                "tool_name": "ml_risk_score",
+                "facts": {
+                  "per_event_risk": 0.999999,
+                  "cumulative_session_risk": 0.999999,
+                  "alert_threshold": 6.4e-05,
+                  "above_threshold": true,
+                  "model_hash": "ada5760e9ec6",
+                  "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+                },
+                "source": "ml_detector",
+                "as_of_event_id": "syn_evt_9f5989f187685817b50f",
+                "confidence": 0.999999
+              }
+            ],
+            "decision": {
+              "event_id": "syn_evt_9f5989f187685817b50f",
+              "action": "block",
+              "risk_level": "critical",
+              "confidence": 0.99,
+              "reason_codes": [
+                "device_novelty",
+                "beneficiary_novelty",
+                "verification_inconsistency",
+                "insufficient_evidence",
+                "cross_phase_pattern"
+              ],
+              "evidence_refs": [
+                "evidence_5817b50f_1",
+                "evidence_5817b50f_2"
+              ],
+              "decision_summary": "The case exhibits critical risk due to the convergence of a new device, a newly added beneficiary with minimal KYC, and an extreme amount deviation (5.0x baseline) occurring immediately after a sensitive context change. The legitimate_alternatives tool confirms independent_verification_found=false (evidence_5817b50f_2), meaning no verified legitimate context exists to de-escalate the risk. While the pre-model guard's",
+              "mitigation": "block"
+            },
+            "risk_synthesis": {
+              "observable_risk_score": 12,
+              "raw_risk_score": 12,
+              "risk_band": "high",
+              "minimum_action": "hold",
+              "indicator_count": 7,
+              "indicators": [
+                {
+                  "code": "cross_phase_progression",
+                  "points": 1,
+                  "detail": "The case has progressed across 2 lifecycle phases."
+                },
+                {
+                  "code": "cumulative_value_sequence",
+                  "points": 2,
+                  "detail": "Multiple value-moving events are linked in the visible case."
+                },
+                {
+                  "code": "sensitive_context_change",
+                  "points": 1,
+                  "detail": "A security, beneficiary, supplier, or payout context changed."
+                },
+                {
+                  "code": "context_change_before_value",
+                  "points": 2,
+                  "detail": "A sensitive context change preceded value movement."
+                },
+                {
+                  "code": "new_device",
+                  "points": 1,
+                  "detail": "A newly observed device is present."
+                },
+                {
+                  "code": "new_beneficiary",
+                  "points": 2,
+                  "detail": "A newly introduced beneficiary is linked to the sequence."
+                },
+                {
+                  "code": "extreme_amount_deviation",
+                  "points": 3,
+                  "detail": "Value reached 5.00\u00d7 the available baseline."
+                }
+              ],
+              "lifecycle_phases_seen": [
+                "pre_transaction",
+                "transaction"
+              ],
+              "value_event_count": 2,
+              "independent_legitimate_context": false,
+              "verification_discount": 0,
+              "fast_path_role": "pre_model_minimum_action_guard",
+              "uses_sealed_truth": false,
+              "continuity_minimum_action": "hold",
+              "operational_minimum_action": "hold"
+            },
+            "model_calls": [
+              {
+                "agent_name": "blue_event_agent",
+                "model": "qwen3.5:9b",
+                "schema_name": "blue_event_response",
+                "latency_ms": 26466,
+                "reasoning_effort": "none",
+                "compatibility_fallbacks": []
+              }
+            ],
+            "policy_adjustments": [],
+            "ml_risk": {
+              "per_event_risk": 0.999999,
+              "cumulative_session_risk": 0.999999,
+              "alert_threshold": 6.4e-05,
+              "above_threshold": true,
+              "model_hash": "ada5760e9ec6",
+              "note": "Model score in [0,1]; not probability-calibrated and never a truth label."
+            }
+          }
+        ],
+        "control_summaries": [
+          {
+            "case_id": "CTRL-ATO-01-01-20261027",
+            "control_name_revealed_after_scoring": "customer_travelling_with_new_device",
+            "decisions": [
+              {
+                "event_id": "syn_evt_6583d794f6cd51e4abef",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_51e4abef_2",
+                  "evidence_51e4abef_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_82046b9be34155348412",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_55348412_2",
+                  "evidence_55348412_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_9775517a1457558a8cb4",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_558a8cb4_2",
+                  "evidence_558a8cb4_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_5bc54193b897545d8566",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_545d8566_2",
+                  "evidence_545d8566_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_3aab9f0325955fab9932",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5fab9932_2",
+                  "evidence_5fab9932_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_dc51aacc38495171870d",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5171870d_2",
+                  "evidence_5171870d_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              }
+            ]
+          },
+          {
+            "case_id": "CTRL-ATO-01-02-20261027",
+            "control_name_revealed_after_scoring": "customer_replaced_phone_and_security_settings",
+            "decisions": [
+              {
+                "event_id": "syn_evt_2fa6186be4175a53bee0",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5a53bee0_2",
+                  "evidence_5a53bee0_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_c6f71d9674a255d0b738",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_55d0b738_2",
+                  "evidence_55d0b738_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_707d25f3050650cbb05d",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_50cbb05d_2",
+                  "evidence_50cbb05d_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_27d2034b1fb3569d871e",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_569d871e_2",
+                  "evidence_569d871e_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_261e8d3cccf25afba203",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5afba203_2",
+                  "evidence_5afba203_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_391f1a46c8bd5ad7b20e",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5ad7b20e_2",
+                  "evidence_5ad7b20e_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              }
+            ]
+          },
+          {
+            "case_id": "CTRL-ATO-01-03-20261027",
+            "control_name_revealed_after_scoring": "genuine_payment_to_new_beneficiary",
+            "decisions": [
+              {
+                "event_id": "syn_evt_42caf1c7785a504ebe60",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_504ebe60_2",
+                  "evidence_504ebe60_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_945f496f51385110ac75",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5110ac75_2",
+                  "evidence_5110ac75_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_eaacf634252654de99ae",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_54de99ae_2",
+                  "evidence_54de99ae_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_5d51c710296b55848728",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_55848728_2",
+                  "evidence_55848728_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_179d7468c0c8592380e5",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_592380e5_2",
+                  "evidence_592380e5_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              },
+              {
+                "event_id": "syn_evt_7b20e672f1ef5b448f97",
+                "action": "allow",
+                "risk_level": "low",
+                "confidence": 0.98,
+                "reason_codes": [
+                  "legitimate_context"
+                ],
+                "evidence_refs": [
+                  "evidence_5b448f97_2",
+                  "evidence_5b448f97_1"
+                ],
+                "decision_summary": "Independent verification or established history supports this event, and the observable sequence has no unresolved risk floor.",
+                "mitigation": "Allow the event, retain the verification evidence, and continue normal monitoring."
+              }
+            ]
+          }
+        ],
+        "ambient_summaries": []
+      },
+      "referee": {
+        "outcome": "contained",
+        "detected_stage_id": "authentication_change",
+        "detected_lifecycle_phase": "pre_transaction",
+        "time_to_detect_seconds": 20,
+        "total_value_at_risk_inr": 20543.22,
+        "value_prevented_inr": 19021.5,
+        "value_prevented_ratio": 0.9259,
+        "hard_false_positive_rate": 0.0,
+        "legitimate_friction_rate": 0.0,
+        "attack_detection_rate": 1.0,
+        "event_evaluation_ratio": 0.8333,
+        "evidence_tool_coverage": 1.0,
+        "lifecycle_metrics": {
+          "pre_transaction": {
+            "status": "reached",
+            "phase_score": 61.36,
+            "event_count": 3,
+            "evaluated_event_count": 3,
+            "evaluation_coverage": 1.0,
+            "first_actionable_event": "SESSION_STARTED",
+            "opportunity_detected": true,
+            "response_time_seconds": 20,
+            "response_score": 0.8182,
+            "downstream_value_exposed_inr": 20543.22,
+            "value_controlled_from_phase_inr": 0.0,
+            "consequence_control_ratio": 0.0,
+            "legitimate_safety_rate": 1.0,
+            "phase_matched_control_event_count": 9,
+            "evidence_citation_rate": 0.5556,
+            "red_stealth_ratio": 0.3333,
+            "transition_escape_rate": 1.0,
+            "actions": {
+              "allow": 0,
+              "monitor": 1,
+              "step_up": 2,
+              "hold": 0,
+              "block": 0
+            }
+          },
+          "transaction": {
+            "status": "reached",
+            "phase_score": 97.41,
+            "event_count": 2,
+            "evaluated_event_count": 2,
+            "evaluation_coverage": 1.0,
+            "first_actionable_event": "PAYMENT_INITIATED",
+            "opportunity_detected": true,
+            "response_time_seconds": 0,
+            "response_score": 1.0,
+            "downstream_value_exposed_inr": 20543.22,
+            "value_controlled_from_phase_inr": 19021.5,
+            "consequence_control_ratio": 0.9259,
+            "legitimate_safety_rate": 1.0,
+            "phase_matched_control_event_count": 6,
+            "evidence_citation_rate": 0.5,
+            "red_stealth_ratio": 0.0,
+            "transition_escape_rate": 0.0,
+            "actions": {
+              "allow": 0,
+              "monitor": 0,
+              "step_up": 0,
+              "hold": 1,
+              "block": 1
+            }
+          },
+          "post_transaction": {
+            "status": "prevented_before_phase",
+            "phase_score": null,
+            "event_count": 1,
+            "evaluated_event_count": 0,
+            "evaluation_coverage": 0.0,
+            "first_actionable_event": "FUNDS_RECEIVED"
+          }
+        },
+        "balanced_lifecycle_defense_score": 72.17,
+        "worst_lifecycle_phase": "pre_transaction",
+        "worst_phase_score": 61.36,
+        "lifecycle_balance_gap": 36.05,
+        "red_capability_score": 63.33,
+        "realized_impact_inr": 1521.72,
+        "realized_impact_ratio": 0.0741,
+        "blue_score": 97.41,
+        "red_score": 2.59,
+        "coarse_reason_categories": [
+          "device_novelty",
+          "identity_linkage"
+        ],
+        "ambient_false_positive_rate": 0.0,
+        "ambient_friction_rate": 0.0,
+        "scoring_notes": [
+          "Detection, protected value, intervention timing, and legitimate-case safety are scored deterministically.",
+          "Hold can pause value while evaluation continues; block terminates the simulated case.",
+          "Hold/block protects current or downstream synthetic value; CONTAIN receives lower timing credit than prevention.",
+          "Step-up verification counts as detection and customer friction, but not guaranteed value prevention."
+        ]
+      },
+      "feedback_released_to_red": {
+        "outcome": "contained",
+        "detected_stage_id": "authentication_change",
+        "time_to_detect_seconds": 20,
+        "value_prevented_ratio": 0.9259,
+        "false_positive_rate": 0.0,
+        "coarse_reason_categories": [
+          "device_novelty",
+          "identity_linkage"
+        ]
+      },
+      "blue_adaptation": null,
+      "submission_evaluation": {
+        "fidelity": {
+          "score": 100.0,
+          "production_event_rate": 1.0,
+          "delivery_metadata_rate": 1.0,
+          "observable_signal_rate": 1.0,
+          "truth_boundary_clean": true,
+          "legitimate_look_alike_cases": 3,
+          "lab_only_event_types_exposed": []
+        },
+        "detection_efficacy": {
+          "outcome": "contained",
+          "value_prevented_ratio": 0.9259,
+          "realized_impact_ratio": 0.0741,
+          "hard_false_positive_rate": 0.0,
+          "legitimate_friction_rate": 0.0,
+          "time_to_detect_seconds": 20,
+          "balanced_lifecycle_defense_score": 72.17,
+          "worst_phase_score": 61.36,
+          "evidence_citation_rate": 0.5333,
+          "fast_guard_intervention_count": 0,
+          "fast_guard_actionable_event_count": 3
+        },
+        "live_feasibility": {
+          "event_contract_coverage": 1.0,
+          "pre_model_fast_path_coverage": 1.0,
+          "model_call_p95_ms": 26466.0,
+          "blue_model_call_count": 5,
+          "blue_event_count": 23,
+          "model_calls_per_blue_event": 0.217,
+          "policy_repair_call_count": 0,
+          "verified_context_fast_exit_count": 18,
+          "round_duration_ms": 143799,
+          "case_parallelism": 4,
+          "inline_transaction_budget_ms": 300,
+          "recommended_runtime": "fast_guardrail_inline_qwen_investigation_async",
+          "qwen_is_not_claimed_as_a_300ms_inline_dependency": true
+        }
+      },
+      "duration_ms": 143799
+    }
+  ],
+  "final_defense_playbook": {
+    "version": 1,
+    "preferred_tools": [],
+    "focus_reason_codes": [],
+    "investigation_guidance": [
+      "Use the smallest sufficient evidence set and test legitimate explanations."
+    ],
+    "change_hypothesis": "Baseline evidence-led defense with no post-episode adaptations yet."
+  },
+  "submission_profile": {
+    "diversity": {
+      "attack_family_count": 9,
+      "observable_event_type_count": 24,
+      "payment_surface_count": 22,
+      "lifecycle_phase_count": 3,
+      "legitimate_control_count": 27,
+      "bounded_adaptation_parameter_count": 76,
+      "authoritative_source_count": 8,
+      "source_domains": [
+        "developer.visa.com",
+        "www.fincen.gov",
+        "www.ic3.gov",
+        "www.mastercard.com",
+        "www.rbi.org.in"
+      ],
+      "event_types": [
+        "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
+        "ACCOUNT_OPENED",
+        "ACCOUNT_WARMUP_ACTIVITY",
+        "AGENTIC_PAYMENT_INITIATED",
+        "AGENT_COMMERCE_SESSION_STARTED",
+        "AGENT_PAYMENT_INTENT_PRESENTED",
+        "AUTHENTICATION_CONTEXT_CHANGED",
+        "BENEFICIARY_ADDED",
+        "COMMUNICATION_RISK_CONTEXT",
+        "DISPUTE_EVIDENCE_REVIEWED",
+        "DISPUTE_OPENED",
+        "DISPUTE_REFUND_ISSUED",
+        "FUNDS_DISPERSED",
+        "FUNDS_RECEIVED",
+        "IDENTITY_APPLICATION_SUBMITTED",
+        "IDENTITY_VERIFICATION_ATTEMPTED",
+        "PAYMENT_INITIATED",
+        "PAYMENT_REPEATED",
+        "PAYOUT_DESTINATION_CHANGED",
+        "PAYOUT_REQUESTED",
+        "PAYOUT_SETTLED",
+        "SALES_VELOCITY_CHANGED",
+        "SESSION_STARTED",
+        "SUPPLIER_PROFILE_CHANGED"
+      ],
+      "payment_surfaces": [
+        "ACCOUNTS_PAYABLE",
+        "ACCOUNT_TO_ACCOUNT",
+        "AGENTIC_COMMERCE",
+        "CARD_DISPUTES",
+        "CARD_NOT_PRESENT_LIKE_EVENTS",
+        "CORPORATE_BANKING",
+        "DIGITAL_ONBOARDING",
+        "ECOMMERCE_CHECKOUT",
+        "FASTER_SETTLEMENT",
+        "MARKETPLACE_PAYOUT",
+        "MARKETPLACE_REFUNDS",
+        "MERCHANT_ACQUIRING",
+        "MOBILE_BANKING",
+        "NEW_ACCOUNT_PAYMENTS",
+        "ONLINE_BANKING",
+        "POST_TRANSACTION_CASE_MANAGEMENT",
+        "REAL_TIME_ACCOUNT_TO_ACCOUNT",
+        "REAL_TIME_TRANSFER",
+        "TOKENIZED_PAYMENT",
+        "UPI_LIKE_PUSH_PAYMENT",
+        "WALLET_NETWORK",
+        "WIRE_TRANSFER"
+      ],
+      "coverage_matrix": [
+        {
+          "attack_family": "AGENT-01",
+          "name": "Agentic-commerce intent and checkout manipulation",
+          "payment_surfaces": [
+            "AGENTIC_COMMERCE",
+            "ECOMMERCE_CHECKOUT",
+            "TOKENIZED_PAYMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 11,
+          "legitimate_control_count": 3,
+          "source_count": 3
+        },
+        {
+          "attack_family": "APP-01",
+          "name": "GenAI-amplified authorized push payment scam",
+          "payment_surfaces": [
+            "REAL_TIME_ACCOUNT_TO_ACCOUNT",
+            "MOBILE_BANKING",
+            "UPI_LIKE_PUSH_PAYMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 9,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "ATO-01",
+          "name": "GenAI-assisted account takeover and rapid transfer",
+          "payment_surfaces": [
+            "ONLINE_BANKING",
+            "MOBILE_BANKING",
+            "REAL_TIME_TRANSFER"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 6,
+          "bounded_mutation_count": 9,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "BEC-01",
+          "name": "GenAI-enhanced supplier impersonation payment diversion",
+          "payment_surfaces": [
+            "CORPORATE_BANKING",
+            "WIRE_TRANSFER",
+            "ACCOUNTS_PAYABLE"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 7,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "DISPUTE-01",
+          "name": "GenAI-assisted dispute evidence and refund abuse",
+          "payment_surfaces": [
+            "CARD_DISPUTES",
+            "MARKETPLACE_REFUNDS",
+            "POST_TRANSACTION_CASE_MANAGEMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "transaction"
+          ],
+          "stage_count": 4,
+          "bounded_mutation_count": 6,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "EVADE-01",
+          "name": "Feedback-guided low-and-slow payment evasion",
+          "payment_surfaces": [
+            "REAL_TIME_TRANSFER",
+            "CARD_NOT_PRESENT_LIKE_EVENTS",
+            "ACCOUNT_TO_ACCOUNT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 10,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "MULE-01",
+          "name": "AI-coordinated mule-network fan-in and dispersal",
+          "payment_surfaces": [
+            "REAL_TIME_TRANSFER",
+            "WALLET_NETWORK",
+            "ACCOUNT_TO_ACCOUNT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 4,
+          "bounded_mutation_count": 11,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "PAYOUT-01",
+          "name": "GenAI-assisted merchant payout destination manipulation",
+          "payment_surfaces": [
+            "MERCHANT_ACQUIRING",
+            "MARKETPLACE_PAYOUT",
+            "FASTER_SETTLEMENT"
+          ],
+          "lifecycle_phases": [
+            "post_transaction",
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 4,
+          "bounded_mutation_count": 6,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        },
+        {
+          "attack_family": "SYNID-01",
+          "name": "GenAI synthetic-identity onboarding and payment activation",
+          "payment_surfaces": [
+            "DIGITAL_ONBOARDING",
+            "NEW_ACCOUNT_PAYMENTS",
+            "ACCOUNT_TO_ACCOUNT"
+          ],
+          "lifecycle_phases": [
+            "pre_transaction",
+            "transaction"
+          ],
+          "stage_count": 5,
+          "bounded_mutation_count": 7,
+          "legitimate_control_count": 3,
+          "source_count": 2
+        }
+      ]
+    },
+    "fidelity": {
+      "simulation_contract": "seeded_deterministic_synthetic_event_stream",
+      "truth_boundary": "sealed_truth_is_never_in_blue_observables",
+      "look_alike_testing": "three_family_specific_legitimate_controls_per_attack",
+      "production_metadata": [
+        "source_system",
+        "decision_lane",
+        "latency_budget_ms"
+      ],
+      "lab_only_event_types_allowed": []
+    },
+    "detection": {
+      "layers": [
+        "pre_model_observable_sequence_guard",
+        "verified_legitimate_context_fast_exit",
+        "qwen_evidence_grounded_investigator_and_decider",
+        "deterministic_policy_and_continuity_gate",
+        "legitimate_look_alike_referee_evaluation"
+      ],
+      "efficacy_metrics": [
+        "value_prevented_ratio",
+        "hard_false_positive_rate",
+        "legitimate_friction_rate",
+        "time_to_detect_seconds",
+        "balanced_lifecycle_defense_score",
+        "worst_phase_score"
+      ]
+    },
+    "novelty": {
+      "features": [
+        "two_speed_genai_plus_deterministic_data_plane",
+        "red_and_blue_genai_agents_with_sealed_referee",
+        "guarded_red_and_blue_feedback_loops",
+        "agentic_commerce_intent_attack_family",
+        "weakest_phase_aware_promotion_gate"
+      ]
+    },
+    "live_feasibility": {
+      "deployment_pattern": "fast_guardrail_inline_qwen_investigation_async",
+      "transaction_latency_budget_ms": 300,
+      "pre_transaction_latency_budget_ms": 2000,
+      "post_transaction_latency_budget_ms": 5000,
+      "integration_contract": "sanitized_events_in_actions_evidence_and_audit_out",
+      "model_endpoint": "openai_compatible_open_model_endpoint"
+    }
+  },
+  "duration_ms": 143799
+}
