@@ -1,0 +1,68 @@
+{
+  "model": "logistic_regression_baseline",
+  "split": "chronological_60_20_20",
+  "threshold_selected_on_validation": 0.999272,
+  "row_counts": {
+    "train": 660,
+    "validation": 220,
+    "test": 220
+  },
+  "fraud_counts": {
+    "train": 52,
+    "validation": 12,
+    "test": 36
+  },
+  "test_metrics": {
+    "average_precision": 0.960943,
+    "roc_auc": 0.99215,
+    "precision": 1.0,
+    "recall": 0.527778,
+    "f1": 0.690909,
+    "false_positive_rate": 0.0,
+    "confusion_matrix": {
+      "tn": 184,
+      "fp": 0,
+      "fn": 17,
+      "tp": 19
+    }
+  },
+  "limitations": [
+    "This is a simulator smoke-test baseline, not a competition-ready efficacy claim.",
+    "Current data contains only ATO-01 and MULE-01.",
+    "Future evaluation must hold out entire campaigns and harder attack variants."
+  ],
+  "legitimate_profile_results": {
+    "ORDINARY": {
+      "events": 172,
+      "false_positives": 0,
+      "false_positive_rate": 0.0
+    },
+    "POPULAR_MERCHANT": {
+      "events": 1,
+      "false_positives": 0,
+      "false_positive_rate": 0.0
+    },
+    "SHARED_HOUSEHOLD": {
+      "events": 6,
+      "false_positives": 0,
+      "false_positive_rate": 0.0
+    },
+    "TRAVEL_NEW_DEVICE": {
+      "events": 5,
+      "false_positives": 0,
+      "false_positive_rate": 0.0
+    }
+  },
+  "attack_family_results": {
+    "ATO-01": {
+      "events": 11,
+      "detected": 5,
+      "recall": 0.454545
+    },
+    "MULE-01": {
+      "events": 25,
+      "detected": 14,
+      "recall": 0.56
+    }
+  }
+}

@@ -24,6 +24,7 @@ DATA_DIR = PROJECT_ROOT / "data" / "processed"
 EVENTS_PATH = DATA_DIR / "payment_events.csv"
 PREDICTIONS_PATH = DATA_DIR / "baseline_test_predictions.csv"
 METRICS_PATH = DATA_DIR / "baseline_metrics.json"
+LEGACY_DEMO_DIR = PROJECT_ROOT / "app" / "legacy_demo"
 AGENT_RUNS_DIR = PROJECT_ROOT / "runs" / "agentic"
 LATEST_AGENT_RUN_PATH = AGENT_RUNS_DIR / "latest.json"
 AGENT_RUN_LOCK = threading.Lock()
@@ -35,17 +36,26 @@ LATEST_EXTERNAL_VALIDATION_PATH = EXTERNAL_VALIDATION_DIR / "latest.json"
 
 
 def _load_data() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
-    missing = [path for path in (EVENTS_PATH, PREDICTIONS_PATH, METRICS_PATH) if not path.exists()]
+    primary_paths = (EVENTS_PATH, PREDICTIONS_PATH, METRICS_PATH)
+    fallback_paths = (
+        LEGACY_DEMO_DIR / "payment_events.csv",
+        LEGACY_DEMO_DIR / "baseline_test_predictions.csv",
+        LEGACY_DEMO_DIR / "baseline_metrics.json",
+    )
+    selected_paths = primary_paths if all(path.exists() for path in primary_paths) else fallback_paths
+    missing = [path for path in selected_paths if not path.exists()]
     if missing:
         names = ", ".join(str(path.relative_to(PROJECT_ROOT)) for path in missing)
         raise FileNotFoundError(
-            f"Missing dashboard data: {names}. Run the simulator and baseline commands first."
+            f"Missing dashboard data: {names}. Restore the bundled legacy demo or run the "
+            "simulator and baseline commands."
         )
-    events = pd.read_csv(EVENTS_PATH)
+    events_path, predictions_path, metrics_path = selected_paths
+    events = pd.read_csv(events_path)
     events["event_ts"] = pd.to_datetime(events["event_ts"], utc=True)
-    predictions = pd.read_csv(PREDICTIONS_PATH)
+    predictions = pd.read_csv(predictions_path)
     predictions["event_ts"] = pd.to_datetime(predictions["event_ts"], utc=True)
-    metrics = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
     return events, predictions, metrics
 
 

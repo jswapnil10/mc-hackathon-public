@@ -1,0 +1,39 @@
+{
+  "dataset_version": "v0.2",
+  "seed": 20260826,
+  "start_timestamp": "2026-08-01T00:00:00+00:00",
+  "accounts": 100,
+  "events": 1100,
+  "legitimate_events": 1000,
+  "fraud_events": 100,
+  "legitimate_control_events": 50,
+  "campaign_count_per_attack_family": 2,
+  "attack_counts": {
+    "ATO-01": 50,
+    "MULE-01": 50
+  },
+  "schema_fields": [
+    "event_id",
+    "event_ts",
+    "transaction_id",
+    "sender_account_id",
+    "beneficiary_id",
+    "payment_rail",
+    "channel",
+    "amount_inr",
+    "currency",
+    "merchant_category",
+    "transaction_status",
+    "device_id",
+    "ip_prefix",
+    "geo_region",
+    "auth_method",
+    "session_age_seconds",
+    "account_age_days",
+    "beneficiary_age_days",
+    "label_fraud",
+    "attack_family",
+    "scenario_id",
+    "legitimate_control"
+  ]
+}

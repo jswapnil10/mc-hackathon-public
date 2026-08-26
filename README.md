@@ -405,7 +405,7 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 ```text
 sentinelloop/        Red, Blue, evidence tools, simulator, Referee and orchestrator
 red_team_agent/      Source-grounded attack cards, compiler and safety gate
-app/                 MasterGuard AI web application and preserved legacy dashboard
+app/                 MasterGuard AI web application and compact deterministic legacy fallback data
 deploy/              Web container and Qwen/vLLM Compose deployment
 docs/                Architecture, taxonomy, schema and evaluation contracts
 tests/               Closed-loop and information-boundary regression tests
