@@ -11,9 +11,10 @@ from sentinelloop.config import AgentLabConfig
 from sentinelloop.contracts import BlueDecision, ObservedEvent
 from sentinelloop.model_gateway import ModelCall
 from sentinelloop.orchestrator import SentinelLoopOrchestrator
+from sentinelloop.red_agent import GenAIRedAgent
 from sentinelloop.evidence import _entity_linkage, synthesize_case_risk
 from sentinelloop.simulation import simulate_attack
-from red_team_agent.planner import RedTeamAgent
+from red_team_agent.planner import RedTeamAgent, lifecycle_phase_for_template
 
 
 class TestGateway:
@@ -157,6 +158,25 @@ class TestGateway:
         raise AssertionError(f"Unexpected agent {agent_name}")
 
 
+class PhaseMismatchGateway(TestGateway):
+    def generate_json(self, **kwargs: Any) -> tuple[dict[str, Any], ModelCall]:
+        result, model_call = super().generate_json(**kwargs)
+        if kwargs["agent_name"] == "red_planner":
+            focus_id = result["focus_stage_ids"][0]
+            card = kwargs["user_payload"]["attack_cards"][0]
+            actual_phase = next(
+                stage["lifecycle_phase"]
+                for stage in card["stages"]
+                if stage["stage_id"] == focus_id
+            )
+            result["target_lifecycle_phase"] = next(
+                phase
+                for phase in ("pre_transaction", "transaction", "post_transaction")
+                if phase != actual_phase
+            )
+        return result, model_call
+
+
 def _all_keys(value: Any) -> set[str]:
     keys: set[str] = set()
     if isinstance(value, dict):
@@ -170,6 +190,26 @@ def _all_keys(value: Any) -> set[str]:
 
 
 class InformationBoundaryTests(unittest.TestCase):
+    def test_red_normalizes_phase_label_from_bounded_focus_stage(self) -> None:
+        agent = GenAIRedAgent(
+            gateway=PhaseMismatchGateway(),
+            config=AgentLabConfig(),
+        )
+        turn = agent.plan(
+            attack_family="ATO-01",
+            difficulty="medium",
+            seed=2026,
+        )
+        selected_stage = next(
+            stage
+            for stage in agent.catalog.get("ATO-01").stage_templates
+            if stage["stage_id"] == turn.plan.focus_stage_ids[0]
+        )
+        self.assertEqual(
+            turn.plan.target_lifecycle_phase,
+            lifecycle_phase_for_template(selected_stage),
+        )
+
     def test_simulator_keeps_truth_out_of_observed_events(self) -> None:
         scenario = RedTeamAgent().plan(attack_family="ATO-01", difficulty="medium", seed=11)
         case = simulate_attack(scenario)

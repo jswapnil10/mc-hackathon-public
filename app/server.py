@@ -416,10 +416,9 @@ def create_app() -> Flask:
                     "error": str(error),
                     "hint": (
                         "Verify endpoint reachability and structured-output compatibility. The "
-                        "gateway automatically retries unsupported reasoning parameters and "
-                        "reasoning-only responses. For a local Ollama live demo, set "
-                        "BLUE_REASONING_EFFORT=none so Red planning and between-round Blue "
-                        "strategy can retain deeper reasoning."
+                        "default profile already uses direct structured generation with reasoning "
+                        "effort set to none. If a local model still times out, increase "
+                        "MODEL_TIMEOUT_SECONDS or use a smaller model."
                     ),
                 }
             ), 502

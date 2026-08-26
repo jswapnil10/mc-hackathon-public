@@ -55,6 +55,13 @@ class _ReasoningOnlyResponse(RuntimeError):
         super().__init__(finish_reason)
 
 
+class _GatewayTimeout(TimeoutError):
+    def __init__(self, timeout_seconds: float, detail: object) -> None:
+        self.timeout_seconds = timeout_seconds
+        self.detail = detail
+        super().__init__(str(detail))
+
+
 class OpenAICompatibleGateway:
     """Call a self-hosted endpoint without depending on a vendor SDK."""
 
@@ -98,7 +105,9 @@ class OpenAICompatibleGateway:
         *,
         agent_name: str,
         fallbacks: list[str],
+        timeout_seconds: float | None = None,
     ) -> tuple[dict[str, Any], str | None]:
+        effective_timeout = timeout_seconds or self.config.request_timeout_seconds
         request = urllib.request.Request(
             self.config.chat_completions_url,
             data=json.dumps(payload).encode("utf-8"),
@@ -110,7 +119,7 @@ class OpenAICompatibleGateway:
         )
         try:
             with urllib.request.urlopen(
-                request, timeout=self.config.request_timeout_seconds
+                request, timeout=effective_timeout
             ) as response:
                 return (
                     json.loads(response.read().decode("utf-8")),
@@ -130,20 +139,38 @@ class OpenAICompatibleGateway:
                     compatible_payload,
                     agent_name=agent_name,
                     fallbacks=fallbacks,
+                    timeout_seconds=effective_timeout,
                 )
             raise RuntimeError(
                 f"Model endpoint returned HTTP {exc.code} for {agent_name}: {detail[:1200]}"
             ) from exc
         except urllib.error.URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, TimeoutError) or "timed out" in str(reason).lower():
+                raise _GatewayTimeout(effective_timeout, reason) from exc
             raise RuntimeError(
                 f"Could not reach the model endpoint at {self.config.chat_completions_url}: {exc.reason}"
             ) from exc
         except (TimeoutError, OSError) as exc:
-            raise RuntimeError(
-                f"The model endpoint at {self.config.chat_completions_url} did not respond within "
-                f"{self.config.request_timeout_seconds}s for {agent_name} ({exc}). On CPU-only hosts, "
-                f"raise MODEL_TIMEOUT_SECONDS or use a smaller model."
-            ) from exc
+            raise _GatewayTimeout(effective_timeout, exc) from exc
+
+    def _timeout_error(
+        self,
+        *,
+        agent_name: str,
+        fallbacks: list[str],
+        detail: object,
+    ) -> RuntimeError:
+        fallback_note = (
+            " Optional reasoning was stopped early and direct structured generation was retried."
+            if "reasoning_timeout_retry_without_thinking" in fallbacks
+            else " Direct structured generation was already used (reasoning effort: none)."
+        )
+        return RuntimeError(
+            f"The model endpoint at {self.config.chat_completions_url} did not complete "
+            f"{agent_name} within the {self.config.request_timeout_seconds}s request window "
+            f"({detail}).{fallback_note} Increase MODEL_TIMEOUT_SECONDS or use a smaller model."
+        )
 
     @staticmethod
     def _parse_result(body: dict[str, Any], agent_name: str) -> dict[str, Any]:
@@ -200,7 +227,47 @@ class OpenAICompatibleGateway:
 
         started = time.monotonic()
         fallbacks: list[str] = []
-        body, used_effort = self._post(payload, agent_name=agent_name, fallbacks=fallbacks)
+        reasoning_enabled = configured_effort not in {"none", "omit"}
+        first_timeout = (
+            min(
+                self.config.reasoning_attempt_timeout_seconds,
+                max(1, self.config.request_timeout_seconds - 1),
+            )
+            if reasoning_enabled
+            else self.config.request_timeout_seconds
+        )
+        try:
+            body, used_effort = self._post(
+                payload,
+                agent_name=agent_name,
+                fallbacks=fallbacks,
+                timeout_seconds=first_timeout,
+            )
+        except _GatewayTimeout as exc:
+            elapsed = time.monotonic() - started
+            remaining = self.config.request_timeout_seconds - elapsed
+            if not reasoning_enabled or remaining < 1:
+                raise self._timeout_error(
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    detail=exc.detail,
+                ) from exc
+            fallback_payload = dict(payload)
+            fallback_payload["reasoning_effort"] = "none"
+            fallbacks.append("reasoning_timeout_retry_without_thinking")
+            try:
+                body, used_effort = self._post(
+                    fallback_payload,
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    timeout_seconds=max(1, remaining),
+                )
+            except _GatewayTimeout as retry_exc:
+                raise self._timeout_error(
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    detail=retry_exc.detail,
+                ) from retry_exc
         try:
             result = self._parse_result(body, agent_name)
         except _ReasoningOnlyResponse as exc:
@@ -213,11 +280,26 @@ class OpenAICompatibleGateway:
             fallback_payload = dict(payload)
             fallback_payload["reasoning_effort"] = "none"
             fallbacks.append("reasoning_exhausted_retry_without_thinking")
-            body, used_effort = self._post(
-                fallback_payload,
-                agent_name=agent_name,
-                fallbacks=fallbacks,
-            )
+            remaining = self.config.request_timeout_seconds - (time.monotonic() - started)
+            if remaining < 1:
+                raise self._timeout_error(
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    detail="no request time remained after the reasoning-only response",
+                ) from exc
+            try:
+                body, used_effort = self._post(
+                    fallback_payload,
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    timeout_seconds=max(1, remaining),
+                )
+            except _GatewayTimeout as retry_exc:
+                raise self._timeout_error(
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    detail=retry_exc.detail,
+                ) from retry_exc
             try:
                 result = self._parse_result(body, agent_name)
             except _ReasoningOnlyResponse as retry_exc:

@@ -76,16 +76,22 @@ class AgentLabConfig:
     red_model_id: str = DEFAULT_QWEN_MODEL
     blue_model_id: str = DEFAULT_QWEN_MODEL
     request_timeout_seconds: int = 120
+    # Optional hidden reasoning gets only part of the end-to-end request window. If it does
+    # not finish promptly, the gateway retries direct structured generation with the time left.
+    reasoning_attempt_timeout_seconds: int = 45
     structured_output_mode: str = "json_schema"
-    # `auto` selects role-specific effort. A concrete value remains as an emergency global
-    # override, while `omit` supports endpoints with no reasoning-control parameter.
-    reasoning_effort: str = "auto"
-    red_reasoning_effort: str = "medium"
-    # The live Blue lane must return compact JSON for every reached event. Local Qwen 3.5
-    # can spend the entire token budget on hidden reasoning and force a costly second call,
-    # so deeper thinking stays with Red planning and the between-round Blue strategist.
+    # Direct structured generation is the stable default across local OpenAI-compatible servers.
+    # `omit` supports endpoints with no reasoning-control parameter; `auto` remains available as
+    # an advanced opt-in for role-specific profiles on faster inference infrastructure.
+    reasoning_effort: str = "none"
+    # Direct structured planning is the reliable open-source demo default. The Red response still
+    # contains an explicit objective, adaptation hypothesis, rationale and bounded mutations; only
+    # the separate hidden reasoning stream is disabled. Faster servers may opt in to low/medium.
+    red_reasoning_effort: str = "none"
+    # The live Blue lane must return compact JSON for every reached event. Local Qwen 3.5 can
+    # spend the entire token budget on hidden reasoning and force a costly second call.
     blue_reasoning_effort: str = "none"
-    blue_strategy_reasoning_effort: str = "medium"
+    blue_strategy_reasoning_effort: str = "none"
     red_temperature: float = 0.65
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
@@ -109,12 +115,23 @@ class AgentLabConfig:
         if not configured_base_url and not configured_red_model and not configured_blue_model:
             detected_local = _detect_local_ollama_qwen()
         default_base_url, default_model = detected_local or (cls.model_base_url, DEFAULT_QWEN_MODEL)
+        request_timeout_seconds = _int_env(
+            "MODEL_TIMEOUT_SECONDS", cls.request_timeout_seconds
+        )
+        reasoning_timeout_default = min(
+            cls.reasoning_attempt_timeout_seconds,
+            max(1, request_timeout_seconds - 1),
+        )
         config = cls(
             model_base_url=(configured_base_url or default_base_url).rstrip("/"),
             model_api_key=os.environ.get("MODEL_API_KEY", cls.model_api_key),
             red_model_id=configured_red_model or default_model,
             blue_model_id=configured_blue_model or default_model,
-            request_timeout_seconds=_int_env("MODEL_TIMEOUT_SECONDS", cls.request_timeout_seconds),
+            request_timeout_seconds=request_timeout_seconds,
+            reasoning_attempt_timeout_seconds=_int_env(
+                "MODEL_REASONING_ATTEMPT_TIMEOUT_SECONDS",
+                reasoning_timeout_default,
+            ),
             structured_output_mode=os.environ.get(
                 "MODEL_STRUCTURED_OUTPUT_MODE", cls.structured_output_mode
             ).lower(),
@@ -173,6 +190,11 @@ class AgentLabConfig:
                 raise ValueError(f"{name} must be between 0 and 2.")
         if self.request_timeout_seconds < 1 or self.max_output_tokens < 100:
             raise ValueError("Model timeout and output-token limit must be positive.")
+        if not 1 <= self.reasoning_attempt_timeout_seconds < self.request_timeout_seconds:
+            raise ValueError(
+                "MODEL_REASONING_ATTEMPT_TIMEOUT_SECONDS must be positive and lower than "
+                "MODEL_TIMEOUT_SECONDS so a direct structured-output retry has time to finish."
+            )
         if not 1 <= self.case_parallelism <= 8:
             raise ValueError("CASE_PARALLELISM must be between 1 and 8.")
         if self.retrain_every < 0:

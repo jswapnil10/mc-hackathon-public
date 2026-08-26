@@ -75,13 +75,13 @@ class ModelGatewayCompatibilityTests(unittest.TestCase):
         config = AgentLabConfig(reasoning_effort="auto")
         self._call(config, "red_planner")
         red_payload = json.loads(urlopen.call_args.args[0].data.decode("utf-8"))
-        self.assertEqual(red_payload["reasoning_effort"], "medium")
+        self.assertEqual(red_payload["reasoning_effort"], "none")
         self._call(config, "blue_event_agent")
         blue_payload = json.loads(urlopen.call_args.args[0].data.decode("utf-8"))
         self.assertEqual(blue_payload["reasoning_effort"], "none")
         self._call(config, "blue_strategist")
         strategy_payload = json.loads(urlopen.call_args.args[0].data.decode("utf-8"))
-        self.assertEqual(strategy_payload["reasoning_effort"], "medium")
+        self.assertEqual(strategy_payload["reasoning_effort"], "none")
 
     @patch("sentinelloop.model_gateway.urllib.request.urlopen")
     def test_retries_without_thinking_when_reasoning_exhausts_output(self, urlopen) -> None:
@@ -110,13 +110,47 @@ class ModelGatewayCompatibilityTests(unittest.TestCase):
             }
         )
         urlopen.side_effect = [reasoning_only, final_content]
-        result, trace = self._call(AgentLabConfig(reasoning_effort="auto"), "red_planner")
+        result, trace = self._call(
+            AgentLabConfig(reasoning_effort="auto", red_reasoning_effort="medium"),
+            "red_planner",
+        )
         first = json.loads(urlopen.call_args_list[0].args[0].data.decode("utf-8"))
         second = json.loads(urlopen.call_args_list[1].args[0].data.decode("utf-8"))
         self.assertEqual(first["reasoning_effort"], "medium")
         self.assertEqual(second["reasoning_effort"], "none")
         self.assertEqual(result, {"ok": True})
         self.assertIn("reasoning_exhausted_retry_without_thinking", trace.compatibility_fallbacks)
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_reasoning_timeout_retries_direct_generation_with_time_remaining(self, urlopen) -> None:
+        final_content = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": '{"ok":true}'},
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+        urlopen.side_effect = [TimeoutError("timed out"), final_content]
+
+        result, trace = self._call(
+            AgentLabConfig(reasoning_effort="auto", red_reasoning_effort="medium"),
+            "red_planner",
+        )
+
+        first = json.loads(urlopen.call_args_list[0].args[0].data.decode("utf-8"))
+        second = json.loads(urlopen.call_args_list[1].args[0].data.decode("utf-8"))
+        self.assertEqual(urlopen.call_args_list[0].kwargs["timeout"], 45)
+        self.assertEqual(first["reasoning_effort"], "medium")
+        self.assertEqual(second["reasoning_effort"], "none")
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(trace.reasoning_effort, "none")
+        self.assertIn(
+            "reasoning_timeout_retry_without_thinking",
+            trace.compatibility_fallbacks,
+        )
 
     @patch("sentinelloop.model_gateway.urllib.request.urlopen")
     def test_omits_reasoning_for_endpoints_that_do_not_support_it(self, urlopen) -> None:

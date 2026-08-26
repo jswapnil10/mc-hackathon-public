@@ -272,7 +272,7 @@ async function loadLatest() {
   state.run = savedRun;
   state.roundIndex = Math.max(0, state.run.rounds.length - 1);
   state.turnIndex = 0;
-  renderRun(false);
+  renderRun(false, 'saved');
 }
 
 function renderTimeline(turns) {
@@ -490,9 +490,22 @@ function renderRound(index) {
   });
 }
 
-function renderRun(scrollToResults = true) {
+function renderRun(scrollToResults = true, provenance = 'current') {
   $('#results').classList.remove('hidden');
   $('#runTitle').textContent = state.run.run_id;
+  const provenanceLabels = {
+    current: 'CURRENT BATTLE · COMPLETED',
+    saved: 'LATEST SAVED SUCCESS',
+    stale: 'PREVIOUS SUCCESS · CURRENT ATTEMPT FAILED',
+  };
+  $('#resultProvenance').className = `result-provenance ${provenance}`;
+  $('#resultProvenance').textContent = provenanceLabels[provenance] || provenanceLabels.saved;
+  const sourceLabel = provenance === 'current' ? 'current battle' : 'latest saved successful battle';
+  document.querySelectorAll('.outcome-board .metric-source').forEach((element, index) => {
+    element.textContent = index === 2
+      ? `Source · ${sourceLabel} sealed truth`
+      : `Source · ${sourceLabel} Referee`;
+  });
   $('#redModelPill').textContent = shortModel(state.run.model_configuration.red);
   const detector = state.run.model_configuration.blue_detector || {};
   $('#blueModelPill').textContent = detector.active
@@ -607,6 +620,7 @@ $('#runFoundry').addEventListener('click', async () => {
 $('#runForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   $('#errorState').classList.add('hidden');
+  $('#results').classList.add('hidden');
   $('#runState').classList.remove('hidden');
   $('#runButton').disabled = true;
   const progressId = globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
@@ -643,10 +657,11 @@ $('#runForm').addEventListener('submit', async (event) => {
     state.run = payload;
     state.roundIndex = payload.rounds.length - 1;
     state.turnIndex = 0;
-    renderRun(true);
+    renderRun(true, 'current');
   } catch (error) {
-    $('#errorState').textContent = error.message;
+    $('#errorState').textContent = `This battle attempt failed and did not create a new report. ${error.message}`;
     $('#errorState').classList.remove('hidden');
+    if (state.run) renderRun(false, 'stale');
   } finally {
     stopProgressPolling();
     clearInterval(elapsedTimer);

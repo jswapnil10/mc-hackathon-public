@@ -24,9 +24,13 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"Threat Atlas", response.data)
         self.assertIn(b"Scenario Foundry", response.data)
         self.assertIn(b"Defense Benchmark", response.data)
+        self.assertIn(b"LATEST SAVED SUCCESS", response.data)
         self.assertIn(b"Reality-check the defense beyond our simulator", response.data)
         self.assertIn(b"Mastercard Innovation Challenge 2026", response.data)
         self.assertIn(b"Run guide", response.data)
+        script = self.client.get("/static/lab.js")
+        self.assertEqual(script.status_code, 200)
+        self.assertIn(b"CURRENT ATTEMPT FAILED", script.data)
 
     def test_run_state_guide_explains_every_output_boundary(self):
         with self.client.get("/static/run-guide.html") as response:
@@ -63,9 +67,9 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(
             payload["latency_profile"]["reasoning_profiles"],
             {
-                "red_planner": "medium",
+                "red_planner": "none",
                 "blue_live_event": "none",
-                "blue_between_rounds": "medium",
+                "blue_between_rounds": "none",
             },
         )
         self.assertEqual(payload["latency_profile"]["model_call_timeout_seconds"], 120)

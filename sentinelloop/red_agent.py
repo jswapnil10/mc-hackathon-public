@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from red_team_agent.catalog import AttackCatalog
@@ -162,6 +162,60 @@ class GenAIRedAgent:
             overrides[change.parameter] = int(round(value)) if isinstance(original, int) else value
         return card, overrides, dropped
 
+    def _normalize_plan_phase(self, plan: RedPlan) -> tuple[RedPlan, list[str]]:
+        """Repair a model-only label mismatch without weakening the scenario boundary.
+
+        Stage ids are executable choices; the lifecycle phase is descriptive metadata. JSON
+        Schema cannot express that every selected stage must belong to the selected phase, and
+        smaller local models occasionally contradict themselves here. Unknown families and
+        stages remain untouched so the strict validator below can reject them.
+        """
+        if plan.attack_family not in self.catalog.families or not plan.focus_stage_ids:
+            return plan, []
+        if plan.target_lifecycle_phase not in LIFECYCLE_PHASES:
+            return plan, []
+        card = self.catalog.get(plan.attack_family)
+        stage_by_id = {stage["stage_id"]: stage for stage in card.stage_templates}
+        if any(stage_id not in stage_by_id for stage_id in plan.focus_stage_ids):
+            return plan, []
+
+        phases = {
+            stage_id: lifecycle_phase_for_template(stage_by_id[stage_id])
+            for stage_id in plan.focus_stage_ids
+        }
+        matching = [
+            stage_id
+            for stage_id in plan.focus_stage_ids
+            if phases[stage_id] == plan.target_lifecycle_phase
+        ]
+        if matching == plan.focus_stage_ids:
+            return plan, []
+        if matching:
+            dropped = [stage_id for stage_id in plan.focus_stage_ids if stage_id not in matching]
+            return (
+                replace(plan, focus_stage_ids=matching),
+                [
+                    "Removed focus stages outside the declared lifecycle phase: "
+                    + ", ".join(dropped)
+                ],
+            )
+
+        inferred_phase = phases[plan.focus_stage_ids[0]]
+        inferred_focus = [
+            stage_id for stage_id in plan.focus_stage_ids if phases[stage_id] == inferred_phase
+        ]
+        return (
+            replace(
+                plan,
+                target_lifecycle_phase=inferred_phase,
+                focus_stage_ids=inferred_focus,
+            ),
+            [
+                f"Changed lifecycle phase from {plan.target_lifecycle_phase} to "
+                f"{inferred_phase} to match the selected executable stage."
+            ],
+        )
+
     def plan(
         self,
         *,
@@ -232,6 +286,13 @@ class GenAIRedAgent:
             plan = RedPlan.from_dict(result)
         except (KeyError, TypeError) as exc:
             raise ValueError("Red returned an incomplete campaign plan.") from exc
+        plan, phase_repairs = self._normalize_plan_phase(plan)
+        if phase_repairs:
+            trace(
+                "red.plan.phase_normalized",
+                "A contradictory lifecycle label was normalized from the bounded stage choice.",
+                repairs=phase_repairs,
+            )
         _, overrides, dropped_mutations = self._validate_plan(
             plan,
             requested_family=attack_family,
