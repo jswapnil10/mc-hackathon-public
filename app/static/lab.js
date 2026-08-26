@@ -257,10 +257,14 @@ async function loadStatus() {
   renderSubmissionProfile(data.submission_profile);
   $('#systemMode').textContent = String(data.mode || 'open model arena').replaceAll('_', ' ');
   $('#redModel').textContent = data.models.red;
-  $('#blueModel').textContent = data.models.blue;
+  $('#blueModel').textContent = data.models.blue_detector_active
+    ? `${shortModel(data.models.blue)} + HistGB`
+    : `${shortModel(data.models.blue)} · guard fallback`;
   $('#refereeModel').textContent = data.models.referee;
   $('#redModelPill').textContent = shortModel(data.models.red);
-  $('#blueModelPill').textContent = shortModel(data.models.blue);
+  $('#blueModelPill').textContent = data.models.blue_detector_active
+    ? `${shortModel(data.models.blue)} + ML`
+    : shortModel(data.models.blue);
   $('#attackFamily').innerHTML = data.attack_families.map(family => (
     `<option value="${escapeHtml(family.id)}">${escapeHtml(family.id)} · ${escapeHtml(family.name)}</option>`
   )).join('');
@@ -317,6 +321,7 @@ function renderSelectedTurn(index) {
   const investigation = turn.investigation || {};
   const decision = turn.decision || {};
   const riskSynthesis = turn.risk_synthesis || {};
+  const mlRisk = turn.ml_risk || null;
   const action = actionClasses.has(decision.action) ? decision.action : 'monitor';
 
   document.querySelectorAll('[data-turn-index]').forEach((button, buttonIndex) => {
@@ -331,6 +336,19 @@ function renderSelectedTurn(index) {
   $('#selectedConfidence').textContent = `${pct(decision.confidence)} confidence`;
   $('#selectedSummary').textContent = decision.decision_summary || 'No decision summary was recorded.';
   $('#selectedDelivery').textContent = `${pretty(event.source_system || 'synthetic event stream')} · ${pretty(event.decision_lane || 'decision lane not recorded')} · ${Number(event.latency_budget_ms) || '—'} ms budget`;
+  $('#selectedDetector').textContent = mlRisk
+    ? (mlRisk.above_threshold ? 'Above alert threshold' : 'Below alert threshold')
+    : 'Detector unavailable';
+  $('#selectedDetectorScore').textContent = mlRisk
+    ? `${precisePct(mlRisk.cumulative_session_risk, 1)} cumulative risk`
+    : 'Qwen + guard fallback';
+  $('#selectedDetectorDetail').innerHTML = mlRisk
+    ? chips([
+      `Event score ${precisePct(mlRisk.per_event_risk, 1)}`,
+      `Threshold ${precisePct(mlRisk.alert_threshold, 1)}`,
+      `Model ${mlRisk.model_hash || 'local champion'}`,
+    ], mlRisk.above_threshold ? 'red' : 'blue')
+    : chips(['Train scripts/train_detector.py to activate'], 'guard');
   $('#selectedGuard').textContent = `${pretty(riskSynthesis.operational_minimum_action || riskSynthesis.minimum_action || 'allow')} minimum`;
   $('#selectedGuardScore').textContent = `${Number(riskSynthesis.observable_risk_score) || 0} observable risk points`;
   $('#selectedGuardSignals').innerHTML = chips((riskSynthesis.indicators || []).map(item => pretty(item.code)), 'guard');
@@ -485,7 +503,10 @@ function renderRun(scrollToResults = true) {
   $('#results').classList.remove('hidden');
   $('#runTitle').textContent = state.run.run_id;
   $('#redModelPill').textContent = shortModel(state.run.model_configuration.red);
-  $('#blueModelPill').textContent = shortModel(state.run.model_configuration.blue);
+  const detector = state.run.model_configuration.blue_detector || {};
+  $('#blueModelPill').textContent = detector.active
+    ? `${shortModel(state.run.model_configuration.blue)} + ML`
+    : `${shortModel(state.run.model_configuration.blue)} · fallback`;
   $('#roundTabs').innerHTML = state.run.rounds.map((_, index) => `<button type="button" data-round="${index}">Round ${index + 1}</button>`).join('');
   document.querySelectorAll('[data-round]').forEach(button => {
     button.addEventListener('click', () => renderRound(Number(button.dataset.round)));

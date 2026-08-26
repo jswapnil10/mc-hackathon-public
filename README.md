@@ -13,16 +13,16 @@ MasterGuard AI is a working web prototype for the Mastercard Innovation Challeng
 3. A deterministic compiler and safety gate reject unsupported stages, parameters, identities and actions.
 4. A population generator materializes reproducible customer behavior, attack sequences, verified edge cases and family-specific look-alikes at scale.
 5. The simulator separates Blue-visible events from sealed truth and creates entity-isolated train, validation, known-test and novel-vector-test splits.
-6. A fast sequence guard accumulates visible weak signals and sets a minimum safe action before any model call.
-7. A Blue GenAI Investigator selects read-only evidence tools and chooses `allow`, `monitor`, `step_up`, `hold` or `block` without undercutting the guard.
-8. A scalable detector is selected on validation only and reports PR-AUC, precision, recall, F1, false-positive rate and value-weighted recall on sealed tests.
+6. A fast sequence guard and Blue-only gradient-boosting detector score causal, observable signals before any model call.
+7. A Blue GenAI Investigator consumes those scores as evidence, selects read-only tools and chooses `allow`, `monitor`, `step_up`, `hold` or `block` without undercutting the guard.
+8. The detector is selected on validation only and reports PR-AUC, precision, recall, F1, false-positive rate and value-weighted recall on sealed tests.
 9. An independent chronological test on public, real, anonymized card transactions measures performance beyond the simulator, with confidence intervals, calibration and drift diagnostics.
 10. A deterministic Referee scores timing, protected value, false positives and customer friction.
 11. Red receives only coarse feedback and may adapt the next bounded campaign.
 12. A Blue Strategist proposes an evidence playbook; the Referee promotes it only after safer replay gains.
 13. The MasterGuard AI web prototype presents Identify, Generate, Defend and independent-validation evidence plus the live Red-versus-Blue Agent Arena.
 
-The live Arena remains GenAI against GenAI. The population benchmark adds a measurable classifier because the challenge explicitly asks for precision, recall, F1/AUC and low false positives at scale. The classifier is the high-throughput scoring layer; Qwen remains the explainable investigator and strategy agent.
+The Arena is an adversarial GenAI loop with a two-speed Blue defense. Red Qwen plans and adapts bounded attacks. Blue's gradient-boosting detector performs high-throughput tabular screening, while Blue Qwen performs evidence-grounded investigation, mitigation and strategy. The detector is not part of Red and its scores, features, threshold and weights never cross the Referee boundary.
 
 ## Architecture and information boundaries
 
@@ -31,7 +31,9 @@ flowchart LR
     R["Red GenAI planner"] --> G["Bounded compiler and safety gate"]
     G --> S["Synthetic payment world"]
     S -->|"Observable events only"| Q["Fast sequence guard"]
+    S -->|"Causal tabular features"| M["Blue gradient-boosting detector"]
     Q --> BI["Blue GenAI investigator"]
+    M -->|"Risk score as evidence"| BI
     BI --> T["Read-only evidence tools"]
     T --> BD["Blue GenAI decision"]
     S -.->|"Sealed truth"| F["Deterministic Referee"]
@@ -40,6 +42,9 @@ flowchart LR
     F -->|"Declassified episode metrics"| BS["Blue GenAI strategist"]
     BS -->|"Candidate playbook"| RP["Deterministic replay gate"]
     RP -->|"Promoted only after measurable safe gain"| BI
+    F -->|"Post-outcome labels only"| L["Append-only Blue learning log"]
+    L --> C["Champion/challenger retraining"]
+    C -->|"Promoted after safe measurable gain"| M
     S --> P["Population generator"]
     P --> D["Validation-selected scalable detector"]
     D --> E["Known + sealed-novel efficacy report"]
@@ -48,7 +53,8 @@ flowchart LR
 ```
 
 - **Red** sees researched attack cards, allowed mutations, difficulty and coarse feedback.
-- **Blue** sees event types, synthetic attributes, visible history and tool evidence. It never receives the attack family, fraud label, stage ID or intervention answer key.
+- **Blue detector** sees only a causal feature allowlist derived from current and prior observable events. It is fast, deterministic at inference and never receives answer-key fields.
+- **Blue Agent** sees event types, synthetic attributes, visible history, tool evidence and the detector score. It never receives the attack family, fraud label, stage ID or intervention answer key.
 - **Fast guard** uses no model and no sealed label. It enforces continuity and a minimum action from cross-phase evidence while Qwen performs the richer investigation.
 - **Referee** alone can join Blue's decisions to sealed truth.
 - **Blue Strategist** sees a declassified post-episode summary, proposes only approved evidence tools and defensive focus, and cannot promote its own proposal.
@@ -172,7 +178,19 @@ Expected shape:
 
 MasterGuard AI prefers an installed `qwen3.5:9b`, then another Qwen 3.5 or Qwen Coder model, and finally any installed model whose name contains `qwen`.
 
-### 5. Start the web application
+### 5. Train the Blue real-time detector
+
+The generated champion is local and intentionally ignored by Git. Train it once before starting the hybrid Arena:
+
+```bash
+python scripts/train_detector.py --seeds-per-cell 8
+```
+
+For a faster development smoke test, use `--seeds-per-cell 2`. The report is written to `data/loop/detector_report.json` and the champion to `data/loop/models/champion/model.joblib`.
+
+The detector is enabled by default. If its model file is missing or incompatible, MasterGuard records the fallback and safely runs Blue in sequence-guard-plus-Qwen mode. To disable ML explicitly, set `ML_DETECTOR_ENABLED=0`.
+
+### 6. Start the web application
 
 ```bash
 python -m app.server
@@ -193,6 +211,15 @@ For your first test, select:
 Then choose **Start agent battle**. One round is the fast demonstration path. Blue combines investigation and decision in one Qwen call per unresolved event, resolves independently verified low-risk events without Qwen, and evaluates the isolated attack and look-alike cases with bounded concurrency. Runs with two or more rounds also replay-test a Blue defense candidate between rounds and therefore take longer; use them when demonstrating the learning loop rather than for every development check.
 
 After a new battle, the report first shows the five submission criteria, balanced lifecycle defense score and weakest phase, then separate pre-transaction, transaction and post-transaction cards. The capability-versus-consequence view distinguishes a weak attack from a capable attack that Blue successfully contained. Select any replay event to inspect the source stream, live-payment lane, fast-guard risk synthesis, Blue evidence tools, reason codes, action and mitigation.
+
+Every completed Referee round appends post-outcome rows to `data/loop/training_log.jsonl`. Automatic retraining is deliberately disabled in the fast UI path because it adds latency. For a dedicated multi-round learning demonstration, set `BATTLE_RETRAIN_EVERY=2`; a challenger is promoted only after measurable improvement while recall and legitimate-customer safety remain inside strict tolerances.
+
+### Why the gradient-boosting model is Blue-only
+
+- Red's job is to create and adapt plausible bounded attacks, not classify them.
+- Blue needs a fast, stable tabular signal before the slower contextual Qwen investigation.
+- Red receives only coarse Referee outcomes, never Blue's exact score, threshold, features or model weights.
+- Blue training labels are written only after the Referee opens sealed truth, so the live decision cannot read its own answer key.
 
 ## Explicit model selection
 
@@ -255,7 +282,7 @@ export MODEL_API_KEY=choose-a-private-random-value
 docker compose -f deploy/docker-compose.qwen.yml up --build
 ```
 
-Then open [http://127.0.0.1:8501](http://127.0.0.1:8501). The first startup downloads the model and will take longer. The Compose file uses the official `vllm/vllm-openai` image; see the [vLLM Docker guide](https://docs.vllm.ai/en/stable/deployment/docker/) and [OpenAI-compatible server documentation](https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/).
+Then open [http://127.0.0.1:8501](http://127.0.0.1:8501). The web image trains and embeds a reproducible Blue detector during its build; no generated model is committed to Git. The first model-service startup downloads Qwen and will take longer. The Compose file uses the official `vllm/vllm-openai` image; see the [vLLM Docker guide](https://docs.vllm.ai/en/stable/deployment/docker/) and [OpenAI-compatible server documentation](https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/).
 
 For a public deployment, expose only the web service. Keep vLLM private behind a network boundary or reverse proxy; an API key alone is not a complete perimeter.
 
@@ -359,6 +386,13 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | `CASE_PARALLELISM` | `4` | Maximum isolated attack/control cases evaluated concurrently; set to `1` for a model server that already performs its own batching |
 | `RED_AGENT_TEMPERATURE` | `0.65` | Red planning diversity |
 | `BLUE_AGENT_TEMPERATURE` | `0.15` | Blue decision consistency |
+| `ML_DETECTOR_ENABLED` | `1` | Enables the Blue-only gradient-boosting evidence layer when a champion model is available |
+| `ML_MODEL_DIR` | `data/loop/models/champion` | Local champion detector directory |
+| `BATTLE_TRAINING_LOG` | `data/loop/training_log.jsonl` | Append-only post-Referee Blue learning rows |
+| `BATTLE_RETRAIN_EVERY` | `0` | Completed rounds per challenger retrain; `0` keeps retraining out of the fast UI path |
+| `BATTLE_INCLUDE_AMBIENT` | `0` | Include ordinary and hard-negative traffic in live Referee scoring |
+| `BATTLE_AMBIENT_SAMPLE` | `8` | Ordinary cases added when ambient evaluation is enabled |
+| `BATTLE_TRAP_SAMPLE_EACH` | `2` | Look-alike cases per trap type when ambient evaluation is enabled |
 | `APP_HOST` | `127.0.0.1` | Web bind address |
 | `PORT` | `8501` | Web port |
 | `FLASK_DEBUG` | `0` | Flask development debugger |

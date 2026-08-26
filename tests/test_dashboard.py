@@ -44,6 +44,7 @@ class DashboardTests(unittest.TestCase):
         payload = response.get_json()
         self.assertNotIn("model_base_url", payload)
         self.assertEqual(payload["model_endpoint"], "server-side and private")
+        self.assertIn("blue_detector_active", payload["models"])
         self.assertEqual(len(payload["attack_families"]), 9)
         self.assertEqual(payload["submission_profile"]["diversity"]["attack_family_count"], 9)
         self.assertEqual(payload["submission_profile"]["fidelity"]["lab_only_event_types_allowed"], [])

@@ -91,7 +91,7 @@ class GenAIBlueAgent:
             "alert_threshold": round(float(threshold), 6) if threshold is not None else None,
             "above_threshold": above,
             "model_hash": self.model_hash,
-            "note": "Calibrated model risk in [0,1]; treat as evidence, not a truth label.",
+            "note": "Model score in [0,1]; not probability-calibrated and never a truth label.",
         }
         packet = EvidencePacket(
             evidence_id=f"ml_risk_{event.event_id[-8:]}",
@@ -458,6 +458,7 @@ class GenAIBlueAgent:
             legitimate_context_verified
             and risk_synthesis["operational_minimum_action"] == "allow"
             and unresolved_alert is None
+            and not (ml_risk_info and ml_risk_info.get("above_threshold"))
         ):
             investigation = InvestigationRequest(
                 preliminary_risk=(
@@ -513,6 +514,11 @@ class GenAIBlueAgent:
             "fast_path_guard": (
                 "The observable-only sequence guard is a minimum action, not a fraud label. "
                 "You may choose a stronger action when evidence supports it, but never a weaker one."
+            ),
+            "ml_evidence": (
+                "The ml_risk_score packet is a Blue-only statistical signal, not a fraud label or "
+                "automatic verdict. Investigate an above-threshold score and reconcile it with "
+                "timeline, entity, payment, and independently verified legitimate context."
             ),
             "legitimate_resolution": (
                 "Use legitimate_context only when the legitimate-alternatives packet reports "

@@ -2,7 +2,7 @@
 
 Grouped split (StratifiedGroupKFold on `group_key`, stratified by attack_family) prevents
 kill-chain stages leaking across train/test. Threshold is chosen at a fixed alert budget, not
-0.5. No model is wired into the live Blue agent here (that is Phase 2).
+0.5. The saved champion is consumed as a Blue-only evidence source by the live Agent Arena.
 
 Run:  python scripts/train_detector.py --seed 42 --alert-rate 0.01
 """
@@ -49,7 +49,7 @@ def _aggregate(folds: list[dict]) -> dict:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Cross-validate the Blue-team detector (no live wiring).")
+    ap = argparse.ArgumentParser(description="Cross-validate and train the Blue Arena detector.")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--alert-rate", type=float, default=0.01)
     ap.add_argument("--test-share", type=float, default=0.3)

@@ -4,7 +4,8 @@ A *generation* = N rounds during which the champion is frozen. Retraining is ful
 (cheap at this scale; warm-starting a HistGBM only adds trees on the same data and ossifies dead
 attack modes). Each retrain blends: the synthetic legit+fraud baseline, the accumulated battle log,
 and a class/family-stratified replay buffer (so families Red abandons then revisits are retained).
-A challenger is promoted ONLY if it does not regress chain recall and does not increase hard-FP.
+A challenger is promoted only when it makes a measurable gain while keeping chain recall and
+hard-negative false positives inside strict non-regression tolerances.
 """
 
 from __future__ import annotations
@@ -58,17 +59,21 @@ def _evaluate(df: pd.DataFrame, seed: int, alert_rate: float, test_share: float)
 
 
 def _gate_metrics(meta: dict[str, Any]) -> dict[str, float] | None:
-    """Read {chain_recall, hard_false_positive_rate} from a champion bundle's meta (flat or CV-nested)."""
+    """Read judge-facing gate metrics from a champion bundle (flat or CV-nested)."""
     if not meta:
         return None
     if "gate_metrics" in meta:
         return meta["gate_metrics"]
     cv = meta.get("cv")
     if cv and "chain_recall" in cv:
-        return {
+        result = {
             "chain_recall": cv["chain_recall"]["mean"],
             "hard_false_positive_rate": cv["hard_false_positive_rate"]["mean"],
         }
+        for key in ("chain_precision", "prevented_share"):
+            if key in cv:
+                result[key] = cv[key]["mean"]
+        return result
     return None
 
 
@@ -88,16 +93,27 @@ def _should_promote(
     incumbent: dict[str, float] | None,
     min_delta: float,
     fp_tol: float = 0.002,
+    min_improvement: float = 0.001,
 ) -> bool:
-    """Promote only if the challenger does not regress chain recall (beyond `min_delta`) AND does
-    not increase hard-FP beyond a TIGHT `fp_tol` (default 0.002, ~CV noise). The FP tolerance is
-    deliberately separate from and much smaller than the recall tolerance, so a challenger cannot
-    buy recall with a materially higher false-positive rate on the look-alike controls."""
+    """Require a measurable gain plus strict recall and customer-safety non-regression.
+
+    Tolerances absorb small evaluation noise; they are not themselves an improvement. At least one
+    judge-facing metric must improve by `min_improvement`, so a slightly worse challenger cannot be
+    promoted merely because its regressions happen to fit inside the tolerances.
+    """
     if incumbent is None:
         return True  # no champion yet -> accept
     recall_ok = challenger["chain_recall"] >= incumbent["chain_recall"] - min_delta
     fp_ok = challenger["hard_false_positive_rate"] <= incumbent["hard_false_positive_rate"] + fp_tol
-    return recall_ok and fp_ok
+    gains = [
+        challenger["chain_recall"] - incumbent["chain_recall"],
+        incumbent["hard_false_positive_rate"] - challenger["hard_false_positive_rate"],
+    ]
+    for key in ("chain_precision", "prevented_share"):
+        if key in challenger and key in incumbent:
+            gains.append(challenger[key] - incumbent[key])
+    measurable_gain = max(gains) >= min_improvement
+    return recall_ok and fp_ok and measurable_gain
 
 
 # --------------------------------------------------------------------------- retrain driver
@@ -111,6 +127,7 @@ def retrain(
     test_share: float = 0.3,
     min_delta: float = 0.01,
     fp_tol: float = 0.002,
+    min_improvement: float = 0.001,
     generation: int | None = None,
     now_iso: str | None = None,
 ) -> dict[str, Any]:
@@ -130,7 +147,13 @@ def retrain(
 
     challenger = _evaluate(df, baseline_seed, alert_rate, test_share)
     incumbent = _incumbent_metrics(champion_dir)
-    promote = _should_promote(challenger, incumbent, min_delta, fp_tol)
+    promote = _should_promote(
+        challenger,
+        incumbent,
+        min_delta,
+        fp_tol,
+        min_improvement,
+    )
 
     decision: dict[str, Any] = {
         "generation": generation,
@@ -140,6 +163,8 @@ def retrain(
         "incumbent": incumbent,
         "promoted": promote,
         "min_delta": min_delta,
+        "fp_tolerance": fp_tol,
+        "minimum_improvement": min_improvement,
     }
 
     if promote:
@@ -149,6 +174,8 @@ def retrain(
         gate_metrics = {
             "chain_recall": challenger["chain_recall"],
             "hard_false_positive_rate": challenger["hard_false_positive_rate"],
+            "chain_precision": challenger["chain_precision"],
+            "prevented_share": challenger["prevented_share"],
         }
         bundle_meta = {
             "generation": generation,

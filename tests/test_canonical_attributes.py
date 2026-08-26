@@ -29,7 +29,7 @@ CATEGORICAL_CANONICALS = ["beneficiary_kyc_tier"]
 class CanonicalAttributeLeakageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Small but full sweep (6 families x 3 difficulties x 2 seeds) + controls + ambient.
+        # Small but full sweep (9 families x 3 difficulties x 2 seeds) + controls + ambient.
         cls.df = build_dataset(seed=42, seeds_per_cell=2)
 
     def _split(self, col):

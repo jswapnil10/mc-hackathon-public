@@ -1,6 +1,5 @@
-"""Blue-team ML data pipeline (Phase 1).
+"""Blue-only, leakage-controlled payment detector and champion/challenger learning loop.
 
-Contains ONLY leakage-controlled feature engineering at this stage. No classifier,
-no training, no wiring into the (LLM-reliant) Blue agent — the ML detector is deferred.
-See docs/blue-team-ml-evolution-research.md, phases 0 and 1.
+The detector supplies causal risk evidence to the Blue GenAI investigator. It never receives
+sealed truth at inference and no detector details are exposed to the Red agent.
 """

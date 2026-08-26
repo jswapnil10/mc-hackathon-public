@@ -469,6 +469,13 @@ class SentinelLoopOrchestrator:
             model_configuration={
                 "red": self.config.red_model_id,
                 "blue": self.config.blue_model_id,
+                "blue_detector": {
+                    "type": "HistGradientBoostingClassifier",
+                    "configured": self.config.ml_detector_enabled,
+                    "active": self.blue.detector is not None,
+                    "model_hash": self.blue.model_hash,
+                    "role": "Blue evidence only; never exposed to Red",
+                },
                 "blue_strategist": self.config.blue_model_id,
                 "referee": "deterministic-policy-v2",
                 "blue_execution": "single_call_per_event",

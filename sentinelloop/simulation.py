@@ -50,6 +50,46 @@ def event_lifecycle_phase(event_type: str) -> str:
         return "post_transaction"
     return "transaction"
 
+
+def event_delivery_profile(event_type: str) -> tuple[str, str, int]:
+    """Return the production-style source, processing lane, and latency budget for an event."""
+    if event_type == "COMMUNICATION_RISK_CONTEXT":
+        source = "channel_risk_gateway"
+    elif event_type in {
+        "IDENTITY_APPLICATION_SUBMITTED",
+        "IDENTITY_VERIFICATION_ATTEMPTED",
+        "ACCOUNT_OPENED",
+    }:
+        source = "identity_verification_stream"
+    elif event_type in {
+        "SESSION_STARTED",
+        "AUTHENTICATION_CONTEXT_CHANGED",
+        "ACCOUNT_BEHAVIOR_PROFILE_UPDATED",
+    }:
+        source = "authentication_behavior_stream"
+    elif event_type in {"AGENT_COMMERCE_SESSION_STARTED", "AGENT_PAYMENT_INTENT_PRESENTED"}:
+        source = "agentic_commerce_trust_gateway"
+    elif event_type.startswith("DISPUTE_"):
+        source = "dispute_case_stream"
+    elif event_type in {"FUNDS_RECEIVED", "FUNDS_DISPERSED", "PAYOUT_SETTLED"}:
+        source = "payment_network_stream"
+    elif event_type in {
+        "BENEFICIARY_ADDED",
+        "SUPPLIER_PROFILE_CHANGED",
+        "PAYOUT_DESTINATION_CHANGED",
+        "SALES_VELOCITY_CHANGED",
+    }:
+        source = "account_profile_stream"
+    else:
+        source = "payment_orchestration_stream"
+
+    phase = event_lifecycle_phase(event_type)
+    if phase == "pre_transaction":
+        return source, "asynchronous_pre_transaction", 2000
+    if phase == "post_transaction":
+        return source, "streaming_post_transaction", 5000
+    return source, "inline_payment_decision", 300
+
 # Attack stages that are benign in isolation: part of the kill chain but carrying no
 # malicious action on their own, so they are labelled non-fraud-contributing.
 BENIGN_STAGE_IDS = {
@@ -93,6 +133,14 @@ def _materialize_attributes(
         "shared_device_probability": "device_shared_across_accounts",
         "shared_network_probability": "network_shared_across_accounts",
         "device_reuse_probability": "device_reused_across_profiles",
+        "bot_behavior_probability": "behavior_automation_suspected",
+        "identity_mismatch_probability": "identity_consistency_mismatch",
+        "evidence_conflict_probability": "evidence_conflict_present",
+        "agent_signature_valid_probability": "agent_signature_valid",
+        "consumer_consent_valid_probability": "consumer_consent_valid",
+        "intent_scope_match_probability": "intent_scope_match",
+        "payment_container_match_probability": "payment_container_match",
+        "merchant_scope_match_probability": "merchant_scope_match",
     }
     for source, target in named.items():
         if source in materialized:
@@ -126,13 +174,17 @@ def _materialize_attributes(
 
 def _value_at_risk(scenario: ScenarioSpec, stage_id: str, event_type: str, attributes: dict[str, Any]) -> float:
     amount = float(attributes.get("amount_inr", 0.0))
-    if event_type == "PAYMENT_INITIATED":
+    if scenario.attack_family == "DISPUTE-01" and stage_id == "original_purchase":
+        return 0.0
+    if event_type in {"PAYMENT_INITIATED", "AGENTIC_PAYMENT_INITIATED"}:
         return amount
     if event_type == "PAYMENT_REPEATED":
         count = max(1, int(attributes.get("payment_count", scenario.parameters.get("payment_count", 2))))
         return amount * count
     if scenario.attack_family == "MULE-01" and stage_id == "fan_in":
         return amount * int(scenario.parameters.get("sender_count", 1))
+    if event_type in {"PAYOUT_REQUESTED", "DISPUTE_REFUND_ISSUED"}:
+        return amount
     return 0.0
 
 
@@ -147,6 +199,7 @@ def simulate_attack(scenario: ScenarioSpec) -> SimulationCase:
     for stage in scenario.stages:
         event_id = _stable_id(scenario.scenario_id, stage.stage_id, stage.sequence)
         attributes = _materialize_attributes(stage.attributes, rng=rng, event_type=stage.event_type)
+        source_system, decision_lane, latency_budget_ms = event_delivery_profile(stage.event_type)
         events.append(
             ObservedEvent(
                 event_id=event_id,
@@ -156,6 +209,9 @@ def simulate_attack(scenario: ScenarioSpec) -> SimulationCase:
                 event_type=stage.event_type,
                 observable_signals=list(stage.observable_signals),
                 attributes=attributes,
+                source_system=source_system,
+                decision_lane=decision_lane,
+                latency_budget_ms=latency_budget_ms,
             )
         )
         truth.append(
@@ -257,6 +313,7 @@ def _benignize(attrs: dict[str, Any], *, event_type: str, rng: random.Random) ->
 def _standalone_case(case_id: str, event_type: str, attrs: dict[str, Any], ts: datetime) -> SimulationCase:
     """Wrap one standalone legit event as a length-1 SimulationCase Blue + Referee can consume."""
     event_id = _stable_id(case_id, event_type)
+    source_system, decision_lane, latency_budget_ms = event_delivery_profile(event_type)
     event = ObservedEvent(
         event_id=event_id,
         sequence=1,
@@ -265,6 +322,9 @@ def _standalone_case(case_id: str, event_type: str, attrs: dict[str, Any], ts: d
         event_type=event_type,
         observable_signals=[],
         attributes=attrs,
+        source_system=source_system,
+        decision_lane=decision_lane,
+        latency_budget_ms=latency_budget_ms,
     )
     truth = TruthRecord(
         event_id=event_id,
@@ -361,6 +421,7 @@ def simulate_legitimate_controls(scenario: ScenarioSpec, control_names: list[str
             attack_attrs = _materialize_attributes(stage.attributes, rng=rng, event_type=stage.event_type)
             attrs = _benignize(attack_attrs, event_type=stage.event_type, rng=rng)
             event_id = _stable_id(case_id, stage.sequence)
+            source_system, decision_lane, latency_budget_ms = event_delivery_profile(stage.event_type)
             events.append(
                 ObservedEvent(
                     event_id=event_id,
@@ -370,6 +431,9 @@ def simulate_legitimate_controls(scenario: ScenarioSpec, control_names: list[str
                     event_type=stage.event_type,
                     observable_signals=list(stage.observable_signals),
                     attributes=attrs,
+                    source_system=source_system,
+                    decision_lane=decision_lane,
+                    latency_budget_ms=latency_budget_ms,
                 )
             )
             truth.append(

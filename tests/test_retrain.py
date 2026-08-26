@@ -32,6 +32,8 @@ class GateTests(unittest.TestCase):
     def test_gate_promotes_and_rejects(self):
         inc = {"chain_recall": 0.9, "hard_false_positive_rate": 0.05}
         self.assertTrue(_should_promote({"chain_recall": 0.92, "hard_false_positive_rate": 0.04}, inc, 0.01))
+        # Regressing both metrics inside the tolerances is still not an improvement.
+        self.assertFalse(_should_promote({"chain_recall": 0.895, "hard_false_positive_rate": 0.051}, inc, 0.01))
         # worse recall beyond tolerance -> reject
         self.assertFalse(_should_promote({"chain_recall": 0.80, "hard_false_positive_rate": 0.04}, inc, 0.01))
         # higher hard-FP beyond tolerance -> reject

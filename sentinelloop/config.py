@@ -55,6 +55,18 @@ def _int_env(name: str, default: int) -> int:
         raise ValueError(f"{name} must be an integer, received {raw!r}.") from exc
 
 
+def _bool_env(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be true or false, received {raw!r}.")
+
+
 @dataclass(frozen=True)
 class AgentLabConfig:
     """All model choices are replaceable without changing application code."""
@@ -69,8 +81,15 @@ class AgentLabConfig:
     blue_temperature: float = 0.15
     max_output_tokens: int = 1400
     case_parallelism: int = 4
-    ml_detector_enabled: bool = False           # off by default: Blue stays LLM-only unless enabled
+    # This detector is exclusively a Blue data-plane capability. Red receives only coarse
+    # Referee feedback and never sees model scores, features, thresholds, or weights.
+    ml_detector_enabled: bool = True
     ml_model_dir: str = "data/loop/models/champion"
+    training_log_path: str = "data/loop/training_log.jsonl"
+    retrain_every: int = 0
+    include_ambient_evaluation: bool = False
+    ambient_sample: int = 8
+    trap_sample_each: int = 2
 
     @classmethod
     def from_env(cls) -> "AgentLabConfig":
@@ -94,8 +113,15 @@ class AgentLabConfig:
             blue_temperature=_float_env("BLUE_AGENT_TEMPERATURE", cls.blue_temperature),
             max_output_tokens=_int_env("MODEL_MAX_OUTPUT_TOKENS", cls.max_output_tokens),
             case_parallelism=_int_env("CASE_PARALLELISM", cls.case_parallelism),
-            ml_detector_enabled=os.environ.get("ML_DETECTOR_ENABLED", "0").lower() in {"1", "true", "yes"},
+            ml_detector_enabled=_bool_env("ML_DETECTOR_ENABLED", cls.ml_detector_enabled),
             ml_model_dir=os.environ.get("ML_MODEL_DIR", cls.ml_model_dir),
+            training_log_path=os.environ.get("BATTLE_TRAINING_LOG", cls.training_log_path),
+            retrain_every=_int_env("BATTLE_RETRAIN_EVERY", cls.retrain_every),
+            include_ambient_evaluation=_bool_env(
+                "BATTLE_INCLUDE_AMBIENT", cls.include_ambient_evaluation
+            ),
+            ambient_sample=_int_env("BATTLE_AMBIENT_SAMPLE", cls.ambient_sample),
+            trap_sample_each=_int_env("BATTLE_TRAP_SAMPLE_EACH", cls.trap_sample_each),
         )
         config.validate()
         return config
@@ -117,6 +143,10 @@ class AgentLabConfig:
             raise ValueError("Model timeout and output-token limit must be positive.")
         if not 1 <= self.case_parallelism <= 8:
             raise ValueError("CASE_PARALLELISM must be between 1 and 8.")
+        if self.retrain_every < 0:
+            raise ValueError("BATTLE_RETRAIN_EVERY cannot be negative.")
+        if self.ambient_sample < 0 or self.trap_sample_each < 0:
+            raise ValueError("Ambient and trap sample sizes cannot be negative.")
 
     @property
     def chat_completions_url(self) -> str:

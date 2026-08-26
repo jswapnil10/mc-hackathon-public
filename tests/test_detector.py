@@ -6,10 +6,15 @@ import unittest
 
 import numpy as np
 
+from red_team_agent.planner import RedTeamAgent
+
+from sentinelloop.blue_agent import GenAIBlueAgent
 from sentinelloop.blue_ml.detector import FraudDetector
 from sentinelloop.blue_ml.feature_frame import build_feature_frame_from_seed
 from sentinelloop.blue_ml.features import FEATURES, FORBIDDEN_MODEL_INPUTS, audit_leakage
 from sentinelloop.blue_ml.metrics import summarise, threshold_for_budget
+from sentinelloop.config import AgentLabConfig
+from sentinelloop.simulation import simulate_attack
 
 
 class DetectorTests(unittest.TestCase):
@@ -52,6 +57,18 @@ class DetectorTests(unittest.TestCase):
             reloaded = FraudDetector.load(tmp)
             np.testing.assert_allclose(reloaded.score(self.X), scores)
             self.assertEqual(reloaded.threshold, thr)
+
+            blue = GenAIBlueAgent(
+                gateway=object(),
+                config=AgentLabConfig(ml_detector_enabled=True, ml_model_dir=tmp),
+            )
+            event = simulate_attack(
+                RedTeamAgent().plan(attack_family="ATO-01", difficulty="medium", seed=13)
+            ).events[0]
+            packet, facts = blue._ml_evidence(event, [event], [])
+            self.assertEqual(packet.tool_name, "ml_risk_score")
+            self.assertIn("cumulative_session_risk", facts)
+            self.assertNotIn("attack_family", packet.to_dict())
 
 
 if __name__ == "__main__":

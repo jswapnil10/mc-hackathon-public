@@ -159,6 +159,10 @@ def create_app() -> Flask:
     @app.get("/api/v2/status")
     def agent_status() -> Any:
         config = AgentLabConfig.from_env()
+        detector_dir = Path(config.ml_model_dir)
+        if not detector_dir.is_absolute():
+            detector_dir = PROJECT_ROOT / detector_dir
+        detector_available = config.ml_detector_enabled and (detector_dir / "model.joblib").is_file()
         catalog = AttackCatalog()
         atlas = ThreatAtlas()
         return jsonify(
@@ -166,12 +170,15 @@ def create_app() -> Flask:
                 "system": "MasterGuard AI - Attack. Adapt. Defend.",
                 "mode": "live_open_model",
                 "architecture": (
-                    "Red GenAI → Synthetic Arena → Fast Sequence Guard + Blue GenAI → Deterministic Referee "
-                    "→ guarded Red/Blue feedback loops"
+                    "Red GenAI → Synthetic Arena → Blue gradient-boosting detector + sequence guard + "
+                    "GenAI Investigator → Deterministic Referee → separated Red/Blue feedback loops"
                 ),
                 "models": {
                     "red": config.red_model_id,
                     "blue": config.blue_model_id,
+                    "blue_detector": "HistGradientBoostingClassifier",
+                    "blue_detector_enabled": config.ml_detector_enabled,
+                    "blue_detector_active": detector_available,
                     "blue_strategist": config.blue_model_id,
                     "referee": "deterministic-policy-v2",
                 },
@@ -292,12 +299,18 @@ def create_app() -> Flask:
                 rounds=rounds,
                 seed=seed,
             )
-            result = SentinelLoopOrchestrator().run(
+            config = AgentLabConfig.from_env()
+            result = SentinelLoopOrchestrator(config=config).run(
                 attack_family=family,
                 difficulty=difficulty,
                 rounds=rounds,
                 seed=seed,
                 include_legitimate_controls=True,
+                include_ambient=config.include_ambient_evaluation,
+                ambient_sample=config.ambient_sample,
+                trap_sample_each=config.trap_sample_each,
+                training_log_path=config.training_log_path or None,
+                retrain_every=config.retrain_every or None,
             )
             payload = result.to_dict()
             AGENT_RUNS_DIR.mkdir(parents=True, exist_ok=True)

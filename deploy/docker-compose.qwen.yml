@@ -38,7 +38,11 @@ services:
       RED_MODEL_ID: Qwen/Qwen3.5-9B
       BLUE_MODEL_ID: Qwen/Qwen3.5-9B
       MODEL_STRUCTURED_OUTPUT_MODE: json_schema
-      MODEL_TIMEOUT_SECONDS: 180
+      MODEL_TIMEOUT_SECONDS: 120
+      ML_DETECTOR_ENABLED: "1"
+      ML_MODEL_DIR: data/loop/models/champion
+      BATTLE_TRAINING_LOG: data/loop/training_log.jsonl
+      BATTLE_RETRAIN_EVERY: "0"
       APP_HOST: 0.0.0.0
       PORT: 8501
     ports:

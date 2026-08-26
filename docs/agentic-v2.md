@@ -2,7 +2,7 @@
 
 ## Product thesis
 
-SentinelLoop is not a classifier with an LLM-shaped interface. It is a controlled adversarial laboratory in which one GenAI agent designs and adapts synthetic fraud campaigns, a second GenAI agent investigates the resulting payment behavior and chooses mitigation, and a deterministic Referee measures who succeeded.
+SentinelLoop is a controlled adversarial laboratory in which one GenAI agent designs and adapts synthetic fraud campaigns, a two-speed Blue defense combines gradient-boosting screening with GenAI investigation and mitigation, and a deterministic Referee measures who succeeded.
 
 The original statistical baseline remains in the repository as historical scaffolding. It is not used by the v2 runtime or the competition demo.
 
@@ -24,7 +24,7 @@ Red cannot create real messages, credentials, targets, personal data, phishing U
 
 Blue receives only the event fields a real defensive system might observe. It never receives `attack_family`, `scenario_id`, stage names or fraud labels.
 
-Before any model call, a deterministic sequence guard joins the visible case across lifecycle phases. It scores only observable evidence, produces a minimum safe action, and never reads sealed truth. This is the fast payment-data-plane layer: Qwen may strengthen its recommendation but cannot weaken it.
+Before any GenAI call, a deterministic sequence guard joins the visible case across lifecycle phases and a Blue-only `HistGradientBoostingClassifier` scores causal tabular features. Both use only current and prior observable evidence and never read sealed truth. Together they form the fast payment-data-plane layer: the classifier score is evidence rather than an automatic verdict, and Qwen may strengthen the minimum safe action but cannot weaken the guard.
 
 Blue then acts as an investigator. It selects from nine read-only tools:
 
@@ -45,6 +45,8 @@ The legitimacy boundary is explicit. Same-case entity repetition proves continui
 A `hold` pauses synthetic value movement but does not stop investigation. Later events are still evaluated so the hold can be resolved with legitimate context or escalated to `block`. Only `block` terminates the case.
 
 Between rounds, a Blue Strategist receives a declassified episode summary and proposes a bounded playbook: preferred evidence tools, defensive focus codes and investigation guidance. The candidate is replayed on the exact same attack and legitimate controls. The deterministic Referee—not Blue—promotes it only when safety is preserved and prevention, realized impact, lifecycle resilience or detection timing measurably improves. Wider evidence-tool usage alone does not qualify.
+
+After the Referee scores a round, observable events and post-outcome labels may be written to an append-only Blue training log. At an explicitly configured generation boundary, a challenger detector is trained from scratch with replay data. It is promoted only when at least one judge-facing metric measurably improves and chain recall plus hard-negative false positives stay inside strict non-regression tolerances. Retraining is off in the low-latency UI path unless enabled for a learning-loop demonstration.
 
 ### Referee world
 
@@ -73,8 +75,10 @@ bounded compiler + safety gate
 synthetic observable event stream ───────┐
       ↓                                  │ sealed truth
 fast observable sequence guard          │
-      ↓                                  │
-Blue Investigator → evidence tools      │
+      ├──────────────┐                   │
+      ↓              ↓                   │
+Blue gradient      Blue Investigator     │
+boosting score ──→ evidence tools        │
       ↓                                  │
 Blue Decision Agent                     │
       ↓                                  ↓
@@ -89,9 +93,13 @@ Blue Decision Agent                     │
                        same-case deterministic replay
                                     ↓
                         promote only after safe gain
+
+ sealed post-outcome labels → Blue learning log → challenger detector
+                                                ↓
+                              promote only after safe measurable gain
 ```
 
-The two learning channels remain separate: Red never receives Blue's playbook or private evidence, and Blue never receives the attack family, scenario ID, stage IDs or fraud label.
+The learning channels remain separate: Red never receives Blue's playbook, detector score, threshold, features, weights or private evidence. Live Blue never receives the attack family, scenario ID, stage IDs or fraud label. Only the offline retraining job can consume Referee-opened labels after a decision is complete.
 
 ## Open-model deployment
 

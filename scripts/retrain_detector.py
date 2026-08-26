@@ -27,6 +27,12 @@ def main() -> None:
     ap.add_argument("--test-share", type=float, default=0.3)
     ap.add_argument("--min-delta", type=float, default=0.01, help="max allowed chain-recall regression")
     ap.add_argument("--fp-tol", type=float, default=0.002, help="max allowed hard-FP increase (tight)")
+    ap.add_argument(
+        "--min-improvement",
+        type=float,
+        default=0.001,
+        help="minimum real gain required in recall, hard-FP, chain precision, or prevention",
+    )
     ap.add_argument("--champion-dir", type=Path, default=DEFAULT_MODEL_DIR)
     ap.add_argument("--report", type=Path, default=Path("data/loop/retrain_report.json"))
     args = ap.parse_args()
@@ -39,6 +45,7 @@ def main() -> None:
         test_share=args.test_share,
         min_delta=args.min_delta,
         fp_tol=args.fp_tol,
+        min_improvement=args.min_improvement,
         generation=args.generation,
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)
