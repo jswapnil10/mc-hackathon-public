@@ -81,7 +81,10 @@ class AgentLabConfig:
     # override, while `omit` supports endpoints with no reasoning-control parameter.
     reasoning_effort: str = "auto"
     red_reasoning_effort: str = "medium"
-    blue_reasoning_effort: str = "low"
+    # The live Blue lane must return compact JSON for every reached event. Local Qwen 3.5
+    # can spend the entire token budget on hidden reasoning and force a costly second call,
+    # so deeper thinking stays with Red planning and the between-round Blue strategist.
+    blue_reasoning_effort: str = "none"
     blue_strategy_reasoning_effort: str = "medium"
     red_temperature: float = 0.65
     blue_temperature: float = 0.15

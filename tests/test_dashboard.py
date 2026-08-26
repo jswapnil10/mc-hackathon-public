@@ -60,6 +60,15 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn("model_base_url", payload)
         self.assertEqual(payload["model_endpoint"], "server-side and private")
         self.assertIn("blue_detector_active", payload["models"])
+        self.assertEqual(
+            payload["latency_profile"]["reasoning_profiles"],
+            {
+                "red_planner": "medium",
+                "blue_live_event": "none",
+                "blue_between_rounds": "medium",
+            },
+        )
+        self.assertEqual(payload["latency_profile"]["model_call_timeout_seconds"], 120)
         self.assertEqual(len(payload["attack_families"]), 9)
         self.assertEqual(payload["submission_profile"]["diversity"]["attack_family_count"], 9)
         self.assertEqual(payload["submission_profile"]["fidelity"]["lab_only_event_types_allowed"], [])

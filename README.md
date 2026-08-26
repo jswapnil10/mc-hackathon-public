@@ -233,6 +233,7 @@ export MODEL_API_KEY=ollama
 export RED_MODEL_ID=qwen3.5:9b
 export BLUE_MODEL_ID=qwen3.5:9b
 export MODEL_STRUCTURED_OUTPUT_MODE=json_schema
+export BLUE_REASONING_EFFORT=none
 python -m sentinelloop config
 python -m app.server
 ```
@@ -245,9 +246,15 @@ $env:MODEL_API_KEY = "ollama"
 $env:RED_MODEL_ID = "qwen3.5:9b"
 $env:BLUE_MODEL_ID = "qwen3.5:9b"
 $env:MODEL_STRUCTURED_OUTPUT_MODE = "json_schema"
+$env:BLUE_REASONING_EFFORT = "none"
 python -m sentinelloop config
 python -m app.server
 ```
+
+`BLUE_REASONING_EFFORT=none` applies only to the live per-event decision lane. It prevents
+local Qwen from consuming the output budget on hidden reasoning and then repeating the call
+to produce JSON. Red planning and the optional between-round Blue strategist continue to use
+`medium` reasoning, so the adversarial planning loop keeps its deeper reasoning capability.
 
 Model guidance:
 
@@ -383,7 +390,7 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | `MODEL_STRUCTURED_OUTPUT_MODE` | `json_schema` | `json_schema`, `json_object` or `prompt` |
 | `MODEL_REASONING_EFFORT` | `auto` | Uses the role profiles below; set a concrete value for a global override or `omit` to never send the optional field |
 | `RED_REASONING_EFFORT` | `medium` | Red planning depth when the global mode is `auto` |
-| `BLUE_REASONING_EFFORT` | `low` | Low-latency live Blue investigation depth when the global mode is `auto` |
+| `BLUE_REASONING_EFFORT` | `none` | Fast structured inference for the live per-event Blue lane; Red and the between-round strategist retain deeper reasoning |
 | `BLUE_STRATEGY_REASONING_EFFORT` | `medium` | Deeper offline Blue strategy/adaptation depth when the global mode is `auto` |
 | `MODEL_TIMEOUT_SECONDS` | `120` | Timeout for one model call |
 | `MODEL_MAX_OUTPUT_TOKENS` | `1400` | Maximum generated tokens per call |

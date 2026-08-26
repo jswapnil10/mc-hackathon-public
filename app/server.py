@@ -220,6 +220,12 @@ def create_app() -> Flask:
                     "blue_model_calls_per_event": 1,
                     "case_parallelism": config.case_parallelism,
                     "recommended_demo_rounds": 1,
+                    "reasoning_profiles": {
+                        "red_planner": config.reasoning_effort_for("red_planner"),
+                        "blue_live_event": config.reasoning_effort_for("blue_event_agent"),
+                        "blue_between_rounds": config.reasoning_effort_for("blue_strategist"),
+                    },
+                    "model_call_timeout_seconds": config.request_timeout_seconds,
                 },
                 "attack_families": [
                     {
@@ -411,8 +417,9 @@ def create_app() -> Flask:
                     "hint": (
                         "Verify endpoint reachability and structured-output compatibility. The "
                         "gateway automatically retries unsupported reasoning parameters and "
-                        "reasoning-only responses; use MODEL_REASONING_EFFORT=none only as a "
-                        "manual fallback."
+                        "reasoning-only responses. For a local Ollama live demo, set "
+                        "BLUE_REASONING_EFFORT=none so Red planning and between-round Blue "
+                        "strategy can retain deeper reasoning."
                     ),
                 }
             ), 502
