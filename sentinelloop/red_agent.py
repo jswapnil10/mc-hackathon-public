@@ -240,6 +240,7 @@ class GenAIRedAgent:
             cards = self.catalog.list()
         schema = copy.deepcopy(RED_PLAN_SCHEMA)
         schema["properties"]["attack_family"]["enum"] = [card.attack_family for card in cards]
+        schema["properties"]["difficulty"]["enum"] = [difficulty]
         available_stages = [stage for card in cards for stage in self._card_payload(card)["stages"]]
         available_focus_stages = [
             stage for stage in available_stages if stage["mutable_parameters"]

@@ -181,6 +181,193 @@ class ModelGatewayCompatibilityTests(unittest.TestCase):
         self.assertEqual(trace.reasoning_effort, "omitted")
         self.assertIn("reasoning_parameter_omitted", trace.compatibility_fallbacks)
 
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_supports_refreshing_auth_and_proxy_trace_metadata(self, urlopen) -> None:
+        urlopen.return_value = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": '{"ok":true}'},
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+        config = AgentLabConfig(reasoning_effort="omit")
+        gateway = OpenAICompatibleGateway(
+            config,
+            api_key_provider=lambda: "short-lived-token",
+            extra_body={"trace_data": {"session_id": "catalog-test"}},
+        )
+        result, _ = gateway.generate_json(
+            agent_name="blue_event_agent",
+            model="Claude-Sonnet-4.5",
+            system_prompt="Return JSON.",
+            user_payload={"request": "test"},
+            schema_name="compatibility",
+            schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {"ok": {"type": "boolean"}},
+                "required": ["ok"],
+            },
+            temperature=0.0,
+            seed=7,
+        )
+        request = urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(request.get_header("Authorization"), "Bearer short-lived-token")
+        self.assertEqual(
+            payload["extra_body"],
+            {"trace_data": {"session_id": "catalog-test"}},
+        )
+        self.assertEqual(result, {"ok": True})
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_claude_profile_includes_and_emphasizes_the_output_contract(self, urlopen) -> None:
+        urlopen.return_value = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": '{"ok":true}'},
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+        result, _ = self._call(
+            AgentLabConfig(
+                reasoning_effort="omit",
+                structured_output_mode="prompt",
+                prompt_profile="claude",
+            )
+        )
+        payload = json.loads(urlopen.call_args.args[0].data.decode("utf-8"))
+        system_message = payload["messages"][0]["content"]
+        user_message = json.loads(payload["messages"][1]["content"])
+
+        self.assertIn("include every required key at the top level", system_message)
+        self.assertEqual(user_message["output_contract"]["required"], ["ok"])
+        self.assertNotIn("response_format", payload)
+        self.assertNotIn("temperature", payload)
+        self.assertEqual(result, {"ok": True})
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_recovers_json_object_from_provider_preamble(self, urlopen) -> None:
+        urlopen.return_value = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": 'Completed the contract check.\n{"ok":true}\nDone.',
+                        },
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+
+        result, _ = self._call(AgentLabConfig(reasoning_effort="high"))
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(urlopen.call_count, 1)
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_retries_a_truly_invalid_json_response_at_the_same_effort(self, urlopen) -> None:
+        urlopen.side_effect = [
+            _FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {"role": "assistant", "content": '{"ok":'},
+                            "finish_reason": "length",
+                        }
+                    ]
+                }
+            ),
+            _FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {"role": "assistant", "content": '{"ok":true}'},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                }
+            ),
+        ]
+
+        result, trace = self._call(AgentLabConfig(reasoning_effort="high"))
+        retry_payload = json.loads(urlopen.call_args_list[1].args[0].data.decode("utf-8"))
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(retry_payload["reasoning_effort"], "high")
+        self.assertIn(
+            "previous response was not valid JSON",
+            retry_payload["messages"][0]["content"],
+        )
+        self.assertIn("invalid_json_retry", trace.compatibility_fallbacks)
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_claude_high_effort_uses_the_full_request_window(self, urlopen) -> None:
+        urlopen.return_value = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": '{"ok":true}'},
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+
+        result, trace = self._call(
+            AgentLabConfig(
+                reasoning_effort="high",
+                prompt_profile="claude",
+                request_timeout_seconds=120,
+                reasoning_attempt_timeout_seconds=45,
+            )
+        )
+
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], 120)
+        self.assertEqual(trace.reasoning_effort, "high")
+        self.assertEqual(result, {"ok": True})
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_retries_an_empty_provider_message(self, urlopen) -> None:
+        urlopen.side_effect = [
+            _FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {"role": "assistant", "content": None},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                }
+            ),
+            _FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {"role": "assistant", "content": '{"ok":true}'},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                }
+            ),
+        ]
+
+        result, trace = self._call(
+            AgentLabConfig(reasoning_effort="high", prompt_profile="claude")
+        )
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertIn("invalid_json_retry", trace.compatibility_fallbacks)
+
 
 if __name__ == "__main__":
     unittest.main()

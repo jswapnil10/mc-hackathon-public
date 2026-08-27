@@ -22,6 +22,9 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"OVERALL DEFENSE SCORE", response.data)
         self.assertIn(b"What happens when you start a battle?", response.data)
         self.assertIn(b"How to read this report", response.data)
+        self.assertIn(b"SINGLE-BATTLE VIEW", response.data)
+        self.assertIn(b"metric-info", response.data)
+        self.assertIn(b"Precision compares this attack", response.data)
         self.assertIn(b"ATTACK STRENGTH \xc3\x97 MONEY LOST", response.data)
         self.assertIn(b"Threat Atlas", response.data)
         self.assertIn(b"Scenario Foundry", response.data)
@@ -36,6 +39,8 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"CURRENT ATTEMPT FAILED", script.data)
         self.assertIn(b"Estimated remaining", script.data)
         self.assertIn(b"calibrated from the latest completed", script.data)
+        self.assertIn(b"phase-quality-grid", script.data)
+        self.assertIn(b"classification_metrics", script.data)
 
     def test_run_state_guide_explains_every_output_boundary(self):
         with self.client.get("/static/run-guide.html") as response:
@@ -128,17 +133,21 @@ class DashboardTests(unittest.TestCase):
     def test_precomputed_demo_covers_every_family_and_difficulty_without_model_calls(self):
         status = self.client.get("/api/v2/status").get_json()
         combinations = {
-            (item["attack_family"], item["difficulty"])
+            (item["attack_family"], item["difficulty"], item["rounds"])
             for item in status["precomputed_demo"]["available_scenarios"]
-            if item["rounds"] == 1
         }
-        expected = {
+        expected_scenarios = {
             (family["id"], difficulty)
             for family in status["attack_families"]
             for difficulty in ("easy", "medium", "hard")
         }
+        expected = {
+            (family, difficulty, rounds)
+            for family, difficulty in expected_scenarios
+            for rounds in range(1, 6)
+        }
         self.assertEqual(combinations, expected)
-        for family, difficulty in sorted(expected):
+        for family, difficulty in sorted(expected_scenarios):
             response = self.client.post(
                 "/api/v2/run",
                 json={
@@ -154,6 +163,31 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(scenario["attack_family"], family)
             self.assertEqual(scenario["difficulty"], difficulty)
             self.assertEqual(payload["demo_mode"], "precomputed_replay")
+
+    @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
+    def test_precomputed_demo_supports_five_replay_rounds(self):
+        response = self.client.post(
+            "/api/v2/run",
+            json={
+                "attack_family": "ATO-01",
+                "difficulty": "medium",
+                "rounds": 5,
+                "seed": 20260827,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(len(payload["rounds"]), 5)
+        self.assertEqual(
+            [round_payload["round_number"] for round_payload in payload["rounds"]],
+            [1, 2, 3, 4, 5],
+        )
+        self.assertEqual(
+            payload["demo_provenance"]["sequence_kind"],
+            "independent_recorded_replays",
+        )
+        self.assertEqual(payload["demo_provenance"]["requested_rounds"], 5)
+        self.assertIn("no live cross-round model learning", payload["demo_provenance"]["note"])
 
     def test_unknown_run_progress_is_explicit(self):
         response = self.client.get("/api/v2/run-progress/browser-test-0001")

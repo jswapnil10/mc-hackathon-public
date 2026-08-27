@@ -21,6 +21,7 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.reasoning_effort_for("blue_event_agent"), "none")
         self.assertEqual(config.reasoning_effort_for("blue_strategist"), "none")
         self.assertEqual(config.reasoning_attempt_timeout_seconds, 45)
+        self.assertEqual(config.prompt_profile, "generic")
         self.assertEqual(config.case_parallelism, 2)
         self.assertTrue(config.ml_detector_enabled)
         self.assertEqual(config.retrain_every_battles, 5)
@@ -35,6 +36,7 @@ class AgentLabConfigTests(unittest.TestCase):
                 "RED_MODEL_ID": "custom-red",
                 "BLUE_MODEL_ID": "custom-blue",
                 "MODEL_REASONING_EFFORT": "low",
+                "MODEL_PROMPT_PROFILE": "claude",
             },
             clear=True,
         ):
@@ -44,6 +46,7 @@ class AgentLabConfigTests(unittest.TestCase):
         self.assertEqual(config.red_model_id, "custom-red")
         self.assertEqual(config.blue_model_id, "custom-blue")
         self.assertEqual(config.reasoning_effort, "low")
+        self.assertEqual(config.prompt_profile, "claude")
 
     @patch("sentinelloop.config._detect_local_ollama_qwen")
     def test_blue_hybrid_settings_are_explicit_and_do_not_change_red(self, detect):
@@ -70,6 +73,10 @@ class AgentLabConfigTests(unittest.TestCase):
     def test_retraining_cadences_cannot_overlap(self):
         with self.assertRaisesRegex(ValueError, "either BATTLE_RETRAIN_EVERY"):
             AgentLabConfig(retrain_every=2, retrain_every_battles=5).validate()
+
+    def test_prompt_profile_must_be_supported(self):
+        with self.assertRaisesRegex(ValueError, "MODEL_PROMPT_PROFILE"):
+            AgentLabConfig(prompt_profile="unknown").validate()
 
 
 if __name__ == "__main__":

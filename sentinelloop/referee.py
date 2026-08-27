@@ -137,6 +137,37 @@ class DeterministicReferee:
                 None,
             )
             detected = 1.0 if phase_alert else 0.0
+
+            # A single Arena battle contains one attack case plus bounded legitimate
+            # look-alikes. These diagnostic classification metrics make that small
+            # denominator explicit; population claims remain the job of the sealed
+            # Scenario Foundry benchmark.
+            phase_control_turns = [
+                [
+                    turn
+                    for turn in control_turns
+                    if turn.event.lifecycle_phase == phase
+                ]
+                for _, control_turns in control_results
+            ]
+            phase_control_turns = [turns for turns in phase_control_turns if turns]
+            true_positives = int(bool(phase_alert))
+            false_negatives = 1 - true_positives
+            false_positives = sum(
+                any(turn.decision.action in ALERT_ACTIONS for turn in turns)
+                for turns in phase_control_turns
+            )
+            true_negatives = len(phase_control_turns) - false_positives
+            alerted_cases = true_positives + false_positives
+            phase_precision = (
+                true_positives / alerted_cases if alerted_cases else None
+            )
+            phase_recall = true_positives / (true_positives + false_negatives)
+            phase_f1 = (
+                2.0 * phase_precision * phase_recall / (phase_precision + phase_recall)
+                if phase_precision is not None and phase_precision + phase_recall
+                else 0.0
+            )
             if phase_alert:
                 alert_offset = truth_by_event[phase_alert.event.event_id].offset_seconds
                 response_time = max(0, alert_offset - phase_start)
@@ -172,14 +203,7 @@ class DeterministicReferee:
 
             phase_control_costs: list[float] = []
             phase_control_event_count = 0
-            for _, control_turns in control_results:
-                matching = [
-                    turn
-                    for turn in control_turns
-                    if turn.event.lifecycle_phase == phase
-                ]
-                if not matching:
-                    continue
+            for matching in phase_control_turns:
                 phase_control_event_count += len(matching)
                 phase_control_costs.append(
                     max(ACTION_FRICTION[turn.decision.action] for turn in matching)
@@ -251,6 +275,22 @@ class DeterministicReferee:
                 "evaluation_coverage": round(len(phase_turns) / len(phase_events), 4),
                 "first_actionable_event": phase_events[0].event_type,
                 "opportunity_detected": bool(detected),
+                "classification_metrics": {
+                    "scope": "single_battle",
+                    "attack_opportunity_count": 1,
+                    "legitimate_comparison_count": len(phase_control_turns),
+                    "true_positives": true_positives,
+                    "false_positives": false_positives,
+                    "false_negatives": false_negatives,
+                    "true_negatives": true_negatives,
+                    "precision": (
+                        round(phase_precision, 4)
+                        if phase_precision is not None
+                        else None
+                    ),
+                    "recall": round(phase_recall, 4),
+                    "f1": round(phase_f1, 4),
+                },
                 "response_time_seconds": response_time,
                 "response_score": round(response_score, 4),
                 "downstream_value_exposed_inr": round(downstream_value, 2),

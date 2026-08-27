@@ -114,10 +114,10 @@
         <span id="benchmarkModel" class="proof-badge">NO BENCHMARK YET</span>
       </div>
       <div class="benchmark-kpis">
-        <article><small>SEALED SYNTHETIC TEST · PR-AUC</small><strong id="benchmarkPrauc">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkPraucNote">How well fraud ranks above legitimate events when fraud is rare. Higher is better.</p></article>
-        <article><small>WITHHELD VECTORS · ATTACK EVENTS CAUGHT</small><strong id="benchmarkNovelRecall">—</strong><span class="metric-source">Source · novel-vector test split</span><p id="benchmarkNovelRecallNote">Share caught when the complete attack vector was excluded from training. Higher is better.</p></article>
-        <article><small>SEALED SYNTHETIC TEST · F1</small><strong id="benchmarkF1">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkF1Note">One score balancing attacks caught against incorrect alerts. Higher is better.</p></article>
-        <article><small>HARD LEGITIMATE CONTROLS · FALSE ALERT RATE</small><strong id="benchmarkFpr">—</strong><span class="metric-source">Source · hard-control test cases</span><p id="benchmarkFprNote">Difficult legitimate look-alikes incorrectly treated as fraud. Lower is better.</p></article>
+        <article><small class="metric-title">SEALED SYNTHETIC TEST · PR-AUC <button type="button" class="metric-info" aria-label="PR-AUC definition" data-tooltip="How well the detector ranks fraud above legitimate events across every possible threshold. Higher is better.">i</button></small><strong id="benchmarkPrauc">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkPraucNote">How well fraud ranks above legitimate events when fraud is rare. Higher is better.</p></article>
+        <article><small class="metric-title">WITHHELD VECTORS · ATTACK EVENTS CAUGHT <button type="button" class="metric-info" aria-label="Withheld-vector recall definition" data-tooltip="The share of fraud events caught when their complete attack vector was excluded from training. Higher is better.">i</button></small><strong id="benchmarkNovelRecall">—</strong><span class="metric-source">Source · novel-vector test split</span><p id="benchmarkNovelRecallNote">Share caught when the complete attack vector was excluded from training. Higher is better.</p></article>
+        <article><small class="metric-title">SEALED SYNTHETIC TEST · F1 <button type="button" class="metric-info" aria-label="F1 definition" data-tooltip="A balance of precision and recall. It is high only when alerts are accurate and most fraud is caught.">i</button></small><strong id="benchmarkF1">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkF1Note">One score balancing attacks caught against incorrect alerts. Higher is better.</p></article>
+        <article><small class="metric-title">HARD LEGITIMATE CONTROLS · FALSE ALERT RATE <button type="button" class="metric-info" aria-label="False alert rate definition" data-tooltip="The share of difficult legitimate look-alikes incorrectly flagged as fraud. Lower is better.">i</button></small><strong id="benchmarkFpr">—</strong><span class="metric-source">Source · hard-control test cases</span><p id="benchmarkFprNote">Difficult legitimate look-alikes incorrectly treated as fraud. Lower is better.</p></article>
       </div>
       <div class="benchmark-detail-grid">
         <article class="confusion-card">
@@ -209,12 +209,12 @@
       <div class="control-copy">
         <div class="section-kicker">NEW BATTLE</div>
         <h2>Configure the next stress test</h2>
-        <p>For a first demonstration, keep one round selected. Use multiple rounds only when you want to show how Red and Blue adapt between completed battles.</p>
+        <p id="roundsGuide">For a first demonstration, keep one round selected. Use multiple rounds only when you want to show how Red and Blue adapt between completed battles.</p>
       </div>
       <form id="runForm">
         <label>Attack family<select id="attackFamily" name="attack_family"></select></label>
         <label>Difficulty<select id="difficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label>
-        <label>Feedback rounds<select id="rounds" name="rounds"><option value="1" selected>1 round · fast demo</option><option value="2">2 rounds · feedback loop</option><option value="3">3 rounds · extended</option></select></label>
+        <label>Feedback rounds<select id="rounds" name="rounds"><option value="1" selected>1 round · fast demo</option><option value="2">2 rounds · feedback loop</option><option value="3">3 rounds · extended</option><option value="4">4 rounds · extended</option><option value="5">5 rounds · maximum demo</option></select></label>
         <button class="run-button" type="submit" id="runButton"><span>Start agent battle</span><b>→</b></button>
         <p id="latencyEstimate" class="latency-note">One round runs Red once, evaluates each reached payment event, and scores the result once.</p>
       </form>
@@ -253,17 +253,21 @@
       </aside>
 
       <section class="outcome-board" aria-label="Battle outcome">
-        <article class="outcome-primary"><small>OVERALL DEFENSE SCORE · HIGHER IS BETTER</small><strong id="balancedScore">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p>60% average performance plus 40% of the weakest payment stage, so one strong stage cannot hide another stage's gap.</p></article>
-        <article><small>ATTACK STRENGTH · HIGHER IS HARDER</small><strong id="redCapability">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p id="redCapabilityNote">How far the attack progressed, how quietly it moved, and how many stages it exercised.</p></article>
-        <article><small>SYNTHETIC MONEY LOST · LOWER IS BETTER</small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after Blue acted</span><em class="metric-source">Source · current battle sealed truth</em><p id="impactVerdict">Waiting for a completed battle.</p></article>
-        <article><small>FINAL RESULT</small><strong id="outcome">—</strong><span id="detectionTime">No result</span><em class="metric-source">Source · current battle Referee</em><p><b id="falsePositives">—</b> of legitimate look-alikes were wrongly held or blocked.</p></article>
+        <article class="outcome-primary"><small class="metric-title">OVERALL DEFENSE SCORE · HIGHER IS BETTER <button type="button" class="metric-info" aria-label="Overall defense score definition" data-tooltip="A 0–100 score combining average payment-stage defense with extra weight on the weakest stage.">i</button></small><strong id="balancedScore">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p>60% average performance plus 40% of the weakest payment stage, so one strong stage cannot hide another stage's gap.</p></article>
+        <article><small class="metric-title">ATTACK STRENGTH · HIGHER IS HARDER <button type="button" class="metric-info" aria-label="Attack strength definition" data-tooltip="How far the synthetic attack progressed, how quietly it moved, and how many payment stages it exercised.">i</button></small><strong id="redCapability">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p id="redCapabilityNote">How far the attack progressed, how quietly it moved, and how many stages it exercised.</p></article>
+        <article><small class="metric-title">SYNTHETIC MONEY LOST · LOWER IS BETTER <button type="button" class="metric-info" aria-label="Synthetic money lost definition" data-tooltip="At-risk synthetic value that remained unprotected after Blue's effective action. Lower is better.">i</button></small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after Blue acted</span><em class="metric-source">Source · current battle sealed truth</em><p id="impactVerdict">Waiting for a completed battle.</p></article>
+        <article><small class="metric-title">FINAL RESULT <button type="button" class="metric-info" aria-label="Final result definition" data-tooltip="Prevented means no synthetic loss; contained means loss was limited; detected means warning only; missed means no warning.">i</button></small><strong id="outcome">—</strong><span id="detectionTime">No result</span><em class="metric-source">Source · current battle Referee</em><p><b id="falsePositives">—</b> of legitimate look-alikes were wrongly held or blocked.</p></article>
       </section>
 
       <section id="lifecycleScorecard" class="lifecycle-section">
         <div class="section-heading">
-          <div><div class="section-kicker">PAYMENT JOURNEY SCORECARD</div><h2>How well did Blue defend each payment stage?</h2><p>Each stage starts at its first observable warning. A stage score combines detection (25%), response speed (20%), harm stopped (35%), and legitimate-customer safety (20%).</p></div>
+          <div><div class="section-kicker">PAYMENT JOURNEY SCORECARD</div><h2>How early and accurately did Blue intervene?</h2><p>Pre-transaction measures prevention before money moves, transaction measures containment during payment, and post-transaction measures detection or recovery after value movement.</p></div>
           <div class="lifecycle-summary"><span>Needs most improvement <b id="worstPhase">—</b></span><span>Difference between best and worst <b id="balanceGap">—</b></span></div>
         </div>
+        <aside class="single-battle-note" aria-label="Single battle metric scope">
+          <strong>SINGLE-BATTLE VIEW</strong>
+          <span>Yes—these metrics are calculated for every completed battle and every round. Precision compares this attack with its legitimate look-alikes; recall and F1 use one attack opportunity, so use the sealed benchmark below for stable population-level claims.</span>
+        </aside>
         <div id="phaseCards" class="phase-cards"></div>
       </section>
 
@@ -273,9 +277,9 @@
           <h2>Was the attack easy—or did Blue defend it well?</h2>
           <p>Move right for a stronger attack. Move up for more synthetic money lost after Blue acted. Bubble size shows the total value that was at risk.</p>
           <div class="impact-values">
-            <div><small>SYNTHETIC VALUE AT RISK</small><strong id="attackPotential">—</strong></div>
-            <div><small>VALUE PROTECTED</small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></div>
-            <div><small>SYNTHETIC MONEY LOST</small><strong id="impactAmount">—</strong></div>
+            <div><small class="metric-title">SYNTHETIC VALUE AT RISK <button type="button" class="metric-info" aria-label="Value at risk definition" data-tooltip="Total synthetic value exposed across the attack sequence if no effective intervention occurs.">i</button></small><strong id="attackPotential">—</strong></div>
+            <div><small class="metric-title">VALUE PROTECTED <button type="button" class="metric-info" aria-label="Value protected definition" data-tooltip="Synthetic value prevented from moving or being lost because of Blue's effective action.">i</button></small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></div>
+            <div><small class="metric-title">SYNTHETIC MONEY LOST <button type="button" class="metric-info" aria-label="Money lost definition" data-tooltip="Synthetic value at risk minus the value protected by Blue. Lower is better.">i</button></small><strong id="impactAmount">—</strong></div>
           </div>
         </div>
         <div class="quadrant-wrap">

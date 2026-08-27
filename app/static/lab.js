@@ -15,6 +15,21 @@ const phaseExplanations = {
   transaction: 'While the payment is being requested',
   post_transaction: 'After money reaches the receiving side',
 };
+const phaseOutcomeLabels = {
+  pre_transaction: 'Caught before payment',
+  transaction: 'Stopped before settlement',
+  post_transaction: 'Detected or recovered after payment',
+};
+const metricDefinitions = {
+  phaseScore: 'A 0–100 stage score: detection 25%, response speed 20%, harm controlled 35%, and legitimate-customer safety 20%.',
+  precision: 'Of attack and legitimate comparison cases alerted in this stage, the share that were actually the attack.',
+  recall: 'Of attack opportunities available in this stage, the share Blue alerted before the stage ended.',
+  f1: 'A balance of precision and recall. It is high only when alerts are accurate and the attack is caught.',
+  responseLatency: 'Simulated seconds from this stage’s first observable warning to Blue’s first alerting action. This is not browser waiting time.',
+  responseSpeed: 'How much of the available stage response window remained when Blue first alerted. Higher is better.',
+  consequenceControl: 'Share of downstream synthetic value protected by an effective hold or block from this stage. Higher is better.',
+  legitimateSafety: 'Share of legitimate look-alike traffic left unharmed after applying an action-based friction cost. Higher is better.',
+};
 const actionClasses = new Set(['allow', 'monitor', 'step_up', 'hold', 'block']);
 
 const money = (value) => new Intl.NumberFormat('en-IN', {
@@ -133,11 +148,28 @@ function chips(items, tone = '') {
   return items.map(item => `<span class="chip ${tone}">${escapeHtml(item)}</span>`).join('');
 }
 
-function metricBar(label, value) {
+function infoIcon(label, definition) {
+  return `<button type="button" class="metric-info" aria-label="${escapeHtml(label)} definition" data-tooltip="${escapeHtml(definition)}">i</button>`;
+}
+
+function metricTitle(label, definition) {
+  return `<span class="metric-title">${escapeHtml(label)} ${infoIcon(label, definition)}</span>`;
+}
+
+function metricBar(label, value, definition) {
   const ratio = clamp(value, 0, 1);
   return `<div class="metric-line">
-    <div class="metric-label"><span>${escapeHtml(label)}</span><b>${pct(ratio)}</b></div>
+    <div class="metric-label">${metricTitle(label, definition)}<b>${pct(ratio)}</b></div>
     <progress class="metric-track" max="100" value="${Math.round(ratio * 100)}">${Math.round(ratio * 100)}%</progress>
+  </div>`;
+}
+
+function phaseQualityMetric(label, value, definition, note) {
+  const displayValue = value == null ? '—' : precisePct(value, 0);
+  return `<div class="phase-quality-metric">
+    ${metricTitle(label, definition)}
+    <strong>${displayValue}</strong>
+    <small>${escapeHtml(note)}</small>
   </div>`;
 }
 
@@ -241,7 +273,19 @@ function renderBenchmark(data) {
   const lifecycle = defense.lifecycle_results || {};
   $('#benchmarkPhases').innerHTML = phases.map(phase => {
     const item = lifecycle[phase] || {};
-    return `<div class="benchmark-phase"><div class="benchmark-phase-head"><span>${escapeHtml(pretty(phase))}</span><b>${precisePct(item.recall, 1)} fraud caught</b></div><progress max="100" value="${clamp((Number(item.recall) || 0) * 100, 0, 100)}">${precisePct(item.recall, 1)}</progress><small>${integer(item.events)} hidden-test events · ${precisePct(1 - (Number(item.false_positive_rate) || 0), 1)} legitimate users protected</small></div>`;
+    const precision = Number(item.precision) || 0;
+    const recall = Number(item.recall) || 0;
+    const f1 = precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
+    return `<div class="benchmark-phase">
+      <div class="benchmark-phase-head"><span>${escapeHtml(pretty(phase))}</span><b>${precisePct(recall, 1)} fraud caught</b></div>
+      <progress max="100" value="${clamp(recall * 100, 0, 100)}">${precisePct(recall, 1)}</progress>
+      <div class="benchmark-phase-kpis">
+        <span>${metricTitle('Precision', metricDefinitions.precision)}<b>${precisePct(precision, 1)}</b></span>
+        <span>${metricTitle('Recall', metricDefinitions.recall)}<b>${precisePct(recall, 1)}</b></span>
+        <span>${metricTitle('F1', metricDefinitions.f1)}<b>${precisePct(f1, 1)}</b></span>
+      </div>
+      <small>${integer(item.events)} sealed hidden-test events · ${precisePct(1 - (Number(item.false_positive_rate) || 0), 1)} legitimate users protected</small>
+    </div>`;
   }).join('');
   $('#familyResults').innerHTML = Object.entries(defense.family_results || {}).sort().map(([family, item]) => `<tr><td>${escapeHtml(family)}</td><td>${integer(item.events)}</td><td>${precisePct(item.recall, 1)}</td><td>${precisePct(item.value_weighted_recall, 1)}</td><td>${precisePct(item.mean_risk_score, 1)}</td></tr>`).join('');
   $('#benchmarkGenerated').textContent = `${integer(detectedAttacks)} of ${integer(detectedAttacks + missedAttacks)} attacks caught · ${integer(falseAlerts)} of ${integer(legitimatePassed + falseAlerts)} legitimate events flagged`;
@@ -328,11 +372,11 @@ async function loadExternalValidation() {
 }
 
 function updateLatencyEstimate() {
+  const rounds = Number($('#rounds').value) || 1;
   if (state.status && state.status.mode === 'precomputed_replay') {
-    $('#latencyEstimate').textContent = 'Offline replay mode: a matching recorded run is loaded. No LLM or external API is called.';
+    $('#latencyEstimate').textContent = `Offline replay mode: ${rounds} recorded replay cycle${rounds === 1 ? '' : 's'} load instantly. No LLM or external API is called.`;
     return;
   }
-  const rounds = Number($('#rounds').value) || 1;
   const estimate = approximateDuration(estimatedTotalSeconds(rounds));
   const calibration = latestTimingCalibration();
   const source = calibration
@@ -390,6 +434,7 @@ async function loadStatus() {
       $('#rounds').innerHTML = availableRounds.map(count => (
         `<option value="${count}">${count} round${count === 1 ? '' : 's'} · recorded replay</option>`
       )).join('');
+      updateLatencyEstimate();
     };
     const syncReplayDifficulties = () => {
       const family = $('#attackFamily').value;
@@ -405,7 +450,8 @@ async function loadStatus() {
     $('#difficulty').addEventListener('change', syncReplayRounds);
     syncReplayDifficulties();
     $('#runButton span').textContent = 'Load recorded replay';
-    $('#latencyEstimate').textContent = 'Offline replay mode: a matching recorded run is loaded. No LLM or external API is called.';
+    $('#roundsGuide').textContent = 'Choose up to five replay cycles. They use recorded model output; if only one recording exists for a selection, it is repeated without claiming live cross-round learning.';
+    updateLatencyEstimate();
   }
   if (data.latest_run_available) await loadLatest();
 }
@@ -531,20 +577,33 @@ function renderLifecycle(report) {
 
     const phaseScore = Number(item.phase_score) || 0;
     const tone = phaseScore >= 75 ? 'good' : phaseScore >= 50 ? 'watch' : 'weak';
+    const classification = item.classification_metrics || {};
+    const hasClassification = classification.scope === 'single_battle';
+    const attackOpportunities = Number(classification.attack_opportunity_count) || 0;
+    const legitimateComparisons = Number(classification.legitimate_comparison_count) || 0;
+    const sampleNote = hasClassification
+      ? `${attackOpportunities} attack opportunity + ${legitimateComparisons} legitimate look-alike${legitimateComparisons === 1 ? '' : 's'}`
+      : 'Not recorded in this older saved report';
     const transition = item.transition_escape_rate == null
       ? 'LAST STAGE'
       : item.transition_escape_rate > 0
         ? 'ATTACK REACHED NEXT STAGE'
         : 'ATTACK STOPPED HERE';
-    const response = item.response_time_seconds == null
-      ? 'Blue did not take an alerting action in this stage'
-      : `Blue responded ${Number(item.response_time_seconds)}s later in simulated time`;
+    const response = item.response_time_seconds == null ? 'No alert in this stage' : `${Number(item.response_time_seconds)}s simulated`;
     return `<article class="phase-card ${tone}">
-      <div class="phase-head"><div class="phase-name"><small>0${index + 1} · ${item.opportunity_detected ? 'WARNING DETECTED' : 'WARNING MISSED'}</small><h3>${escapeHtml(title)}</h3><span>${escapeHtml(phaseExplanations[phase])}</span></div><div class="phase-score" title="Defense score for this payment stage, out of 100">${Math.round(phaseScore)}</div></div>
-      <div class="phase-opportunity"><b>First chance to act: ${escapeHtml(pretty(item.first_actionable_event))}</b>${escapeHtml(response)}</div>
-      ${metricBar('How quickly Blue reacted', item.response_score)}
-      ${metricBar('Potential harm stopped', item.consequence_control_ratio)}
-      ${metricBar('Legitimate users left unharmed', item.legitimate_safety_rate)}
+      <div class="phase-head">
+        <div class="phase-name"><small>0${index + 1} · ${item.opportunity_detected ? 'WARNING DETECTED' : 'WARNING MISSED'}</small><h3>${escapeHtml(title)}</h3><span>${escapeHtml(phaseOutcomeLabels[phase])}</span></div>
+        <div class="phase-score-wrap">${infoIcon('Stage defense score', metricDefinitions.phaseScore)}<div class="phase-score">${Math.round(phaseScore)}</div><small>STAGE SCORE</small></div>
+      </div>
+      <div class="phase-opportunity"><b>First chance to act: ${escapeHtml(pretty(item.first_actionable_event))}</b><span>${metricTitle('Detection latency', metricDefinitions.responseLatency)}<strong>${escapeHtml(response)}</strong></span></div>
+      <div class="phase-quality-grid">
+        ${phaseQualityMetric('Precision', hasClassification ? classification.precision : null, metricDefinitions.precision, sampleNote)}
+        ${phaseQualityMetric('Recall', hasClassification ? classification.recall : null, metricDefinitions.recall, sampleNote)}
+        ${phaseQualityMetric('F1', hasClassification ? classification.f1 : null, metricDefinitions.f1, sampleNote)}
+      </div>
+      ${metricBar('Response speed', item.response_score, metricDefinitions.responseSpeed)}
+      ${metricBar('Potential harm stopped', item.consequence_control_ratio, metricDefinitions.consequenceControl)}
+      ${metricBar('Legitimate customer safety', item.legitimate_safety_rate, metricDefinitions.legitimateSafety)}
       <div class="phase-foot"><span>${Number(item.evaluated_event_count) || 0} of ${Number(item.event_count) || 0} events reviewed</span><span>${transition}</span></div>
     </article>`;
   }).join('');
@@ -586,6 +645,14 @@ function renderImpact(report, scenario) {
 }
 
 function renderLearning(round) {
+  const replaySequence = state.run.demo_provenance && state.run.demo_provenance.sequence_kind;
+  if (replaySequence === 'independent_recorded_replays') {
+    const active = round.blue.active_playbook || {};
+    $('#blueLearning').innerHTML = `<small>RECORDED REPLAY · ACTIVE PLAYBOOK V${Number(active.version) || 1}</small>
+      <p>This cycle replays stored model output. It does not claim a live defense update from the previous replay cycle.</p>
+      <div class="chip-list">${chips((active.preferred_tools || []).map(pretty), 'blue')}</div>`;
+    return;
+  }
   const learning = round.blue_adaptation;
   if (!learning) {
     const active = round.blue.active_playbook || {};
@@ -662,7 +729,10 @@ function renderRun(scrollToResults = true, provenance = 'current') {
   $('#blueModelPill').textContent = detector.active
     ? `${shortModel(state.run.model_configuration.blue)} + ML`
     : `${shortModel(state.run.model_configuration.blue)} · fallback`;
-  $('#roundTabs').innerHTML = state.run.rounds.map((_, index) => `<button type="button" data-round="${index}">Round ${index + 1}</button>`).join('');
+  const roundLabel = state.run.demo_provenance && state.run.demo_provenance.sequence_kind === 'independent_recorded_replays'
+    ? 'Replay'
+    : 'Round';
+  $('#roundTabs').innerHTML = state.run.rounds.map((_, index) => `<button type="button" data-round="${index}">${roundLabel} ${index + 1}</button>`).join('');
   document.querySelectorAll('[data-round]').forEach(button => {
     button.addEventListener('click', () => renderRound(Number(button.dataset.round)));
   });
@@ -670,14 +740,14 @@ function renderRun(scrollToResults = true, provenance = 'current') {
   if (scrollToResults) $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function runProgressStages(totalRounds) {
+function runProgressStages(totalRounds, replayMode = false) {
   const stages = [
     { key: 'red_planning', label: '1 · Red plans' },
     { key: 'simulation', label: '2 · Arena builds events' },
     { key: 'blue_investigation', label: '3 · Blue decides' },
     { key: 'referee_scoring', label: '4 · Referee scores' },
   ];
-  if (Number(totalRounds) > 1) stages.push({ key: 'blue_adaptation', label: '5 · Blue tests an update' });
+  if (Number(totalRounds) > 1 && !replayMode) stages.push({ key: 'blue_adaptation', label: '5 · Blue tests an update' });
   stages.push({ key: 'completed', label: `${stages.length + 1} · Report ready` });
   return stages;
 }
@@ -685,7 +755,8 @@ function runProgressStages(totalRounds) {
 function renderRunProgress(progress) {
   const totalRounds = Number(progress.total_rounds) || Number($('#rounds').value) || 1;
   const roundNumber = clamp(progress.round_number || 1, 1, totalRounds);
-  const steps = runProgressStages(totalRounds);
+  const replayMode = state.status && state.status.mode === 'precomputed_replay';
+  const steps = runProgressStages(totalRounds, replayMode);
   const normalizedStage = progress.stage === 'blue_replay' ? 'blue_adaptation' : progress.stage;
   let currentIndex = steps.findIndex(item => item.key === normalizedStage);
   const intermediateRoundComplete = progress.stage === 'round_complete' && roundNumber < totalRounds;
@@ -695,10 +766,10 @@ function renderRunProgress(progress) {
     currentIndex = steps.length - 1;
   }
 
-  $('#runRoundLabel').textContent = `ROUND ${roundNumber} OF ${totalRounds} · ${progress.status === 'error' ? 'STOPPED' : 'LIVE'}`;
+  $('#runRoundLabel').textContent = `${replayMode ? 'REPLAY' : 'ROUND'} ${roundNumber} OF ${totalRounds} · ${progress.status === 'error' ? 'STOPPED' : replayMode ? 'RECORDED' : 'LIVE'}`;
   $('#runStateTitle').textContent = progress.headline || 'Running the synthetic battle';
   $('#runStateText').textContent = progress.detail || 'Waiting for a verified stage update.';
-  $('#runProgressSteps').classList.toggle('has-adaptation', totalRounds > 1);
+  $('#runProgressSteps').classList.toggle('has-adaptation', totalRounds > 1 && !replayMode);
   $('#runProgressSteps').innerHTML = steps.map((step, index) => {
     const stateClass = progress.stage === 'completed' || index < currentIndex
       ? 'done'

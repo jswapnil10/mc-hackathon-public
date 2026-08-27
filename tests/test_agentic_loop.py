@@ -97,7 +97,11 @@ class TestGateway:
                 },
                 trace,
             )
-        if agent_name in {"blue_event_agent", "blue_event_repair"}:
+        if agent_name in {
+            "blue_event_agent",
+            "blue_event_contract_repair",
+            "blue_event_repair",
+        }:
             event = user_payload["current_event"]
             attributes = event["attributes"]
             evidence_refs = [item["evidence_id"] for item in user_payload["tool_evidence"]]
@@ -140,7 +144,7 @@ class TestGateway:
                     "decision_summary": "The action follows the visible evidence and proportionality policy.",
                     "mitigation": "Apply the selected action and retain the evidence trail.",
                 }
-            if agent_name == "blue_event_agent":
+            if agent_name in {"blue_event_agent", "blue_event_contract_repair"}:
                 response.update(
                     {
                         "preliminary_risk": (
@@ -184,6 +188,32 @@ class BlueTimeoutGateway(TestGateway):
         return super().generate_json(**kwargs)
 
 
+class IncompleteBlueGateway(TestGateway):
+    def generate_json(self, **kwargs: Any) -> tuple[dict[str, Any], ModelCall]:
+        result, model_call = super().generate_json(**kwargs)
+        if kwargs["agent_name"] == "blue_event_agent":
+            for key in (
+                "event_id",
+                "action",
+                "risk_level",
+                "confidence",
+                "reason_codes",
+                "evidence_refs",
+                "decision_summary",
+                "mitigation",
+            ):
+                result.pop(key)
+        return result, model_call
+
+
+class MissingConfidenceBlueGateway(TestGateway):
+    def generate_json(self, **kwargs: Any) -> tuple[dict[str, Any], ModelCall]:
+        result, model_call = super().generate_json(**kwargs)
+        if kwargs["agent_name"] in {"blue_event_agent", "blue_event_contract_repair"}:
+            result.pop("confidence")
+        return result, model_call
+
+
 def _all_keys(value: Any) -> set[str]:
     keys: set[str] = set()
     if isinstance(value, dict):
@@ -197,6 +227,55 @@ def _all_keys(value: Any) -> set[str]:
 
 
 class InformationBoundaryTests(unittest.TestCase):
+    def test_blue_completes_missing_non_safety_metadata_after_contract_repair(self) -> None:
+        case = simulate_attack(
+            RedTeamAgent().plan(attack_family="ATO-01", difficulty="medium", seed=2026)
+        )
+        gateway = MissingConfidenceBlueGateway()
+        blue = GenAIBlueAgent(
+            gateway=gateway,
+            config=AgentLabConfig(ml_detector_enabled=False),
+        )
+        turn = blue.investigate_event(
+            event=case.events[0],
+            visible_history=[case.events[0]],
+            prior_turns=[],
+            playbook=DefensePlaybook.baseline(),
+            seed=2026,
+        )
+
+        self.assertEqual(turn.decision.confidence, 0.5)
+        self.assertTrue(any("confidence" in item for item in turn.policy_adjustments))
+        self.assertEqual(
+            [call["agent_name"] for call in turn.model_calls],
+            ["blue_event_agent", "blue_event_contract_repair"],
+        )
+
+    def test_blue_repairs_one_structurally_incomplete_combined_response(self) -> None:
+        case = simulate_attack(
+            RedTeamAgent().plan(attack_family="ATO-01", difficulty="medium", seed=2026)
+        )
+        gateway = IncompleteBlueGateway()
+        blue = GenAIBlueAgent(
+            gateway=gateway,
+            config=AgentLabConfig(ml_detector_enabled=False),
+        )
+        turn = blue.investigate_event(
+            event=case.events[0],
+            visible_history=[case.events[0]],
+            prior_turns=[],
+            playbook=DefensePlaybook.baseline(),
+            seed=2026,
+        )
+
+        self.assertEqual(turn.decision.event_id, case.events[0].event_id)
+        self.assertTrue(
+            any(call["agent_name"] == "blue_event_contract_repair" for call in gateway.calls)
+        )
+        self.assertTrue(
+            any(call["agent_name"] == "blue_event_contract_repair" for call in turn.model_calls)
+        )
+
     def test_blue_model_timeout_keeps_deterministic_control_lane_available(self) -> None:
         case = simulate_attack(
             RedTeamAgent().plan(attack_family="ATO-01", difficulty="medium", seed=2026)
@@ -214,7 +293,7 @@ class InformationBoundaryTests(unittest.TestCase):
         )
         self.assertIn(turn.decision.action, {"monitor", "step_up", "hold"})
         self.assertEqual(turn.model_calls, [])
-        self.assertIn("Qwen did not complete", turn.decision.decision_summary)
+        self.assertIn("generative model did not complete", turn.decision.decision_summary)
         self.assertTrue(
             any("Availability fallback" in item for item in turn.policy_adjustments)
         )
@@ -237,6 +316,18 @@ class InformationBoundaryTests(unittest.TestCase):
         self.assertEqual(
             turn.plan.target_lifecycle_phase,
             lifecycle_phase_for_template(selected_stage),
+        )
+
+    def test_red_schema_locks_the_user_selected_difficulty(self) -> None:
+        gateway = TestGateway()
+        agent = GenAIRedAgent(gateway=gateway, config=AgentLabConfig())
+        agent.plan(attack_family="ATO-01", difficulty="hard", seed=2026)
+        red_call = next(
+            call for call in gateway.calls if call["agent_name"] == "red_planner"
+        )
+        self.assertEqual(
+            red_call["schema"]["properties"]["difficulty"]["enum"],
+            ["hard"],
         )
 
     def test_simulator_keeps_truth_out_of_observed_events(self) -> None:
@@ -335,6 +426,33 @@ class ClosedLoopTests(unittest.TestCase):
             set(round_result.referee_report.lifecycle_metrics),
             {"pre_transaction", "transaction", "post_transaction"},
         )
+        reached_phase_metrics = [
+            item
+            for item in round_result.referee_report.lifecycle_metrics.values()
+            if item["status"] == "reached"
+        ]
+        self.assertTrue(reached_phase_metrics)
+        for item in reached_phase_metrics:
+            classification = item["classification_metrics"]
+            self.assertEqual(classification["scope"], "single_battle")
+            self.assertEqual(classification["attack_opportunity_count"], 1)
+            self.assertEqual(classification["legitimate_comparison_count"], 3)
+            self.assertEqual(
+                classification["true_positives"]
+                + classification["false_negatives"],
+                1,
+            )
+            self.assertEqual(
+                classification["false_positives"]
+                + classification["true_negatives"],
+                classification["legitimate_comparison_count"],
+            )
+            for metric_name in ("recall", "f1"):
+                self.assertGreaterEqual(classification[metric_name], 0)
+                self.assertLessEqual(classification[metric_name], 1)
+            if classification["precision"] is not None:
+                self.assertGreaterEqual(classification["precision"], 0)
+                self.assertLessEqual(classification["precision"], 1)
         self.assertGreaterEqual(
             round_result.referee_report.balanced_lifecycle_defense_score, 0
         )

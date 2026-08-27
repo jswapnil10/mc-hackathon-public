@@ -477,7 +477,8 @@ class GenAIBlueAgent:
             reason_codes=reason_codes,
             evidence_refs=evidence_refs,
             decision_summary=(
-                f"Qwen did not complete within the operational window. The deterministic "
+                f"The generative model did not complete a valid decision within the operational "
+                "window. The deterministic "
                 f"observable defense lane applied {action}; no fraud label was inferred from "
                 "model availability."
             ),
@@ -499,7 +500,8 @@ class GenAIBlueAgent:
             ml_risk=ml_risk_info,
             model_calls=model_calls or [],
             policy_adjustments=[
-                "Availability fallback: Qwen missed the operational window, so the observable "
+                "Availability fallback: the generative model missed the operational window or "
+                "response contract, so the observable "
                 "guard and Blue-only detector retained control."
             ],
         )
@@ -638,7 +640,7 @@ class GenAIBlueAgent:
                 ml_risk=ml_risk_info,
                 model_calls=[],
                 policy_adjustments=[
-                    "Resolved on the deterministic verified-context lane; no Qwen call was required."
+                    "Resolved on the deterministic verified-context lane; no model call was required."
                 ],
             )
         policy = {
@@ -691,6 +693,105 @@ class GenAIBlueAgent:
                 ml_risk_info=ml_risk_info,
                 error=error,
             )
+        model_calls = [decision_call.__dict__]
+        missing_contract_keys = [
+            key for key in BLUE_EVENT_RESPONSE_SCHEMA["required"] if key not in combined_result
+        ]
+        if missing_contract_keys:
+            trace(
+                "blue.contract.repair_requested",
+                "The Blue response omitted required fields; one bounded full-response repair was requested.",
+                event_id=event.event_id,
+                missing_keys=missing_contract_keys,
+            )
+            try:
+                combined_result, contract_repair_call = self.gateway.generate_json(
+                    agent_name="blue_event_contract_repair",
+                    model=self.config.blue_model_id,
+                    system_prompt=(
+                        f"{BLUE_EVENT_AGENT_SYSTEM_PROMPT}\n\nYour previous candidate was structurally "
+                        "incomplete. Return a complete replacement object, not a patch. Include every "
+                        "required investigation and decision field at the top level."
+                    ),
+                    user_payload={
+                        **decision_payload,
+                        "rejected_candidate": combined_result,
+                        "contract_violations": [
+                            f"Missing required top-level key: {key}"
+                            for key in missing_contract_keys
+                        ],
+                    },
+                    schema_name="blue_event_response_contract_repair",
+                    schema=BLUE_EVENT_RESPONSE_SCHEMA,
+                    temperature=0.0,
+                    seed=seed + 1,
+                )
+            except RuntimeError as error:
+                return self._availability_fallback_turn(
+                    event=event,
+                    evidence=evidence,
+                    selected_tools=selected_tools,
+                    risk_synthesis=risk_synthesis,
+                    ml_risk_info=ml_risk_info,
+                    error=error,
+                    model_calls=model_calls,
+                )
+            model_calls.append(contract_repair_call.__dict__)
+        contract_adjustments: list[str] = []
+        completion_defaults: dict[str, Any] = {
+            "preliminary_risk": (
+                "Use the observable sequence floor and returned evidence to assess this event "
+                "without treating model confidence as a fraud label."
+            ),
+            "requested_tools": selected_tools[:4],
+            "investigation_focus": ["observable sequence", "evidence quality"],
+            "event_id": event.event_id,
+            "confidence": 0.5,
+            "evidence_refs": [risk_packet.evidence_id],
+            "decision_summary": (
+                "The model-selected action is retained; deterministic contract completion supplied "
+                "only non-safety response metadata."
+            ),
+            "mitigation": "Apply the selected action and retain the evidence trail for review.",
+        }
+        for key, default in completion_defaults.items():
+            if key not in combined_result or combined_result[key] is None:
+                combined_result[key] = default
+                contract_adjustments.append(
+                    f"Completed non-safety model response field {key!r} with a conservative default."
+                )
+        try:
+            combined_result["confidence"] = float(combined_result["confidence"])
+        except (TypeError, ValueError):
+            combined_result["confidence"] = 0.5
+            contract_adjustments.append(
+                "Normalized an invalid model confidence value to the conservative default 0.5."
+            )
+        safety_critical_missing = [
+            key
+            for key in ("action", "risk_level", "reason_codes")
+            if key not in combined_result or combined_result[key] is None
+        ]
+        if safety_critical_missing:
+            return self._availability_fallback_turn(
+                event=event,
+                evidence=evidence,
+                selected_tools=selected_tools,
+                risk_synthesis=risk_synthesis,
+                ml_risk_info=ml_risk_info,
+                error=RuntimeError(
+                    "Blue response remained incomplete after repair; missing safety-critical "
+                    f"fields {safety_critical_missing}."
+                ),
+                model_calls=model_calls,
+            )
+        if contract_adjustments:
+            trace(
+                "blue.contract.completed",
+                "The deterministic contract boundary completed non-safety response metadata.",
+                event_id=event.event_id,
+                adjustments=contract_adjustments,
+            )
         try:
             investigation = InvestigationRequest.from_dict(
                 {
@@ -699,7 +800,15 @@ class GenAIBlueAgent:
                 }
             )
         except (KeyError, TypeError) as exc:
-            raise ValueError("Blue Event Agent returned an incomplete investigation.") from exc
+            return self._availability_fallback_turn(
+                event=event,
+                evidence=evidence,
+                selected_tools=selected_tools,
+                risk_synthesis=risk_synthesis,
+                ml_risk_info=ml_risk_info,
+                error=RuntimeError("Blue returned invalid investigation field types."),
+                model_calls=model_calls,
+            )
         material_tools = [
             tool for tool in dict.fromkeys(investigation.requested_tools) if tool in selected_tools
         ]
@@ -733,10 +842,19 @@ class GenAIBlueAgent:
                 }
             )
         except (KeyError, TypeError) as exc:
-            raise ValueError("Blue Event Agent returned an incomplete decision.") from exc
-        decision, policy_adjustments = self._normalize_policy_labels(
+            return self._availability_fallback_turn(
+                event=event,
+                evidence=evidence,
+                selected_tools=selected_tools,
+                risk_synthesis=risk_synthesis,
+                ml_risk_info=ml_risk_info,
+                error=RuntimeError("Blue returned invalid decision field types."),
+                model_calls=model_calls,
+            )
+        decision, normalized_adjustments = self._normalize_policy_labels(
             decision, prior_turns=prior_turns
         )
+        policy_adjustments = [*contract_adjustments, *normalized_adjustments]
         decision, guard_adjustments = self._apply_fast_path_guard(
             decision,
             risk_synthesis=risk_synthesis,
@@ -758,7 +876,6 @@ class GenAIBlueAgent:
             latency_ms=decision_call.latency_ms,
         )
         available_evidence = {item.evidence_id for item in evidence}
-        model_calls = [decision_call.__dict__]
         decision_errors = self._decision_errors(
             decision,
             event=event,

@@ -80,6 +80,10 @@ class AgentLabConfig:
     # not finish promptly, the gateway retries direct structured generation with the time left.
     reasoning_attempt_timeout_seconds: int = 45
     structured_output_mode: str = "json_schema"
+    # Some compatible proxies accept response_format without enforcing it. A prompt profile
+    # keeps provider-specific response discipline explicit while leaving the agent roles and
+    # deterministic safety contracts model-agnostic.
+    prompt_profile: str = "generic"
     # Direct structured generation is the stable default across local OpenAI-compatible servers.
     # `omit` supports endpoints with no reasoning-control parameter; `auto` remains available as
     # an advanced opt-in for role-specific profiles on faster inference infrastructure.
@@ -142,6 +146,9 @@ class AgentLabConfig:
             structured_output_mode=os.environ.get(
                 "MODEL_STRUCTURED_OUTPUT_MODE", cls.structured_output_mode
             ).lower(),
+            prompt_profile=os.environ.get(
+                "MODEL_PROMPT_PROFILE", cls.prompt_profile
+            ).lower(),
             reasoning_effort=os.environ.get(
                 "MODEL_REASONING_EFFORT", cls.reasoning_effort
             ).lower(),
@@ -181,6 +188,8 @@ class AgentLabConfig:
             raise ValueError(
                 "MODEL_STRUCTURED_OUTPUT_MODE must be json_schema, json_object, or prompt."
             )
+        if self.prompt_profile not in {"generic", "claude"}:
+            raise ValueError("MODEL_PROMPT_PROFILE must be generic or claude.")
         if self.reasoning_effort not in {"auto", "none", "low", "medium", "high", "omit"}:
             raise ValueError(
                 "MODEL_REASONING_EFFORT must be auto, none, low, medium, high, or omit."

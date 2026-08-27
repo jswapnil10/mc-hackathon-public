@@ -8,7 +8,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from .config import AgentLabConfig
 
@@ -65,8 +65,16 @@ class _GatewayTimeout(TimeoutError):
 class OpenAICompatibleGateway:
     """Call a self-hosted endpoint without depending on a vendor SDK."""
 
-    def __init__(self, config: AgentLabConfig) -> None:
+    def __init__(
+        self,
+        config: AgentLabConfig,
+        *,
+        api_key_provider: Callable[[], str] | None = None,
+        extra_body: dict[str, Any] | None = None,
+    ) -> None:
         self.config = config
+        self.api_key_provider = api_key_provider
+        self.extra_body = extra_body
 
     def _response_format(self, schema_name: str, schema: dict[str, Any]) -> dict[str, Any] | None:
         mode = self.config.structured_output_mode
@@ -78,6 +86,23 @@ class OpenAICompatibleGateway:
         if mode == "json_object":
             return {"type": "json_object"}
         return None
+
+    def _format_instruction(self) -> str:
+        if self.config.prompt_profile == "claude":
+            return (
+                "Analyze the supplied evidence carefully, but return only the final JSON object; "
+                "do not expose private reasoning. The user payload includes an output_contract. "
+                "Follow that contract literally: include every required key at the top level, "
+                "use exact enum values, preserve supplied event, evidence, tool, family, and "
+                "difficulty identifiers verbatim, and respect all array and string bounds. "
+                "Never add wrapper keys, Markdown fences, comments, nulls for required values, "
+                "or properties the contract does not define. Silently verify contract completeness "
+                "before returning exactly one JSON object."
+            )
+        return (
+            "Return exactly one JSON object matching the output_contract in the user payload. "
+            "Include every required top-level key and do not use Markdown fences."
+        )
 
     @staticmethod
     def _reasoning_parameter_unsupported(detail: str) -> bool:
@@ -112,7 +137,11 @@ class OpenAICompatibleGateway:
             self.config.chat_completions_url,
             data=json.dumps(payload).encode("utf-8"),
             headers={
-                "Authorization": f"Bearer {self.config.model_api_key}",
+                "Authorization": (
+                    f"Bearer {self.api_key_provider()}"
+                    if self.api_key_provider
+                    else f"Bearer {self.config.model_api_key}"
+                ),
                 "Content-Type": "application/json",
             },
             method="POST",
@@ -182,8 +211,22 @@ class OpenAICompatibleGateway:
                 if message.get("reasoning"):
                     raise _ReasoningOnlyResponse(str(choice.get("finish_reason", "unknown")))
             content = _extract_json_text(raw_content)
-            result = json.loads(content)
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError:
+                # Some compatible providers prepend a brief acknowledgement despite the JSON-only
+                # instruction. Recover one complete object; truncated objects still fail and retry.
+                object_start = content.find("{")
+                if object_start < 0:
+                    raise
+                result, _ = json.JSONDecoder().raw_decode(content[object_start:])
         except _ReasoningOnlyResponse:
+            raise
+        except RuntimeError as exc:
+            if "did not contain message content" in str(exc):
+                raise RuntimeError(
+                    f"Model returned invalid structured JSON for {agent_name}: empty content."
+                ) from exc
             raise
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"Model returned invalid structured JSON for {agent_name}.") from exc
@@ -203,19 +246,28 @@ class OpenAICompatibleGateway:
         temperature: float,
         seed: int,
     ) -> tuple[dict[str, Any], ModelCall]:
-        format_instruction = (
-            "Return exactly one JSON object matching the supplied contract. Do not use Markdown fences."
-        )
+        format_instruction = self._format_instruction()
+        contract_payload = dict(user_payload)
+        # Include the schema in-band even when response_format is also sent. Some enterprise
+        # OpenAI-compatible proxies accept response_format but do not pass strict enforcement
+        # through to every provider model.
+        contract_payload.setdefault("output_contract", schema)
         payload: dict[str, Any] = {
             "model": model,
             "messages": [
                 {"role": "system", "content": f"{system_prompt}\n\n{format_instruction}"},
-                {"role": "user", "content": json.dumps(user_payload, separators=(",", ":"))},
+                {
+                    "role": "user",
+                    "content": json.dumps(contract_payload, separators=(",", ":")),
+                },
             ],
-            "temperature": temperature,
             "max_tokens": self.config.max_output_tokens,
             "seed": seed,
         }
+        # Current Claude endpoints choose their own sampling profile and reject a nonzero
+        # temperature as deprecated. Other OpenAI-compatible backends retain the existing knob.
+        if self.config.prompt_profile != "claude":
+            payload["temperature"] = temperature
         configured_effort = self.config.reasoning_effort_for(agent_name)
         # OpenAI-compatible endpoints that reject this optional field are retried automatically
         # without it, preserving compatibility with ordinary non-reasoning models.
@@ -224,15 +276,19 @@ class OpenAICompatibleGateway:
         response_format = self._response_format(schema_name, schema)
         if response_format is not None:
             payload["response_format"] = response_format
+        if self.extra_body is not None:
+            payload["extra_body"] = self.extra_body
 
         started = time.monotonic()
         fallbacks: list[str] = []
         reasoning_enabled = configured_effort not in {"none", "omit"}
         first_timeout = (
-            min(
-                self.config.reasoning_attempt_timeout_seconds,
-                max(1, self.config.request_timeout_seconds - 1),
-            )
+            self.config.request_timeout_seconds
+            if reasoning_enabled and self.config.prompt_profile == "claude"
+            else min(
+                    self.config.reasoning_attempt_timeout_seconds,
+                    max(1, self.config.request_timeout_seconds - 1),
+                )
             if reasoning_enabled
             else self.config.request_timeout_seconds
         )
@@ -278,8 +334,12 @@ class OpenAICompatibleGateway:
                     "or use a model with reliable structured output."
                 ) from exc
             fallback_payload = dict(payload)
-            fallback_payload["reasoning_effort"] = "none"
-            fallbacks.append("reasoning_exhausted_retry_without_thinking")
+            if self.config.prompt_profile == "claude":
+                fallback_payload["reasoning_effort"] = configured_effort
+                fallbacks.append("reasoning_exhausted_retry_same_effort")
+            else:
+                fallback_payload["reasoning_effort"] = "none"
+                fallbacks.append("reasoning_exhausted_retry_without_thinking")
             remaining = self.config.request_timeout_seconds - (time.monotonic() - started)
             if remaining < 1:
                 raise self._timeout_error(
@@ -305,7 +365,46 @@ class OpenAICompatibleGateway:
             except _ReasoningOnlyResponse as retry_exc:
                 raise RuntimeError(
                     "Model returned reasoning but no final JSON content after the automatic "
-                    f"no-reasoning retry (finish_reason={retry_exc.finish_reason})."
+                    f"structured retry (finish_reason={retry_exc.finish_reason})."
+                ) from retry_exc
+        except RuntimeError as exc:
+            if f"invalid structured JSON for {agent_name}" not in str(exc):
+                raise
+            repair_payload = dict(payload)
+            repair_messages = [dict(message) for message in payload["messages"]]
+            repair_messages[0]["content"] = (
+                f"{repair_messages[0]['content']}\n\nYour previous response was not valid JSON. "
+                "Retry the same task and return one complete, parseable object matching the "
+                "output_contract. Do not truncate, preface, or wrap it."
+            )
+            repair_payload["messages"] = repair_messages
+            fallbacks.append("invalid_json_retry")
+            remaining = self.config.request_timeout_seconds - (time.monotonic() - started)
+            if remaining < 1:
+                raise self._timeout_error(
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    detail="no request time remained for the invalid-JSON retry",
+                ) from exc
+            try:
+                body, used_effort = self._post(
+                    repair_payload,
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    timeout_seconds=max(1, remaining),
+                )
+            except _GatewayTimeout as retry_exc:
+                raise self._timeout_error(
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    detail=retry_exc.detail,
+                ) from retry_exc
+            try:
+                result = self._parse_result(body, agent_name)
+            except _ReasoningOnlyResponse as retry_exc:
+                raise RuntimeError(
+                    "Model returned reasoning but no final JSON content during the automatic "
+                    f"invalid-JSON retry (finish_reason={retry_exc.finish_reason})."
                 ) from retry_exc
         trace = ModelCall(
             agent_name=agent_name,

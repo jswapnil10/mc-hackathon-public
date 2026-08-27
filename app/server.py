@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import os
-import re
 import random
+import re
 import threading
 import time
 from pathlib import Path
@@ -31,6 +32,7 @@ LEGACY_DEMO_DIR = PROJECT_ROOT / "app" / "legacy_demo"
 AGENT_RUNS_DIR = PROJECT_ROOT / "runs" / "agentic"
 LATEST_AGENT_RUN_PATH = AGENT_RUNS_DIR / "latest.json"
 PRECOMPUTED_DEMO_DIR = PROJECT_ROOT / "data" / "demo_runs"
+WEB_MAX_ROUNDS = 5
 AGENT_RUN_LOCK = threading.Lock()
 RUN_PROGRESS_LOCK = threading.Lock()
 RUN_PROGRESS: dict[str, dict[str, Any]] = {}
@@ -68,42 +70,114 @@ def _load_precomputed_runs() -> list[dict[str, Any]]:
 def _select_precomputed_run(
     *, attack_family: str, difficulty: str, rounds: int, seed: int
 ) -> dict[str, Any] | None:
-    matches = []
+    matches: list[dict[str, Any]] = []
     for payload in _load_precomputed_runs():
         recorded_rounds = payload["rounds"]
         scenario = recorded_rounds[0].get("red", {}).get("scenario", {})
         if (
-            len(recorded_rounds) == rounds
-            and scenario.get("attack_family") == attack_family
+            scenario.get("attack_family") == attack_family
             and scenario.get("difficulty") == difficulty
         ):
             matches.append(payload)
     if not matches:
         return None
-    selected = random.Random(seed).choice(matches)
+
+    rng = random.Random(seed)
+    longest_recording = max(len(payload["rounds"]) for payload in matches)
+    complete_matches = [
+        payload
+        for payload in matches
+        if len(payload["rounds"]) >= rounds
+        and len(payload["rounds"]) == longest_recording
+    ]
+    sources: list[str]
+    if complete_matches:
+        selected = copy.deepcopy(rng.choice(complete_matches))
+        recorded_rounds = selected["rounds"]
+        sources = [selected.pop("_demo_source", "curated artifact")]
+        selected["rounds"] = recorded_rounds[:rounds]
+        selected["duration_ms"] = sum(
+            int(item.get("duration_ms") or 0) for item in selected["rounds"]
+        )
+        if len(recorded_rounds) > rounds:
+            next_playbook = (
+                recorded_rounds[rounds].get("blue", {}).get("active_playbook")
+            )
+            if next_playbook:
+                selected["final_defense_playbook"] = copy.deepcopy(next_playbook)
+        sequence_kind = "recorded_run" if rounds == 1 else "adaptive_recorded_run"
+    else:
+        single_round_matches = [
+            payload for payload in matches if len(payload["rounds"]) == 1
+        ]
+        if not single_round_matches:
+            return None
+        rng.shuffle(single_round_matches)
+        chosen = [
+            single_round_matches[index % len(single_round_matches)]
+            for index in range(rounds)
+        ]
+        selected = copy.deepcopy(chosen[0])
+        selected["rounds"] = []
+        sources = []
+        for round_number, payload in enumerate(chosen, start=1):
+            replay_round = copy.deepcopy(payload["rounds"][0])
+            replay_round["round_number"] = round_number
+            replay_round["blue_adaptation"] = None
+            replay_round["recorded_replay_source"] = payload.get(
+                "_demo_source", "curated artifact"
+            )
+            selected["rounds"].append(replay_round)
+            sources.append(payload.get("_demo_source", "curated artifact"))
+        selected["final_defense_playbook"] = copy.deepcopy(
+            chosen[-1].get(
+                "final_defense_playbook", selected["final_defense_playbook"]
+            )
+        )
+        selected["duration_ms"] = sum(
+            int(item.get("duration_ms") or 0) for item in selected["rounds"]
+        )
+        selected.pop("_demo_source", None)
+        sequence_kind = "independent_recorded_replays"
+
+    selected["run_id"] = f"{selected.get('run_id', 'LAB-RECORDED')}-REPLAY-{rounds}R"
     selected["demo_mode"] = "precomputed_replay"
     selected["demo_provenance"] = {
-        "label": "Precomputed replay of a recorded, bounded agent run",
-        "source": selected.pop("_demo_source", "curated artifact"),
+        "label": "Precomputed replay of recorded, bounded agent output",
+        "sequence_kind": sequence_kind,
+        "requested_rounds": rounds,
+        "unique_recordings_used": len(set(sources)),
+        "sources": list(dict.fromkeys(sources)),
+        "note": (
+            "This is a recorded adaptive multi-round run."
+            if sequence_kind == "adaptive_recorded_run"
+            else "Replay cycles are recorded snapshots; no live cross-round model learning occurs."
+            if rounds > 1
+            else "No live model call occurs."
+        ),
     }
     return selected
 
 
 def _precomputed_demo_catalog() -> list[dict[str, Any]]:
     """Return only selectable replay combinations, preventing dead-end UI choices."""
-    combinations = {
-        (
-            rounds[0].get("red", {}).get("scenario", {}).get("attack_family"),
-            rounds[0].get("red", {}).get("scenario", {}).get("difficulty"),
-            len(rounds),
+    scenario_capacity: dict[tuple[str, str], int] = {}
+    for payload in _load_precomputed_runs():
+        recorded_rounds = payload["rounds"]
+        scenario = recorded_rounds[0].get("red", {}).get("scenario", {})
+        family = scenario.get("attack_family")
+        difficulty = scenario.get("difficulty")
+        if not family or not difficulty:
+            continue
+        capacity = WEB_MAX_ROUNDS if len(recorded_rounds) == 1 else len(recorded_rounds)
+        key = (family, difficulty)
+        scenario_capacity[key] = max(
+            scenario_capacity.get(key, 0), min(WEB_MAX_ROUNDS, capacity)
         )
-        for payload in _load_precomputed_runs()
-        for rounds in [payload["rounds"]]
-    }
     return [
         {"attack_family": family, "difficulty": difficulty, "rounds": rounds}
-        for family, difficulty, rounds in sorted(combinations)
-        if family and difficulty
+        for (family, difficulty), capacity in sorted(scenario_capacity.items())
+        for rounds in range(1, capacity + 1)
     ]
 
 
@@ -542,8 +616,10 @@ def create_app() -> Flask:
                 return jsonify({"error": f"Unknown attack family {family!r}."}), 400
             if difficulty not in {"easy", "medium", "hard"}:
                 return jsonify({"error": "Difficulty must be easy, medium, or hard."}), 400
-            if not 1 <= rounds <= 3:
-                return jsonify({"error": "The web demo supports between 1 and 3 rounds."}), 400
+            if not 1 <= rounds <= WEB_MAX_ROUNDS:
+                return jsonify(
+                    {"error": f"The web demo supports between 1 and {WEB_MAX_ROUNDS} rounds."}
+                ), 400
 
             if _precomputed_demo_enabled():
                 result = _select_precomputed_run(
