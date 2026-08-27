@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import io
 import json
 import unittest
@@ -367,6 +368,54 @@ class ModelGatewayCompatibilityTests(unittest.TestCase):
         self.assertEqual(result, {"ok": True})
         self.assertEqual(urlopen.call_count, 2)
         self.assertIn("invalid_json_retry", trace.compatibility_fallbacks)
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_retries_one_transient_connection_failure(self, urlopen) -> None:
+        urlopen.side_effect = [
+            urllib.error.URLError(OSError("unexpected TLS EOF")),
+            _FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {"role": "assistant", "content": '{"ok":true}'},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                }
+            ),
+        ]
+
+        result, trace = self._call(
+            AgentLabConfig(reasoning_effort="high", prompt_profile="claude")
+        )
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertIn("connection_retry", trace.compatibility_fallbacks)
+
+    @patch("sentinelloop.model_gateway.urllib.request.urlopen")
+    def test_retries_one_incomplete_http_response(self, urlopen) -> None:
+        urlopen.side_effect = [
+            http.client.IncompleteRead(b"partial", 10),
+            _FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {"role": "assistant", "content": '{"ok":true}'},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                }
+            ),
+        ]
+
+        result, trace = self._call(
+            AgentLabConfig(reasoning_effort="high", prompt_profile="claude")
+        )
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertIn("connection_retry", trace.compatibility_fallbacks)
 
 
 if __name__ == "__main__":

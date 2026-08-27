@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import re
 import time
@@ -131,6 +132,7 @@ class OpenAICompatibleGateway:
         agent_name: str,
         fallbacks: list[str],
         timeout_seconds: float | None = None,
+        connection_retries: int = 1,
     ) -> tuple[dict[str, Any], str | None]:
         effective_timeout = timeout_seconds or self.config.request_timeout_seconds
         request = urllib.request.Request(
@@ -177,10 +179,33 @@ class OpenAICompatibleGateway:
             reason = exc.reason
             if isinstance(reason, TimeoutError) or "timed out" in str(reason).lower():
                 raise _GatewayTimeout(effective_timeout, reason) from exc
+            if connection_retries > 0:
+                fallbacks.append("connection_retry")
+                return self._post(
+                    payload,
+                    agent_name=agent_name,
+                    fallbacks=fallbacks,
+                    timeout_seconds=effective_timeout,
+                    connection_retries=connection_retries - 1,
+                )
             raise RuntimeError(
                 f"Could not reach the model endpoint at {self.config.chat_completions_url}: {exc.reason}"
             ) from exc
-        except (TimeoutError, OSError) as exc:
+        except (TimeoutError, OSError, http.client.IncompleteRead) as exc:
+            if "timed out" not in str(exc).lower():
+                if connection_retries > 0:
+                    fallbacks.append("connection_retry")
+                    return self._post(
+                        payload,
+                        agent_name=agent_name,
+                        fallbacks=fallbacks,
+                        timeout_seconds=effective_timeout,
+                        connection_retries=connection_retries - 1,
+                    )
+                raise RuntimeError(
+                    f"Could not reach the model endpoint at "
+                    f"{self.config.chat_completions_url}: {exc}"
+                ) from exc
             raise _GatewayTimeout(effective_timeout, exc) from exc
 
     def _timeout_error(

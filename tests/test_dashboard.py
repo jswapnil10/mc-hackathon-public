@@ -165,7 +165,7 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(payload["demo_mode"], "precomputed_replay")
 
     @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
-    def test_precomputed_demo_supports_five_replay_rounds(self):
+    def test_precomputed_demo_prefers_five_round_adaptive_recording(self):
         response = self.client.post(
             "/api/v2/run",
             json={
@@ -184,10 +184,14 @@ class DashboardTests(unittest.TestCase):
         )
         self.assertEqual(
             payload["demo_provenance"]["sequence_kind"],
-            "independent_recorded_replays",
+            "adaptive_recorded_run",
         )
         self.assertEqual(payload["demo_provenance"]["requested_rounds"], 5)
-        self.assertIn("no live cross-round model learning", payload["demo_provenance"]["note"])
+        self.assertIn("recorded adaptive multi-round run", payload["demo_provenance"]["note"])
+        self.assertEqual(
+            payload["model_configuration"]["red"],
+            "Claude-Opus-4.8",
+        )
 
     def test_unknown_run_progress_is_explicit(self):
         response = self.client.get("/api/v2/run-progress/browser-test-0001")

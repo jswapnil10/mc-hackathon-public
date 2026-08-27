@@ -12,6 +12,30 @@ the UI accurately identifies the model that generated each recorded trace.
 Use `python scripts/curate_demo_run.py SOURCE.json DESTINATION.json` to validate and
 copy a recorded run into this catalog.
 
-To replace replay cycles with true recorded cross-round adaptation, generate five-round
-artifacts with `python scripts/generate_demo_catalog.py --rounds 5`; the selector will
-prefer them automatically for requests of two to five rounds.
+The committed `*-5r-claude-opus-48.json` catalog contains true recorded cross-round
+adaptation for all nine attack families at easy, medium and hard difficulty: 27 runs
+and 135 rounds. The selector automatically prefers these recordings for requests of
+one to five rounds. Public demo mode needs no model credentials or inference service.
+
+To regenerate the catalog from a Claude-compatible endpoint, supply credentials only
+through the environment and run:
+
+```bash
+MODEL_BASE_URL="https://provider.example/v1" \
+MODEL_API_KEY="..." \
+RED_MODEL_ID="Claude-Opus-4.8" \
+BLUE_MODEL_ID="Claude-Opus-4.8" \
+MODEL_STRUCTURED_OUTPUT_MODE=prompt \
+MODEL_REASONING_EFFORT=high \
+MODEL_MAX_OUTPUT_TOKENS=4096 \
+CASE_PARALLELISM=4 \
+python scripts/generate_demo_catalog.py \
+  --rounds 5 \
+  --prompt-profile claude \
+  --artifact-label claude-opus-48
+```
+
+The generator resumes safely by skipping valid existing files. Its optional
+`--families`, `--difficulties` and `--mars-auth-source` arguments support partitioned
+generation and local MARS authentication; generated artifacts never contain the
+provider token.

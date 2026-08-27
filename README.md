@@ -408,6 +408,7 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | `RED_MODEL_ID` | Auto-detected Qwen or `Qwen/Qwen3.5-9B` | Red planner model |
 | `BLUE_MODEL_ID` | Auto-detected Qwen or `Qwen/Qwen3.5-9B` | Blue investigator/decision model |
 | `MODEL_STRUCTURED_OUTPUT_MODE` | `json_schema` | `json_schema`, `json_object` or `prompt` |
+| `MODEL_PROMPT_PROFILE` | `generic` | `generic` or `claude`; the Claude profile adds strict, schema-complete JSON guidance and omits unsupported sampling fields |
 | `MODEL_REASONING_EFFORT` | `none` | Direct structured generation for every agent; use `omit` if an endpoint has no reasoning parameter or `auto` only for advanced role-specific tuning |
 | `MODEL_TIMEOUT_SECONDS` | `120` | End-to-end request window for one agent response, including compatibility fallback |
 | `MODEL_REASONING_ATTEMPT_TIMEOUT_SECONDS` | `45` | Maximum first-attempt time for optional reasoning before a direct structured retry |
