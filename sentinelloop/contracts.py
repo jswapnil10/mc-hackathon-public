@@ -408,6 +408,10 @@ class RefereeReport:
     # so existing callers that pass no ambient cases are unaffected.
     ambient_false_positive_rate: float = 0.0
     ambient_friction_rate: float = 0.0
+    # No-defense counterfactual (grounded in sealed truth): total lost if nothing intervened
+    # (= total at risk), and how much of that Blue avoided (= value prevented).
+    no_defense_loss_inr: float = 0.0
+    loss_avoided_inr: float = 0.0
     scoring_notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

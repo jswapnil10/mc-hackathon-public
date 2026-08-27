@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Ccircle cx='24' cy='20' r='18' fill='%23eb001b'/%3E%3Ccircle cx='40' cy='20' r='18' fill='%23f79e1b'/%3E%3Cpath d='M32 5.2a18 18 0 0 1 0 29.6 18 18 0 0 1 0-29.6Z' fill='%23ff5f00'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='lab.css') }}">
 </head>
 <body>
@@ -19,11 +19,11 @@
     </a>
     <nav class="topnav" aria-label="Page sections">
       <a href="#battleControls">Arena</a>
-      <a href="#threatAtlas">Identify</a>
-      <a href="#scenarioFoundry">Generate</a>
-      <a href="#defenseBenchmark">Defend</a>
+      <a href="/evidence#threatAtlas">Identify</a>
+      <a href="/evidence#scenarioFoundry">Generate</a>
+      <a href="/evidence#defenseBenchmark">Defend</a>
       <a href="#externalValidation">External proof</a>
-      <a href="/static/run-guide.html" target="_blank" rel="noopener">Run guide ↗</a>
+      <a href="/run-guide">Run guide</a>
     </nav>
     <div class="system-state"><span class="pulse"></span><span id="systemMode">Open-model arena</span></div>
     <div class="mastercard-lockup" aria-label="Mastercard Innovation Challenge 2026">
@@ -42,7 +42,7 @@
         <div class="eyebrow">AI DEFENSE LAB · PAYMENT SECURITY</div>
         <h1>Build the attack.<br><span>Prove the defense.</span></h1>
         <p>MasterGuard AI is a safe payment-fraud stress test. A Red AI creates a synthetic attack, a Blue defense decides how to respond, and an independent Referee reveals the hidden answer key only after every decision is made.</p>
-        <a class="hero-cta" href="#battleControls">Configure a battle <span>↘</span></a>
+        <a class="hero-cta" href="#battleControls">Configure a battle <span>→</span></a>
       </div>
       <aside class="hero-stage" aria-label="Arena architecture">
         <div class="stage-head"><span><i></i> LIVE ARCHITECTURE</span><b>RED × BLUE</b></div>
@@ -62,84 +62,11 @@
     </section>
 
     <section class="pillar-strip" aria-label="Evidence behind the Arena">
-      <a href="#threatAtlas"><small>EVIDENCE 01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Research catalogue and source links →</span></a>
-      <a href="#scenarioFoundry"><small>EVIDENCE 02 · GENERATE</small><strong>Scenario Foundry</strong><span>Latest reproducible synthetic build →</span></a>
-      <a href="#defenseBenchmark"><small>EVIDENCE 03 · DEFEND</small><strong>Defense Benchmark</strong><span>Results on sealed synthetic test data →</span></a>
+      <a href="/evidence#threatAtlas"><small>EVIDENCE 01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Research catalogue and source links →</span></a>
+      <a href="/evidence#scenarioFoundry"><small>EVIDENCE 02 · GENERATE</small><strong>Scenario Foundry</strong><span>Latest reproducible synthetic build →</span></a>
+      <a href="/evidence#defenseBenchmark"><small>EVIDENCE 03 · DEFEND</small><strong>Defense Benchmark</strong><span>Results on sealed synthetic test data →</span></a>
     </section>
 
-    <section id="threatAtlas" class="atlas-section">
-      <div class="section-heading">
-        <div><div class="section-kicker">EVIDENCE 01 · IDENTIFY · RESEARCH CATALOGUE</div><h2>Research becomes an executable Threat Atlas</h2><p>These counts describe the curated catalogue—not the latest agent battle. Every vector is mapped to supporting research, payment surfaces and one bounded simulator family.</p></div>
-        <div class="atlas-summary-line">
-          <span><b id="atlasVectorCount">—</b> researched vectors<small>Source · Threat Atlas catalogue</small></span>
-          <span><b id="atlasSourceCount">—</b> unique research sources<small>Source · Threat Atlas bibliography</small></span>
-          <span><b id="atlasRailCount">—</b> payment rails<small>Source · distinct vector mappings</small></span>
-        </div>
-      </div>
-      <div class="atlas-toolbar">
-        <label>Attack category<select id="atlasCategory"><option value="all">All categories</option></select></label>
-        <label>Payment rail<select id="atlasRail"><option value="all">All rails</option></select></label>
-        <span id="atlasResultCount">Loading researched vectors…</span>
-      </div>
-      <div id="atlasVectorGrid" class="atlas-vector-grid"></div>
-      <p class="method-note"><b>Evidence boundary:</b> a cited vector may be emerging or inferred. Research confidence, plausibility, novelty and source links stay visible; no unsupported vector is presented as observed fraud prevalence.</p>
-    </section>
-
-    <section id="scenarioFoundry" class="foundry-section">
-      <div class="foundry-copy">
-        <div class="section-kicker">EVIDENCE 02 · GENERATE · LATEST SYNTHETIC BUILD</div>
-        <h2>Turn every idea into a safe payment population</h2>
-        <p>These numbers come from the latest reproducible Scenario Foundry build—not the current Arena battle. Red compiles bounded variants while the generator creates attack events, ordinary payments and difficult legitimate look-alikes.</p>
-        <div class="foundry-flow" aria-label="Scenario generation flow">
-          <span>Threat vector</span><i>→</i><span>Bounded Red plan</span><i>→</i><span>Observable events</span><i>→</i><span>Sealed split</span>
-        </div>
-      </div>
-      <div class="foundry-console">
-        <header><span>SCENARIO FOUNDRY · LATEST REPRODUCIBLE BUILD</span><b id="foundryQualityState">—</b></header>
-        <div class="foundry-stats">
-          <div><small>SYNTHETIC EVENT ROWS</small><strong id="foundryEvents">—</strong><span>Source · latest Foundry build</span></div>
-          <div><small>ATTACK SCENARIO VARIANTS</small><strong id="foundryCampaigns">—</strong><span>Source · generated vector variants</span></div>
-          <div><small>ATLAS VECTORS COVERED</small><strong id="foundryVectors">—</strong><span>Source · build coverage report</span></div>
-          <div><small>FIDELITY VS DECLARED PRIORS</small><strong id="foundryFidelity">—</strong><span>Source · fidelity calculation</span></div>
-        </div>
-        <div id="splitBars" class="split-bars"></div>
-        <button id="runFoundry" class="foundry-button" type="button"><span>Regenerate & benchmark</span><b>↗</b></button>
-        <p id="foundryState">Uses fixed, reproducible defaults and does not call the Qwen endpoint. No real customer or payment data is used.</p>
-      </div>
-    </section>
-
-    <section id="defenseBenchmark" class="benchmark-section">
-      <div class="section-heading">
-        <div><div class="section-kicker">EVIDENCE 03 · DEFEND · SEALED SYNTHETIC BENCHMARK</div><h2>Prove detection on data the defense never trained on</h2><p>These metrics come from the latest Scenario Foundry benchmark—not a single Arena battle. A detector is selected on validation data, frozen, and then evaluated on sealed known-pattern and withheld-vector events.</p></div>
-        <span id="benchmarkModel" class="proof-badge">NO BENCHMARK YET</span>
-      </div>
-      <div class="benchmark-kpis">
-        <article><small class="metric-title">SEALED SYNTHETIC TEST · PR-AUC <button type="button" class="metric-info" aria-label="PR-AUC definition" data-tooltip="How well the detector ranks fraud above legitimate events across every possible threshold. Higher is better.">i</button></small><strong id="benchmarkPrauc">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkPraucNote">How well fraud ranks above legitimate events when fraud is rare. Higher is better.</p></article>
-        <article><small class="metric-title">WITHHELD VECTORS · ATTACK EVENTS CAUGHT <button type="button" class="metric-info" aria-label="Withheld-vector recall definition" data-tooltip="The share of fraud events caught when their complete attack vector was excluded from training. Higher is better.">i</button></small><strong id="benchmarkNovelRecall">—</strong><span class="metric-source">Source · novel-vector test split</span><p id="benchmarkNovelRecallNote">Share caught when the complete attack vector was excluded from training. Higher is better.</p></article>
-        <article><small class="metric-title">SEALED SYNTHETIC TEST · F1 <button type="button" class="metric-info" aria-label="F1 definition" data-tooltip="A balance of precision and recall. It is high only when alerts are accurate and most fraud is caught.">i</button></small><strong id="benchmarkF1">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkF1Note">One score balancing attacks caught against incorrect alerts. Higher is better.</p></article>
-        <article><small class="metric-title">HARD LEGITIMATE CONTROLS · FALSE ALERT RATE <button type="button" class="metric-info" aria-label="False alert rate definition" data-tooltip="The share of difficult legitimate look-alikes incorrectly flagged as fraud. Lower is better.">i</button></small><strong id="benchmarkFpr">—</strong><span class="metric-source">Source · hard-control test cases</span><p id="benchmarkFprNote">Difficult legitimate look-alikes incorrectly treated as fraud. Lower is better.</p></article>
-      </div>
-      <div class="benchmark-detail-grid">
-        <article class="confusion-card">
-          <header><div><small>SEALED SYNTHETIC EVENT OUTCOMES</small><h3>What the detector got right and wrong</h3></div><span id="benchmarkThreshold">Technical threshold —</span></header>
-          <div class="confusion-grid">
-            <div class="correct"><small>TRUE NEGATIVE</small><strong id="matrixTn">—</strong><span>legitimate passed</span></div>
-            <div class="wrong"><small>FALSE POSITIVE</small><strong id="matrixFp">—</strong><span>customer friction</span></div>
-            <div class="wrong"><small>FALSE NEGATIVE</small><strong id="matrixFn">—</strong><span>missed attack</span></div>
-            <div class="correct"><small>TRUE POSITIVE</small><strong id="matrixTp">—</strong><span>attack detected</span></div>
-          </div>
-        </article>
-        <article class="phase-benchmark-card">
-          <header><small>PAYMENT-STAGE DEFENSE</small><h3>Fraud caught and legitimate users protected</h3></header>
-          <div id="benchmarkPhases"></div>
-        </article>
-      </div>
-      <div class="family-table-wrap">
-        <div class="family-table-head"><div><small>ATTACK COVERAGE</small><h3>Defense efficacy by family</h3></div><span id="benchmarkGenerated">—</span></div>
-        <div class="family-table-scroll"><table><thead><tr><th>Family</th><th>Attack events</th><th>Fraud caught</th><th>Value protected</th><th>Average risk score</th></tr></thead><tbody id="familyResults"></tbody></table></div>
-      </div>
-      <p class="method-note"><b>Interpretation:</b> these are reproducible synthetic stress-test results, not claims about live Mastercard traffic. Real deployment requires privacy-reviewed calibration, shadow traffic and drift monitoring.</p>
-    </section>
 
     <section id="externalValidation" class="external-validation-section">
       <div class="section-heading">
@@ -231,6 +158,10 @@
       </div>
       <ol id="runProgressSteps" class="run-progress-steps" aria-label="Live battle stages"></ol>
       <div id="runProgressCount" class="run-progress-count">Waiting for the first verified stage update…</div>
+      <div id="runEventFeed" class="run-event-feed hidden" aria-label="Live attack events and Blue decisions">
+        <div class="run-event-feed-head"><small>LIVE EVENTS · ATTACK, LOOK-ALIKES &amp; ORDINARY TRAFFIC · BLUE DECISIONS</small></div>
+        <div id="runEventList" class="event-groups"></div>
+      </div>
     </section>
     <section id="errorState" class="error-state hidden" aria-live="assertive"></section>
 
@@ -245,18 +176,31 @@
 
       <aside class="metric-guide" aria-label="How to read the battle metrics">
         <strong>How to read this report</strong>
-        <span><b>Defense score:</b> higher is better.</span>
-        <span><b>Attack strength:</b> higher means a tougher test, not a defense failure.</span>
-        <span><b>Money lost:</b> lower is better.</span>
-        <span><b>Detection time:</b> uses the simulated event timeline, not browser waiting time.</span>
-        <span><b>Result:</b> Prevented means no synthetic loss; Contained means some loss was limited; Detected means a warning without proven value protection; Missed means no warning.</span>
+        <span><b>Verdict:</b> Prevented = no synthetic loss · Contained = loss limited · Detected = warning only · Missed = no warning.</span>
+        <span><b>Loss avoided:</b> synthetic value protected versus doing nothing — higher is better.</span>
+        <span><b>Decision latency:</b> how far into the attack cycle Blue first acted (simulated timeline, not browser wait). The ribbon marks where.</span>
+        <span><b>False alarms:</b> legitimate payments wrongly blocked or held — lower is better.</span>
+        <span><b>Attack strength vs Defense score:</b> higher attack strength means a tougher test, not a failure; higher defense score is better.</span>
       </aside>
 
-      <section class="outcome-board" aria-label="Battle outcome">
-        <article class="outcome-primary"><small class="metric-title">OVERALL DEFENSE SCORE · HIGHER IS BETTER <button type="button" class="metric-info" aria-label="Overall defense score definition" data-tooltip="A 0–100 score combining average payment-stage defense with extra weight on the weakest stage.">i</button></small><strong id="balancedScore">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p>60% average performance plus 40% of the weakest payment stage, so one strong stage cannot hide another stage's gap.</p></article>
-        <article><small class="metric-title">ATTACK STRENGTH · HIGHER IS HARDER <button type="button" class="metric-info" aria-label="Attack strength definition" data-tooltip="How far the synthetic attack progressed, how quietly it moved, and how many payment stages it exercised.">i</button></small><strong id="redCapability">—</strong><span>/ 100</span><em class="metric-source">Source · current battle Referee</em><p id="redCapabilityNote">How far the attack progressed, how quietly it moved, and how many stages it exercised.</p></article>
-        <article><small class="metric-title">SYNTHETIC MONEY LOST · LOWER IS BETTER <button type="button" class="metric-info" aria-label="Synthetic money lost definition" data-tooltip="At-risk synthetic value that remained unprotected after Blue's effective action. Lower is better.">i</button></small><strong id="realizedImpact">—</strong><span id="realizedImpactRatio">after Blue acted</span><em class="metric-source">Source · current battle sealed truth</em><p id="impactVerdict">Waiting for a completed battle.</p></article>
-        <article><small class="metric-title">FINAL RESULT <button type="button" class="metric-info" aria-label="Final result definition" data-tooltip="Prevented means no synthetic loss; contained means loss was limited; detected means warning only; missed means no warning.">i</button></small><strong id="outcome">—</strong><span id="detectionTime">No result</span><em class="metric-source">Source · current battle Referee</em><p><b id="falsePositives">—</b> of legitimate look-alikes were wrongly held or blocked.</p></article>
+      <section id="verdictHero" class="verdict-hero" aria-label="Battle verdict">
+        <div class="verdict-head"><span class="verdict-badge" id="verdictBadge">—</span><p class="verdict-line" id="verdictLine">Run a battle to see the verdict.</p></div>
+        <div class="verdict-facts">
+          <div><small>LOSS AVOIDED VS NO DEFENSE</small><strong id="heroLossAvoided">—</strong></div>
+          <div><small>DECISION LATENCY</small><strong id="heroLatency">—</strong><span id="heroLatencyNote"></span></div>
+          <div><small>FALSE ALARMS · LOWER IS BETTER</small><strong id="heroFalseAlarms">—</strong><span id="heroFalseAlarmsNote"></span></div>
+        </div>
+      </section>
+
+      <section class="money-outcome" aria-label="Money outcome">
+        <div class="money-head"><small class="metric-title">THE MONEY · NO-DEFENSE COUNTERFACTUAL <button type="button" class="metric-info" aria-label="Money counterfactual definition" data-tooltip="Without any defense the full at-risk value would be lost. This bar splits that into value Blue protected versus value still lost.">i</button></small><strong id="moneyHeadline">Run a battle to see the money outcome.</strong></div>
+        <div class="money-bar" role="img" aria-label="Share of at-risk value avoided versus lost"><i id="moneyAvoided" class="seg avoided"></i><i id="moneyLost" class="seg lost"></i></div>
+        <div class="money-legend"><span><em class="dot avoided"></em><b id="mAvoided">—</b> loss avoided</span><span><em class="dot lost"></em><b id="mLost">—</b> money lost</span><span><b id="mAtRisk">—</b> would be lost with no defense</span></div>
+      </section>
+
+      <section id="eventStreamSection" class="event-stream-section" aria-label="Attack event stream">
+        <div class="section-heading"><div><div class="section-kicker">ATTACK EVENT STREAM</div><h2>Every event Red generated — and Blue's decision on each</h2><p>Each event is shown with all of its populated attributes; Blue's action (monitor, step-up, hold, block) is marked where it acted.</p></div></div>
+        <div id="eventStreamList" class="event-groups"></div>
       </section>
 
       <section id="lifecycleScorecard" class="lifecycle-section">
@@ -273,14 +217,21 @@
 
       <section class="impact-section" aria-label="Capability and impact">
         <div class="impact-copy">
-          <div class="section-kicker">ATTACK STRENGTH × MONEY LOST</div>
+          <div class="section-kicker">FAIR FIGHT · ATTACK STRENGTH vs DEFENSE</div>
           <h2>Was the attack easy—or did Blue defend it well?</h2>
-          <p>Move right for a stronger attack. Move up for more synthetic money lost after Blue acted. Bubble size shows the total value that was at risk.</p>
-          <div class="impact-values">
-            <div><small class="metric-title">SYNTHETIC VALUE AT RISK <button type="button" class="metric-info" aria-label="Value at risk definition" data-tooltip="Total synthetic value exposed across the attack sequence if no effective intervention occurs.">i</button></small><strong id="attackPotential">—</strong></div>
-            <div><small class="metric-title">VALUE PROTECTED <button type="button" class="metric-info" aria-label="Value protected definition" data-tooltip="Synthetic value prevented from moving or being lost because of Blue's effective action.">i</button></small><strong id="valueProtected">—</strong><span id="valueAtRisk">of — at risk</span></div>
-            <div><small class="metric-title">SYNTHETIC MONEY LOST <button type="button" class="metric-info" aria-label="Money lost definition" data-tooltip="Synthetic value at risk minus the value protected by Blue. Lower is better.">i</button></small><strong id="impactAmount">—</strong></div>
+          <p>Right = a stronger, stealthier attack. Up = more synthetic money lost after Blue acted. Bubble size = total value that was at risk.</p>
+          <div class="fairfight-scores">
+            <div><small class="metric-title">ATTACK STRENGTH <button type="button" class="metric-info" aria-label="Attack strength definition" data-tooltip="How far the synthetic attack progressed, how quietly it moved, and how many payment stages it exercised. Higher = tougher test.">i</button></small><strong id="redCapability">—</strong><span>/ 100 · <span id="redCapabilityNote">how far, how quietly the attack moved</span></span></div>
+            <div><small class="metric-title">DEFENSE SCORE <button type="button" class="metric-info" aria-label="Defense score definition" data-tooltip="A 0–100 score combining average payment-stage defense with extra weight on the weakest stage.">i</button></small><strong id="balancedScore">—</strong><span>/ 100 · <span id="impactVerdict">weakest stage weighted heavily</span></span></div>
           </div>
+          <details class="scoring-details"><summary>How the defense score was computed</summary>
+            <p class="score-formula">60% of the average payment-stage score + 40% of the weakest stage, so one strong stage can't hide a gap. Weakest stage: <b id="scoreWorst">—</b>.</p>
+            <div class="score-components" id="scoreComponents"></div>
+          </details>
+          <details class="scoring-details"><summary>How the attack strength was scored</summary>
+            <p class="score-formula">Blends how far the campaign progressed, how much value slipped through, and how long it evaded detection — higher means a tougher test, not a defense failure.</p>
+            <div class="score-components" id="attackComponents"></div>
+          </details>
         </div>
         <div class="quadrant-wrap">
           <div class="quadrant" aria-label="Red capability versus realized impact">
@@ -297,7 +248,7 @@
 
       <section id="battleReplay" class="battle-section">
         <div class="section-heading">
-          <div><div class="section-kicker">EXPLAINABLE AGENT THEATER</div><h2>Replay the battle</h2><p>Select an event to inspect exactly what Blue saw, requested and decided.</p></div>
+          <div><div class="section-kicker">AGENT REPLAY · RED PLAN vs BLUE DECISIONS</div><h2>Replay the battle, step by step</h2><p>Left: the attacker's plan for this round. Right: walk each payment event to see exactly what Blue saw, requested and decided.</p></div>
         </div>
         <div class="battle-grid">
           <article class="agent-panel red-panel">
@@ -338,8 +289,10 @@
         <div class="feedback-grid">
           <div><small>OUTCOME RELEASED</small><strong id="feedbackOutcome">—</strong></div>
           <div><small>DETECTION STAGE</small><strong id="feedbackStage">—</strong></div>
-          <div><small>COARSE REASONS</small><div id="feedbackReasons" class="chip-list"></div></div>
+          <div><small>DECISION LATENCY</small><strong id="feedbackLatency">—</strong></div>
           <div><small>PROTECTED RATIO</small><strong id="feedbackRatio">—</strong></div>
+          <div><small>FALSE-POSITIVE RATE</small><strong id="feedbackFp">—</strong></div>
+          <div><small>COARSE REASONS</small><div id="feedbackReasons" class="chip-list"></div></div>
         </div>
         <p class="boundary-note"><span>↳</span> No Blue prompt, private evidence, playbook threshold or hidden reasoning crosses this boundary.</p>
       </article>

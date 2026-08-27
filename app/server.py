@@ -9,9 +9,11 @@ import random
 import re
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
-
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
@@ -37,6 +39,7 @@ AGENT_RUN_LOCK = threading.Lock()
 RUN_PROGRESS_LOCK = threading.Lock()
 RUN_PROGRESS: dict[str, dict[str, Any]] = {}
 RUN_PROGRESS_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{8,80}$")
+SERVER_SESSION_TOKEN = str(uuid.uuid4())
 BATTLE_COUNT_PATH = PROJECT_ROOT / "data" / "loop" / "battle_count.txt"
 BATTLE_COUNT_LOCK = threading.Lock()
 BACKGROUND_RETRAIN_LOCK = threading.Lock()
@@ -440,6 +443,15 @@ def create_app() -> Flask:
         """Small dependency-free health check for managed web hosts."""
         return jsonify({"status": "ok", "service": "masterguard-ai"})
 
+    @app.get("/evidence")
+    def evidence_page() -> str:
+        return render_template("evidence.html")
+
+    @app.get("/run-guide")
+    def run_guide_page():
+        from flask import send_from_directory
+        return send_from_directory(PROJECT_ROOT / "app" / "static", "run-guide.html")
+
     @app.get("/legacy")
     def legacy_dashboard() -> str:
         return render_template("index.html")
@@ -502,6 +514,7 @@ def create_app() -> Flask:
                     }
                     for card in catalog.list()
                 ],
+                "server_token": SERVER_SESSION_TOKEN,
                 "latest_run_available": LATEST_AGENT_RUN_PATH.exists(),
                 "latest_benchmark_available": LATEST_BENCHMARK_PATH.exists(),
                 "latest_external_validation_available": LATEST_EXTERNAL_VALIDATION_PATH.exists(),
