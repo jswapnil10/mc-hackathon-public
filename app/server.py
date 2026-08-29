@@ -32,6 +32,7 @@ LEGACY_DEMO_DIR = PROJECT_ROOT / "app" / "legacy_demo"
 AGENT_RUNS_DIR = PROJECT_ROOT / "runs" / "agentic"
 LATEST_AGENT_RUN_PATH = AGENT_RUNS_DIR / "latest.json"
 PRECOMPUTED_DEMO_DIR = PROJECT_ROOT / "data" / "demo_runs"
+DEFAULT_SOURCE_REPOSITORY_URL = "https://github.com/u367403_ual/mc-hackathon"
 WEB_MAX_ROUNDS = 5
 AGENT_RUN_LOCK = threading.Lock()
 RUN_PROGRESS_LOCK = threading.Lock()
@@ -447,6 +448,9 @@ def create_app() -> Flask:
     @app.get("/api/v2/status")
     def agent_status() -> Any:
         config = AgentLabConfig.from_env()
+        repository_url = os.environ.get(
+            "SOURCE_REPOSITORY_URL", DEFAULT_SOURCE_REPOSITORY_URL
+        ).rstrip("/")
         detector_dir = Path(config.ml_model_dir)
         if not detector_dir.is_absolute():
             detector_dir = PROJECT_ROOT / detector_dir
@@ -509,7 +513,15 @@ def create_app() -> Flask:
                     "enabled": _precomputed_demo_enabled(),
                     "run_count": len(_load_precomputed_runs()),
                     "available_scenarios": _precomputed_demo_catalog(),
-                    "disclosure": "Recorded, bounded agent runs; no model is called during replay.",
+                    "disclosure": (
+                        "This public deployment replays completed, bounded Red and Blue agent runs "
+                        "because a GPU-backed LLM endpoint is not deployed with the hosted app. "
+                        "No model or external API is called while a replay is loaded."
+                    ),
+                    "repository_url": repository_url,
+                    "live_model_setup_url": (
+                        f"{repository_url}#quick-start-ollama-and-qwen"
+                    ),
                 },
                 "threat_atlas": atlas.summary(),
                 "truth_boundary": "Blue receives sanitized observables only; Referee owns sealed labels.",

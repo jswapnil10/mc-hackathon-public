@@ -20,7 +20,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"MasterGuard AI", response.data)
         self.assertIn(b"Attack. Adapt. Defend.", response.data)
         self.assertIn(b"OVERALL DEFENSE SCORE", response.data)
-        self.assertIn(b"What happens when you start a battle?", response.data)
+        self.assertIn(b"What happens inside an agent battle?", response.data)
         self.assertIn(b"How to read this report", response.data)
         self.assertIn(b"SINGLE-BATTLE VIEW", response.data)
         self.assertIn(b"metric-info", response.data)
@@ -33,6 +33,9 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"Reality-check the defense beyond our simulator", response.data)
         self.assertIn(b"Mastercard Innovation Challenge 2026", response.data)
         self.assertIn(b"Run guide", response.data)
+        self.assertIn(b"Start battle", response.data)
+        self.assertIn(b'id="runtimeDisclosure"', response.data)
+        self.assertIn(b"Recorded agent intelligence, clearly labelled.", response.data)
         self.assertIn(b'id="runEta"', response.data)
         script = self.client.get("/static/lab.js")
         self.assertEqual(script.status_code, 200)
@@ -132,6 +135,11 @@ class DashboardTests(unittest.TestCase):
     @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
     def test_precomputed_demo_covers_every_family_and_difficulty_without_model_calls(self):
         status = self.client.get("/api/v2/status").get_json()
+        self.assertIn("No model or external API is called", status["precomputed_demo"]["disclosure"])
+        self.assertEqual(
+            status["precomputed_demo"]["live_model_setup_url"],
+            "https://github.com/u367403_ual/mc-hackathon#quick-start-ollama-and-qwen",
+        )
         combinations = {
             (item["attack_family"], item["difficulty"], item["rounds"])
             for item in status["precomputed_demo"]["available_scenarios"]
@@ -191,6 +199,20 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(
             payload["model_configuration"]["red"],
             "Claude-Opus-4.8",
+        )
+
+    @patch.dict(
+        os.environ,
+        {
+            "DEMO_MODE": "precomputed",
+            "SOURCE_REPOSITORY_URL": "https://github.com/example/masterguard",
+        },
+    )
+    def test_precomputed_demo_can_point_to_the_deployed_repository(self):
+        status = self.client.get("/api/v2/status").get_json()
+        self.assertEqual(
+            status["precomputed_demo"]["live_model_setup_url"],
+            "https://github.com/example/masterguard#quick-start-ollama-and-qwen",
         )
 
     def test_unknown_run_progress_is_explicit(self):

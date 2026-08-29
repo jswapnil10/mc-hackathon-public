@@ -44,8 +44,8 @@
         <p>MasterGuard AI is a safe payment-fraud stress test. A Red AI creates a synthetic attack, a Blue defense decides how to respond, and an independent Referee reveals the hidden answer key only after every decision is made.</p>
         <a class="hero-cta" href="#battleControls">Configure a battle <span>↘</span></a>
       </div>
-      <aside class="hero-stage" aria-label="Arena architecture">
-        <div class="stage-head"><span><i></i> LIVE ARCHITECTURE</span><b>RED × BLUE</b></div>
+      <aside id="heroStage" class="hero-stage" aria-label="Arena architecture">
+        <div class="stage-head"><span><i></i> <em id="architectureMode">LIVE ARCHITECTURE</em></span><b>RED × BLUE</b></div>
         <div class="stage-flow">
           <div><small>01</small><b>Red creates</b><span>A safe, synthetic fraud sequence</span></div>
           <i>→</i>
@@ -60,6 +60,28 @@
         </div>
       </aside>
     </section>
+
+    <aside id="runtimeDisclosure" class="runtime-disclosure hidden" aria-labelledby="runtimeDisclosureTitle">
+      <div class="runtime-disclosure-status" aria-hidden="true">
+        <span class="runtime-orbit"><i></i><i></i></span>
+        <small>PUBLIC DEMO MODE</small>
+        <strong>RECORDED<br>AGENT REPLAY</strong>
+      </div>
+      <div class="runtime-disclosure-copy">
+        <div class="section-kicker">TRANSPARENT EXECUTION · NO LIVE LLM CALL</div>
+        <h2 id="runtimeDisclosureTitle">Recorded agent intelligence, clearly labelled.</h2>
+        <p id="runtimeDisclosureText">This hosted experience uses completed, bounded Red and Blue agent runs so it can be explored without a deployed model endpoint.</p>
+        <div class="runtime-disclosure-facts">
+          <span><b>Preserved in every replay</b> Red plans, synthetic payment events, Blue decisions, feedback rounds and Referee scores.</span>
+          <span><b>Generated live when self-hosted</b> Connect Qwen, Ollama or another OpenAI-compatible endpoint using the repository guide.</span>
+        </div>
+      </div>
+      <a id="liveModelSetupLink" class="runtime-repo-link" href="https://github.com/u367403_ual/mc-hackathon#quick-start-ollama-and-qwen" target="_blank" rel="noopener noreferrer">
+        <small>RUN THE FULL AGENT LOOP</small>
+        <strong>Connect your own open model</strong>
+        <span>Open repository setup <b>↗</b></span>
+      </a>
+    </aside>
 
     <section class="pillar-strip" aria-label="Evidence behind the Arena">
       <a href="#threatAtlas"><small>EVIDENCE 01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Research catalogue and source links →</span></a>
@@ -193,8 +215,8 @@
 
     <section class="arena-guide" aria-labelledby="arenaGuideTitle">
       <div class="arena-guide-heading">
-        <div class="section-kicker">HOW THE LIVE ARENA WORKS</div>
-        <h2 id="arenaGuideTitle">What happens when you start a battle?</h2>
+        <div class="section-kicker">HOW THE AGENT ARENA WORKS</div>
+        <h2 id="arenaGuideTitle">What happens inside an agent battle?</h2>
         <p>One round is one complete stress test. Everything is synthetic: no customer is contacted and no real payment is attempted.</p>
       </div>
       <div class="arena-guide-steps">
@@ -215,7 +237,7 @@
         <label>Attack family<select id="attackFamily" name="attack_family"></select></label>
         <label>Difficulty<select id="difficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label>
         <label>Feedback rounds<select id="rounds" name="rounds"><option value="1" selected>1 round · fast demo</option><option value="2">2 rounds · feedback loop</option><option value="3">3 rounds · extended</option><option value="4">4 rounds · extended</option><option value="5">5 rounds · maximum demo</option></select></label>
-        <button class="run-button" type="submit" id="runButton"><span>Start agent battle</span><b>→</b></button>
+        <button class="run-button" type="submit" id="runButton"><span>Start battle</span><b>→</b></button>
         <p id="latencyEstimate" class="latency-note">One round runs Red once, evaluates each reached payment event, and scores the result once.</p>
       </form>
     </section>
