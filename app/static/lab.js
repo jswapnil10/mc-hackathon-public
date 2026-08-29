@@ -466,7 +466,7 @@ async function loadStatus() {
     $('#runtimeDisclosureText').textContent = replayDisclosure.disclosure
       || 'This hosted experience replays completed, bounded Red and Blue agent runs. No live model endpoint is called.';
     $('#liveModelSetupLink').href = replayDisclosure.live_model_setup_url
-      || 'https://github.com/u367403_ual/mc-hackathon#quick-start-ollama-and-qwen';
+      || 'https://github.com/jswapnil10/mc-hackathon-public#quick-start-ollama-and-qwen';
     $('#runtimeDisclosure').classList.remove('hidden');
     const combinations = (data.precomputed_demo && data.precomputed_demo.available_scenarios) || [];
     const familyNames = new Map(data.attack_families.map(family => [family.id, family.name]));

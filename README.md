@@ -119,7 +119,7 @@ This is the recommended way to run MasterGuard AI on a laptop. The application d
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/u367403_ual/mc-hackathon.git
+git clone https://github.com/jswapnil10/mc-hackathon-public.git
 cd mc-hackathon
 ```
 
@@ -406,7 +406,7 @@ The deterministic suite includes MasterGuard AI Agent Arena, information-boundar
 | Variable | Default | Purpose |
 |---|---|---|
 | `MODEL_BASE_URL` | Auto-detected Ollama or `http://127.0.0.1:8000/v1` | OpenAI-compatible model base URL |
-| `SOURCE_REPOSITORY_URL` | `https://github.com/u367403_ual/mc-hackathon` | Repository used by the public replay disclosure's live-model setup link |
+| `SOURCE_REPOSITORY_URL` | `https://github.com/jswapnil10/mc-hackathon-public` | Repository used by the public replay disclosure's live-model setup link |
 | `MODEL_API_KEY` | `local-development` | Server-side bearer token; ignored by local Ollama |
 | `RED_MODEL_ID` | Auto-detected Qwen or `Qwen/Qwen3.5-9B` | Red planner model |
 | `BLUE_MODEL_ID` | Auto-detected Qwen or `Qwen/Qwen3.5-9B` | Blue investigator/decision model |

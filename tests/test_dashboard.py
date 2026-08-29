@@ -143,7 +143,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("No model or external API is called", status["precomputed_demo"]["disclosure"])
         self.assertEqual(
             status["precomputed_demo"]["live_model_setup_url"],
-            "https://github.com/u367403_ual/mc-hackathon#quick-start-ollama-and-qwen",
+            "https://github.com/jswapnil10/mc-hackathon-public#quick-start-ollama-and-qwen",
         )
         combinations = {
             (item["attack_family"], item["difficulty"], item["rounds"])

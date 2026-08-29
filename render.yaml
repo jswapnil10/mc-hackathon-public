@@ -9,6 +9,8 @@ services:
     envVars:
       - key: DEMO_MODE
         value: precomputed
+      - key: SOURCE_REPOSITORY_URL
+        value: https://github.com/jswapnil10/mc-hackathon-public
       # The public experience works with the bundled benchmark data and Blue detector.
       # Leave model variables unset unless a private OpenAI-compatible endpoint is available.
       - key: ML_DETECTOR_ENABLED
