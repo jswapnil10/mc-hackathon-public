@@ -2,7 +2,7 @@
   "status": "passed",
   "score": 100.0,
   "grain": "one sanitized observable event per row",
-  "row_count": 4446,
+  "row_count": 5976,
   "column_count": 49,
   "checks": [
     {
