@@ -8,6 +8,7 @@ const state = {
   benchmark: null,
   externalValidation: null,
   activeRun: null,
+  replayPresentation: null,
 };
 const phases = ['pre_transaction', 'transaction', 'post_transaction'];
 const phaseExplanations = {
@@ -63,6 +64,27 @@ const approximateDuration = (seconds) => {
   return remainingMinutes ? `about ${hours}h ${remainingMinutes}m` : `about ${hours}h`;
 };
 
+function replayPresentationDuration(rounds) {
+  const safeRounds = clamp(rounds, 1, 5);
+  return 3500 + ((safeRounds - 1) * 1400);
+}
+
+function replayPresentationTimings(rounds) {
+  const safeRounds = clamp(rounds, 1, 5);
+  const total = replayPresentationDuration(safeRounds);
+  const preparing = 400;
+  const transition = safeRounds > 1 ? 250 : 0;
+  const roundBudget = (total - preparing - (transition * (safeRounds - 1))) / safeRounds;
+  return {
+    preparing,
+    transition,
+    red_planning: roundBudget * 0.25,
+    simulation: roundBudget * 0.18,
+    blue_investigation: roundBudget * 0.34,
+    referee_scoring: roundBudget * 0.23,
+  };
+}
+
 function battleWorkUnits(rounds) {
   const safeRounds = Math.max(1, Number(rounds) || 1);
   return (safeRounds * 1.2) + (Math.max(0, safeRounds - 1) * 1.1);
@@ -111,6 +133,20 @@ function completedWorkUnits(progress, totalRounds) {
 function renderRunEta(progress = null) {
   if (!state.activeRun) return;
   const totalRounds = state.activeRun.totalRounds;
+  if (state.activeRun.presentationPacing) {
+    if (progress && progress.stage === 'completed') {
+      $('#runEta').textContent = 'Replay complete · report ready';
+      return;
+    }
+    if (!state.activeRun.presentationStartedAt) {
+      $('#runEta').textContent = 'Loading recorded replay data';
+      return;
+    }
+    const elapsed = Date.now() - state.activeRun.presentationStartedAt;
+    const remaining = Math.max(0, state.activeRun.presentationDurationMs - elapsed);
+    $('#runEta').textContent = `Recorded playback · about ${Math.max(1, Math.ceil(remaining / 1000))}s remaining`;
+    return;
+  }
   if (progress && progress.stage === 'completed') {
     $('#runEta').textContent = 'Estimate complete · report ready';
     return;
@@ -374,7 +410,8 @@ async function loadExternalValidation() {
 function updateLatencyEstimate() {
   const rounds = Number($('#rounds').value) || 1;
   if (state.status && state.status.mode === 'precomputed_replay') {
-    $('#latencyEstimate').textContent = `Offline replay mode: ${rounds} recorded replay cycle${rounds === 1 ? '' : 's'} load instantly. No LLM or external API is called.`;
+    const playbackSeconds = Math.ceil(replayPresentationDuration(rounds) / 1000);
+    $('#latencyEstimate').textContent = `Recorded replay mode: data loads instantly, then presentation pacing reveals ${rounds} round${rounds === 1 ? '' : 's'} in about ${playbackSeconds}s. No LLM or external API is called.`;
     return;
   }
   const estimate = approximateDuration(estimatedTotalSeconds(rounds));
@@ -798,18 +835,152 @@ function renderRunProgress(progress) {
 
   const completedEvents = Number(progress.completed_events);
   const totalCapacity = Number(progress.total_event_capacity);
-  if (Number.isFinite(completedEvents) && Number.isFinite(totalCapacity)) {
+  if (progress.progress_count) {
+    $('#runProgressCount').textContent = progress.progress_count;
+  } else if (Number.isFinite(completedEvents) && Number.isFinite(totalCapacity)) {
     $('#runProgressCount').textContent = `${integer(completedEvents)} event decisions completed · up to ${integer(totalCapacity)} events across ${integer(progress.case_count)} isolated cases`;
   } else if (progress.stage === 'simulation') {
     $('#runProgressCount').textContent = `${integer(progress.attack_event_count)} attack events · ${integer(progress.control_case_count)} legitimate look-alike cases · answer key still sealed`;
   } else if (progress.stage === 'completed') {
     $('#runProgressCount').textContent = `Completed in ${duration(progress.duration_ms)} · opening the scored report`;
+  } else if (replayMode) {
+    $('#runProgressCount').textContent = 'Recorded evidence is being revealed in its original decision order.';
   } else {
     $('#runProgressCount').textContent = 'Verified live update from the server orchestration pipeline.';
   }
   if (state.activeRun) {
     state.activeRun.progress = progress;
     renderRunEta(progress);
+  }
+}
+
+function waitForReplayPresentation(milliseconds, controller) {
+  if (controller.skipped || milliseconds <= 0) return Promise.resolve();
+  return new Promise(resolve => {
+    const complete = () => {
+      if (controller.resolveWait !== complete) return;
+      if (controller.timer) window.clearTimeout(controller.timer);
+      controller.timer = null;
+      controller.resolveWait = null;
+      resolve();
+    };
+    controller.resolveWait = complete;
+    controller.timer = window.setTimeout(complete, milliseconds);
+  });
+}
+
+function skipReplayPresentation() {
+  const controller = state.replayPresentation;
+  if (!controller || controller.skipped) return;
+  controller.skipped = true;
+  $('#replaySkipButton').disabled = true;
+  $('#replaySkipButton').textContent = 'Opening report';
+  if (controller.resolveWait) controller.resolveWait();
+}
+
+async function presentRecordedReplay(payload, totalRounds) {
+  const reducedMotion = globalThis.matchMedia
+    && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const controller = {
+    skipped: Boolean(reducedMotion),
+    timer: null,
+    resolveWait: null,
+  };
+  const timings = replayPresentationTimings(totalRounds);
+  const skipButton = $('#replaySkipButton');
+  state.replayPresentation = controller;
+  state.activeRun.presentationStartedAt = Date.now();
+  state.activeRun.presentationDurationMs = replayPresentationDuration(totalRounds);
+  skipButton.disabled = false;
+  skipButton.textContent = 'Show full report';
+  skipButton.classList.toggle('hidden', Boolean(reducedMotion));
+
+  try {
+    await waitForReplayPresentation(timings.preparing, controller);
+    for (let index = 0; index < totalRounds; index += 1) {
+      const roundNumber = index + 1;
+      const round = payload.rounds[index] || {};
+      const simulation = round.simulation || {};
+      const attackCase = simulation.attack_case || {};
+      const attackEvents = Array.isArray(attackCase.events) ? attackCase.events.length : 0;
+      const legitimateCases = Number(simulation.legitimate_control_count) || 0;
+      const blueTurns = round.blue && Array.isArray(round.blue.attack_turns)
+        ? round.blue.attack_turns.length
+        : attackEvents;
+
+      renderRunProgress({
+        status: 'running',
+        stage: 'red_planning',
+        headline: 'Replaying Red strategy',
+        detail: `Round ${roundNumber}: loading the recorded, bounded attack plan.`,
+        progress_count: 'Recorded plan and adaptation hypothesis · no live model call',
+        round_number: roundNumber,
+        total_rounds: totalRounds,
+      });
+      await waitForReplayPresentation(timings.red_planning, controller);
+
+      renderRunProgress({
+        status: 'running',
+        stage: 'simulation',
+        headline: 'Reconstructing synthetic payment events',
+        detail: `Round ${roundNumber}: assembling the attack path and legitimate look-alikes.`,
+        attack_event_count: attackEvents,
+        control_case_count: legitimateCases,
+        round_number: roundNumber,
+        total_rounds: totalRounds,
+      });
+      await waitForReplayPresentation(timings.simulation, controller);
+
+      renderRunProgress({
+        status: 'running',
+        stage: 'blue_investigation',
+        headline: 'Replaying Blue decisions',
+        detail: `Round ${roundNumber}: revealing recorded evidence requests and payment actions in order.`,
+        progress_count: `${integer(blueTurns)} recorded attack-event decisions · sealed truth remains hidden`,
+        round_number: roundNumber,
+        total_rounds: totalRounds,
+      });
+      await waitForReplayPresentation(timings.blue_investigation, controller);
+
+      renderRunProgress({
+        status: 'running',
+        stage: 'referee_scoring',
+        headline: 'Referee opens the answer key',
+        detail: `Round ${roundNumber}: scoring detection, protected value and legitimate-customer harm.`,
+        progress_count: 'Recorded Red and Blue decisions are complete · sealed truth can now be revealed',
+        round_number: roundNumber,
+        total_rounds: totalRounds,
+      });
+      await waitForReplayPresentation(timings.referee_scoring, controller);
+
+      if (roundNumber < totalRounds) {
+        renderRunProgress({
+          status: 'running',
+          stage: 'round_complete',
+          headline: `Round ${roundNumber} complete`,
+          detail: 'Replaying the bounded feedback passed into the next recorded round.',
+          progress_count: 'Only coarse Referee feedback crosses the Red–Blue information boundary',
+          round_number: roundNumber,
+          total_rounds: totalRounds,
+        });
+        await waitForReplayPresentation(timings.transition, controller);
+      }
+    }
+
+    renderRunProgress({
+      status: 'completed',
+      stage: 'completed',
+      headline: 'Recorded battle ready',
+      detail: 'Opening the complete scored report with replay provenance attached.',
+      progress_count: `${integer(totalRounds)} recorded round${totalRounds === 1 ? '' : 's'} revealed · no live model call`,
+      round_number: totalRounds,
+      total_rounds: totalRounds,
+      duration_ms: Date.now() - state.activeRun.presentationStartedAt,
+    });
+  } finally {
+    if (controller.timer) window.clearTimeout(controller.timer);
+    state.replayPresentation = null;
+    skipButton.classList.add('hidden');
   }
 }
 
@@ -835,6 +1006,7 @@ function startProgressPolling(progressId) {
 
 $('#previousEvent').addEventListener('click', () => renderSelectedTurn(state.turnIndex - 1));
 $('#nextEvent').addEventListener('click', () => renderSelectedTurn(state.turnIndex + 1));
+$('#replaySkipButton').addEventListener('click', skipReplayPresentation);
 $('#rounds').addEventListener('change', updateLatencyEstimate);
 $('#atlasCategory').addEventListener('change', renderThreatAtlas);
 $('#atlasRail').addEventListener('change', renderThreatAtlas);
@@ -870,22 +1042,30 @@ $('#runForm').addEventListener('submit', async (event) => {
     ? globalThis.crypto.randomUUID()
     : `browser-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
   const selectedRounds = Number($('#rounds').value) || 1;
+  const replayMode = state.status && state.status.mode === 'precomputed_replay';
   const startedAt = Date.now();
   state.activeRun = {
     startedAt,
     totalRounds: selectedRounds,
-    baselineSeconds: estimatedTotalSeconds(selectedRounds),
+    baselineSeconds: replayMode
+      ? replayPresentationDuration(selectedRounds) / 1000
+      : estimatedTotalSeconds(selectedRounds),
     progress: null,
+    presentationPacing: replayMode,
+    presentationStartedAt: null,
+    presentationDurationMs: replayMode ? replayPresentationDuration(selectedRounds) : 0,
   };
   renderRunProgress({
     status: 'running',
     stage: 'preparing',
-    headline: 'Preparing the synthetic payment arena',
-    detail: 'The browser sent the selected battle settings to the server.',
+    headline: replayMode ? 'Loading the recorded battle' : 'Preparing the synthetic payment arena',
+    detail: replayMode
+      ? 'Fetching the selected replay before presentation pacing begins.'
+      : 'The browser sent the selected battle settings to the server.',
     round_number: 1,
     total_rounds: selectedRounds,
   });
-  const stopProgressPolling = startProgressPolling(progressId);
+  const stopProgressPolling = replayMode ? () => {} : startProgressPolling(progressId);
   $('#runElapsed').textContent = 'Elapsed 0s';
   const elapsedTimer = setInterval(() => {
     $('#runElapsed').textContent = `Elapsed ${duration(Date.now() - startedAt)}`;
@@ -909,6 +1089,9 @@ $('#runForm').addEventListener('submit', async (event) => {
     state.roundIndex = payload.rounds.length - 1;
     state.turnIndex = 0;
     updateLatencyEstimate();
+    if (payload.demo_mode === 'precomputed_replay') {
+      await presentRecordedReplay(payload, selectedRounds);
+    }
     renderRun(true, payload.demo_mode === 'precomputed_replay' ? 'replay' : 'current');
   } catch (error) {
     $('#errorState').textContent = `This battle attempt failed and did not create a new report. ${error.message}`;
@@ -917,6 +1100,8 @@ $('#runForm').addEventListener('submit', async (event) => {
   } finally {
     stopProgressPolling();
     clearInterval(elapsedTimer);
+    if (state.replayPresentation) skipReplayPresentation();
+    $('#replaySkipButton').classList.add('hidden');
     $('#runState').classList.add('hidden');
     $('#runButton').disabled = false;
     state.activeRun = null;

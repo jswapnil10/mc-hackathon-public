@@ -403,6 +403,9 @@ button { border: 0; cursor: pointer; }
 .run-timers { display: grid; gap: 5px; justify-items: end; text-align: right; }
 .run-state #runElapsed { color: #f79e1b; font: 500 10px var(--font-mono); white-space: nowrap; }
 .run-state #runEta { color: #d5d0ca; font: 500 9px var(--font-mono); line-height: 1.45; white-space: nowrap; }
+.replay-skip { padding: 4px 0; color: #fff; background: transparent; border-bottom: 1px solid #77716b; font: 700 9px var(--font-mono); }
+.replay-skip:hover { color: var(--mc-orange); border-color: var(--mc-orange); }
+.replay-skip:disabled { color: #817d78; border-color: #45413d; cursor: wait; }
 .run-progress-steps { margin: 21px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; }
 .run-progress-steps.has-adaptation { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .run-progress-steps li { position: relative; min-width: 0; padding: 17px 10px 0 0; color: #68635e; border-top: 2px solid #343434; font: 500 9px var(--font-mono); line-height: 1.45; }
