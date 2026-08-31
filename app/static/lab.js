@@ -32,6 +32,12 @@ const metricDefinitions = {
   legitimateSafety: 'Share of legitimate look-alike traffic left unharmed after applying an action-based friction cost. Higher is better.',
 };
 const actionClasses = new Set(['allow', 'monitor', 'step_up', 'hold', 'block']);
+const replayQueryKeys = {
+  family: 'replay_family',
+  difficulty: 'replay_difficulty',
+  rounds: 'replay_rounds',
+  seed: 'replay_seed',
+};
 
 const money = (value) => new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -431,6 +437,67 @@ function updateLatencyEstimate() {
 
 function currentRound() {
   return state.run && state.run.rounds ? state.run.rounds[state.roundIndex] : null;
+}
+
+function replaySelectionFromUrl() {
+  const params = new URLSearchParams(globalThis.location.search);
+  const family = params.get(replayQueryKeys.family) || '';
+  const difficulty = params.get(replayQueryKeys.difficulty) || '';
+  const rounds = Number(params.get(replayQueryKeys.rounds));
+  const seed = Number(params.get(replayQueryKeys.seed));
+  if (!/^[A-Z0-9-]+$/.test(family)) return null;
+  if (!['easy', 'medium', 'hard'].includes(difficulty)) return null;
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 5) return null;
+  if (!Number.isInteger(seed) || seed < 0) return null;
+  return { family, difficulty, rounds, seed };
+}
+
+function addReplaySelectionToUrl(url, selection) {
+  url.searchParams.set(replayQueryKeys.family, selection.family);
+  url.searchParams.set(replayQueryKeys.difficulty, selection.difficulty);
+  url.searchParams.set(replayQueryKeys.rounds, String(selection.rounds));
+  url.searchParams.set(replayQueryKeys.seed, String(selection.seed));
+  return url;
+}
+
+function carryReplaySelectionToEvidence(selection) {
+  document.querySelectorAll('a[href^="/evidence"]').forEach(anchor => {
+    const destination = addReplaySelectionToUrl(
+      new URL(anchor.getAttribute('href'), globalThis.location.origin),
+      selection,
+    );
+    anchor.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);
+  });
+}
+
+function rememberReplayInUrl(selection) {
+  const current = addReplaySelectionToUrl(new URL(globalThis.location.href), selection);
+  globalThis.history.replaceState(null, '', `${current.pathname}${current.search}${current.hash}`);
+  carryReplaySelectionToEvidence(selection);
+}
+
+async function loadReplayFromUrl() {
+  const selection = replaySelectionFromUrl();
+  if (!selection || state.status.mode !== 'precomputed_replay') return false;
+  const response = await fetch('/api/v2/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      attack_family: selection.family,
+      difficulty: selection.difficulty,
+      rounds: selection.rounds,
+      seed: selection.seed,
+    }),
+  });
+  if (!response.ok) return false;
+  const replay = await response.json();
+  state.run = replay;
+  state.roundIndex = Math.max(0, replay.rounds.length - 1);
+  state.turnIndex = 0;
+  rememberReport(replay);
+  carryReplaySelectionToEvidence(selection);
+  renderRun(false, 'replay');
+  return true;
 }
 
 async function loadStatus() {
@@ -1517,6 +1584,8 @@ $('#runForm').addEventListener('submit', async (event) => {
     ? globalThis.crypto.randomUUID()
     : `browser-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
   const selectedRounds = Number($('#rounds').value) || 1;
+  const selectedFamily = $('#attackFamily').value;
+  const selectedDifficulty = $('#difficulty').value;
   const replayMode = state.status && state.status.mode === 'precomputed_replay';
   const startedAt = Date.now();
   const requestSeed = Date.now() % 100000000;
@@ -1533,8 +1602,8 @@ $('#runForm').addEventListener('submit', async (event) => {
   };
   saveBattleSession(progressId, startedAt, selectedRounds, {
     replayMode,
-    attackFamily: $('#attackFamily').value,
-    difficulty: $('#difficulty').value,
+    attackFamily: selectedFamily,
+    difficulty: selectedDifficulty,
     seed: requestSeed,
   });
   renderRunProgress({
@@ -1558,8 +1627,8 @@ $('#runForm').addEventListener('submit', async (event) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        attack_family: $('#attackFamily').value,
-        difficulty: $('#difficulty').value,
+        attack_family: selectedFamily,
+        difficulty: selectedDifficulty,
         rounds: selectedRounds,
         seed: requestSeed,
         progress_id: progressId,
@@ -1572,6 +1641,14 @@ $('#runForm').addEventListener('submit', async (event) => {
     state.turnIndex = 0;
     updateLatencyEstimate();
     rememberReport(payload);
+    if (payload.demo_mode === 'precomputed_replay') {
+      rememberReplayInUrl({
+        family: selectedFamily,
+        difficulty: selectedDifficulty,
+        rounds: selectedRounds,
+        seed: requestSeed,
+      });
+    }
     try { sessionStorage.setItem('masterguard_has_report', '1'); } catch (_) {}
     if (payload.demo_mode === 'precomputed_replay') {
       await presentRecordedReplay(payload, selectedRounds);
@@ -1601,14 +1678,17 @@ $('#runForm').addEventListener('submit', async (event) => {
 
 async function initialize() {
   await loadStatus();
-  const resumed = await resumeActiveBattle();
-  if (!resumed) {
-    let hasBrowserReport = false;
-    try { hasBrowserReport = Boolean(sessionStorage.getItem('masterguard_has_report')); } catch (_) {}
-    // Replay mode also has a small HttpOnly selection cookie. Keep this request outside the
-    // sessionStorage try block so browsers that deny that API can still recover the report.
-    if (hasBrowserReport || state.status.mode === 'precomputed_replay') {
-      await loadLatest('saved');
+  const restoredFromUrl = await loadReplayFromUrl();
+  if (!restoredFromUrl) {
+    const resumed = await resumeActiveBattle();
+    if (!resumed) {
+      let hasBrowserReport = false;
+      try { hasBrowserReport = Boolean(sessionStorage.getItem('masterguard_has_report')); } catch (_) {}
+      // Replay mode also has a small HttpOnly selection cookie. Keep this request outside the
+      // sessionStorage try block so browsers that deny that API can still recover the report.
+      if (hasBrowserReport || state.status.mode === 'precomputed_replay') {
+        await loadLatest('saved');
+      }
     }
   }
   await Promise.all([loadBenchmark(), loadExternalValidation()]);

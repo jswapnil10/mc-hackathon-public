@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const state = { atlas: null, benchmark: null };
 const phases = ['pre_transaction', 'transaction', 'post_transaction'];
+const replayQueryNames = ['replay_family', 'replay_difficulty', 'replay_rounds', 'replay_seed'];
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0);
 const pct = (value) => `${Math.round((Number(value) || 0) * 100)}%`;
@@ -13,6 +14,16 @@ const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, N
 
 const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
 const setHtml = (id, val) => { const el = $(id); if (el) el.innerHTML = val; };
+
+function carryReplaySelectionToArena() {
+  const source = new URLSearchParams(globalThis.location.search);
+  if (!replayQueryNames.every(name => source.has(name))) return;
+  const destination = new URL('/', globalThis.location.origin);
+  replayQueryNames.forEach(name => destination.searchParams.set(name, source.get(name)));
+  document.querySelectorAll('a[href="/"]').forEach(anchor => {
+    anchor.setAttribute('href', `${destination.pathname}${destination.search}`);
+  });
+}
 
 function chips(items, tone = '') {
   if (!items || !items.length) return '<span class="chip">None recorded</span>';
@@ -192,6 +203,7 @@ if (runFoundryBtn) {
 // ---- Init ----
 
 async function initialize() {
+  carryReplaySelectionToArena();
   await Promise.all([loadThreatAtlas(), loadBenchmark()]);
 }
 

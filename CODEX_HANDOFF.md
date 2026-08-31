@@ -243,7 +243,7 @@ The Downloads repository's integrated UI branch has been merged into `codex/offl
 - Grouped attack/look-alike/ambient event data in live progress and saved round reports.
 - `no_defense_loss_inr` and `loss_avoided_inr` Referee fields for the money counterfactual.
 - Server-side compatibility enrichment for older replay artifacts, including deterministic legitimate look-alikes, grouped event streams, and counterfactual money fields.
-- Replay/report recovery using browser session storage plus a per-browser HttpOnly replay-selection cookie, with a server restart token preventing stale reports after a backend restart.
+- Replay/report recovery using a shareable replay URL, browser session storage and a per-browser HttpOnly replay-selection cookie, with a server restart token preventing stale reports after a backend restart.
 
 Keep the Evidence page and Arena contracts synchronized when changing APIs or report fields. Older recorded artifacts do not contain every newly added field, so UI rendering must continue to use safe defaults.
 
