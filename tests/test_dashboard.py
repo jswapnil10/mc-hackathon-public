@@ -52,6 +52,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"no live model call", script.data)
         self.assertIn(b"renderLiveEventFeed", script.data)
         self.assertIn(b"resumeActiveBattle", script.data)
+        self.assertIn(b"state.status.mode === 'precomputed_replay'", script.data)
         self.assertIn(b"calibrated from the latest completed", script.data)
         self.assertIn(b"phase-quality-grid", script.data)
         self.assertIn(b"classification_metrics", script.data)

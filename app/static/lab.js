@@ -1603,14 +1603,13 @@ async function initialize() {
   await loadStatus();
   const resumed = await resumeActiveBattle();
   if (!resumed) {
-    try {
-      const hasBrowserReport = sessionStorage.getItem('masterguard_has_report');
-      // Replay mode also has a small HttpOnly selection cookie. It lets the server rebuild this
-      // browser's exact synthetic report when sessionStorage is unavailable or was evicted.
-      if (hasBrowserReport || state.status.mode === 'precomputed_replay') {
-        await loadLatest('saved');
-      }
-    } catch (_) {}
+    let hasBrowserReport = false;
+    try { hasBrowserReport = Boolean(sessionStorage.getItem('masterguard_has_report')); } catch (_) {}
+    // Replay mode also has a small HttpOnly selection cookie. Keep this request outside the
+    // sessionStorage try block so browsers that deny that API can still recover the report.
+    if (hasBrowserReport || state.status.mode === 'precomputed_replay') {
+      await loadLatest('saved');
+    }
   }
   await Promise.all([loadBenchmark(), loadExternalValidation()]);
 }
