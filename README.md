@@ -4,7 +4,7 @@
 
 MasterGuard AI is a working web prototype for the Mastercard Innovation Challenge 2026. It safely recreates GenAI-enabled fraud behavior inside a synthetic payment world; it does not connect to payment rails, contact real users, or generate operational fraud content.
 
-![MasterGuard AI Red, Blue and Referee architecture](deliverables/red-blue-referee-architecture.png)
+![MasterGuard AI Red, Blue and Referee architecture](deliverables/TechnicalArchitecture.png)
 
 ## What the prototype demonstrates
 
