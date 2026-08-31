@@ -43,6 +43,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"Show full report", response.data)
         self.assertIn(b'id="runEventFeed"', response.data)
         self.assertIn(b'id="eventStreamSection"', response.data)
+        self.assertIn(b"lab.js?v=20260831-4", response.data)
         script = self.client.get("/static/lab.js")
         self.assertEqual(script.status_code, 200)
         self.assertIn(b"CURRENT ATTEMPT FAILED", script.data)
@@ -65,6 +66,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b'id="scenarioFoundry"', evidence.data)
         self.assertIn(b'id="defenseBenchmark"', evidence.data)
         self.assertIn(b"evidence.js", evidence.data)
+        self.assertIn(b"evidence.js?v=20260831-4", evidence.data)
 
         run_guide = self.client.get("/run-guide")
         self.assertEqual(run_guide.status_code, 200)
