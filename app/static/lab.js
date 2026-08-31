@@ -418,6 +418,19 @@ async function loadStatus() {
   )).join('');
   updateLatencyEstimate();
   if (data.mode === 'precomputed_replay') {
+    const replayDisclosure = data.precomputed_demo || {};
+    $('#systemMode').textContent = 'Recorded agent replay';
+    $('#architectureMode').textContent = 'RECORDED ARCHITECTURE';
+    $('#heroStage').classList.add('replay');
+    $('#redModel').textContent = 'Recorded Red agent';
+    $('#blueModel').textContent = data.models.blue_detector_active
+      ? 'Recorded Blue + HistGB'
+      : 'Recorded Blue decisions';
+    $('#runtimeDisclosureText').textContent = replayDisclosure.disclosure
+      || 'This hosted experience replays completed, bounded Red and Blue agent runs. No live model endpoint is called.';
+    $('#liveModelSetupLink').href = replayDisclosure.live_model_setup_url
+      || 'https://github.com/u367403_ual/mc-hackathon#quick-start-ollama-and-qwen';
+    $('#runtimeDisclosure').classList.remove('hidden');
     const combinations = (data.precomputed_demo && data.precomputed_demo.available_scenarios) || [];
     const familyNames = new Map(data.attack_families.map(family => [family.id, family.name]));
     const availableFamilies = [...new Set(combinations.map(item => item.attack_family))];
@@ -449,9 +462,13 @@ async function loadStatus() {
     $('#attackFamily').addEventListener('change', syncReplayDifficulties);
     $('#difficulty').addEventListener('change', syncReplayRounds);
     syncReplayDifficulties();
-    $('#runButton span').textContent = 'Load recorded replay';
-    $('#roundsGuide').textContent = 'Choose up to five replay cycles. They use recorded model output; if only one recording exists for a selection, it is repeated without claiming live cross-round learning.';
+    $('#runButton span').textContent = 'Start battle';
+    $('#roundsGuide').textContent = 'Choose one to five recorded rounds. Adaptive recordings preserve the original Red and Blue feedback sequence; every report identifies its replay provenance.';
     updateLatencyEstimate();
+  } else {
+    $('#runtimeDisclosure').classList.add('hidden');
+    $('#architectureMode').textContent = 'LIVE ARCHITECTURE';
+    $('#heroStage').classList.remove('replay');
   }
   if (data.latest_run_available) await loadLatest();
 }
