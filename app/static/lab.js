@@ -164,12 +164,11 @@ function metricBar(label, value, definition) {
   </div>`;
 }
 
-function phaseQualityMetric(label, value, definition, note) {
+function phaseQualityMetric(label, value, definition) {
   const displayValue = value == null ? '—' : precisePct(value, 0);
   return `<div class="phase-quality-metric">
     ${metricTitle(label, definition)}
     <strong>${displayValue}</strong>
-    <small>${escapeHtml(note)}</small>
   </div>`;
 }
 
@@ -222,10 +221,14 @@ async function loadThreatAtlas() {
   renderThreatAtlas();
 }
 
+// Null-safe setter — elements that moved to the evidence page won't exist on lab.html.
+const _set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+const _setHtml = (id, val) => { const el = $(id); if (el) el.innerHTML = val; };
+
 function renderBenchmark(data) {
   state.benchmark = data;
   if (!data) {
-    $('#foundryState').textContent = 'No population build is available yet. Run the Scenario Foundry.';
+    _set('#foundryState', 'No population build is available yet. Run the Scenario Foundry.');
     return;
   }
   const dataset = data.dataset || {};
@@ -235,43 +238,43 @@ function renderBenchmark(data) {
   const metrics = (defense.metrics || {}).combined_hidden_test || {};
   const novel = (defense.metrics || {}).novel_vector_test || {};
   const confusion = metrics.confusion_matrix || {};
-
   const checks = quality.checks || [];
   const passedChecks = checks.filter(item => item.passed).length;
-  $('#foundryQualityState').textContent = quality.status === 'passed'
+
+  _set('#foundryQualityState', quality.status === 'passed'
     ? `${passedChecks} / ${checks.length} DATA CHECKS PASSED`
-    : `${passedChecks} / ${checks.length} DATA CHECKS PASSED · REVIEW NEEDED`;
-  $('#foundryEvents').textContent = integer(dataset.event_count);
-  $('#foundryCampaigns').textContent = integer(dataset.scenario_count);
-  $('#foundryVectors').textContent = integer(dataset.attack_vector_count);
-  $('#foundryFidelity').textContent = `${score(fidelity.score)} / 100`;
+    : `${passedChecks} / ${checks.length} DATA CHECKS PASSED · REVIEW NEEDED`);
+  _set('#foundryEvents', integer(dataset.event_count));
+  _set('#foundryCampaigns', integer(dataset.scenario_count));
+  _set('#foundryVectors', integer(dataset.attack_vector_count));
+  _set('#foundryFidelity', `${score(fidelity.score)} / 100`);
   const splitCounts = dataset.split_counts || {};
   const maximumSplit = Math.max(1, ...Object.values(splitCounts).map(Number));
-  $('#splitBars').innerHTML = Object.entries(splitCounts).map(([name, count]) => `<div class="split-row"><span>${escapeHtml(pretty(name))}</span><progress max="${maximumSplit}" value="${Number(count) || 0}">${Number(count) || 0}</progress><b>${integer(count)}</b></div>`).join('');
-  $('#foundryState').textContent = `${integer(dataset.attack_event_count)} attack events + ${integer(dataset.legitimate_event_count)} legitimate events = ${integer(quality.row_count)} total rows · fixed seed ${dataset.seed} · generated ${new Date(data.generated_at).toLocaleString()}.`;
+  _setHtml('#splitBars', Object.entries(splitCounts).map(([name, count]) => `<div class="split-row"><span>${escapeHtml(pretty(name))}</span><progress max="${maximumSplit}" value="${Number(count) || 0}">${Number(count) || 0}</progress><b>${integer(count)}</b></div>`).join(''));
+  _set('#foundryState', `${integer(dataset.attack_event_count)} attack events + ${integer(dataset.legitimate_event_count)} legitimate events = ${integer(quality.row_count)} total rows · fixed seed ${dataset.seed} · generated ${new Date(data.generated_at).toLocaleString()}.`);
 
-  $('#benchmarkModel').textContent = `SYNTHETIC BENCHMARK · ${pretty(defense.selected_model)} · VALIDATION-SELECTED`;
-  $('#benchmarkPrauc').textContent = precisePct(metrics.pr_auc, 2);
-  $('#benchmarkNovelRecall').textContent = precisePct(novel.recall, 1);
-  $('#benchmarkF1').textContent = precisePct(metrics.f1, 1);
-  $('#benchmarkFpr').textContent = precisePct(metrics.hard_false_positive_rate ?? metrics.false_positive_rate, 2);
-  $('#benchmarkThreshold').textContent = `Technical threshold ${Number(defense.threshold_selected_on_validation || 0).toFixed(3)}`;
+  _set('#benchmarkModel', `SYNTHETIC BENCHMARK · ${pretty(defense.selected_model)} · VALIDATION-SELECTED`);
+  _set('#benchmarkPrauc', precisePct(metrics.pr_auc, 2));
+  _set('#benchmarkNovelRecall', precisePct(novel.recall, 1));
+  _set('#benchmarkF1', precisePct(metrics.f1, 1));
+  _set('#benchmarkFpr', precisePct(metrics.hard_false_positive_rate ?? metrics.false_positive_rate, 2));
+  _set('#benchmarkThreshold', `Technical threshold ${Number(defense.threshold_selected_on_validation || 0).toFixed(3)}`);
   const detectedAttacks = Number(confusion.tp) || 0;
   const missedAttacks = Number(confusion.fn) || 0;
   const legitimatePassed = Number(confusion.tn) || 0;
   const falseAlerts = Number(confusion.fp) || 0;
   const novelConfusion = novel.confusion_matrix || {};
-  $('#benchmarkPraucNote').textContent = `Ranking quality across ${integer(metrics.event_count)} sealed synthetic events. Higher is better.`;
-  $('#benchmarkNovelRecallNote').textContent = `${integer(novelConfusion.tp)} of ${integer(novel.fraud_event_count)} attack events from completely withheld vectors were caught.`;
-  $('#benchmarkF1Note').textContent = `${integer(detectedAttacks)} attacks caught · ${integer(missedAttacks)} missed · ${integer(falseAlerts)} legitimate events falsely alerted.`;
-  $('#benchmarkFprNote').textContent = `Rate measured across ${integer(metrics.hard_control_event_count)} difficult legitimate-control events. Lower is better.`;
-  $('#matrixTn').textContent = integer(confusion.tn);
-  $('#matrixFp').textContent = integer(confusion.fp);
-  $('#matrixFn').textContent = integer(confusion.fn);
-  $('#matrixTp').textContent = integer(confusion.tp);
+  _set('#benchmarkPraucNote', `Ranking quality across ${integer(metrics.event_count)} sealed synthetic events. Higher is better.`);
+  _set('#benchmarkNovelRecallNote', `${integer(novelConfusion.tp)} of ${integer(novel.fraud_event_count)} attack events from completely withheld vectors were caught.`);
+  _set('#benchmarkF1Note', `${integer(detectedAttacks)} attacks caught · ${integer(missedAttacks)} missed · ${integer(falseAlerts)} legitimate events falsely alerted.`);
+  _set('#benchmarkFprNote', `Rate measured across ${integer(metrics.hard_control_event_count)} difficult legitimate-control events. Lower is better.`);
+  _set('#matrixTn', integer(confusion.tn));
+  _set('#matrixFp', integer(confusion.fp));
+  _set('#matrixFn', integer(confusion.fn));
+  _set('#matrixTp', integer(confusion.tp));
 
   const lifecycle = defense.lifecycle_results || {};
-  $('#benchmarkPhases').innerHTML = phases.map(phase => {
+  _setHtml('#benchmarkPhases', phases.map(phase => {
     const item = lifecycle[phase] || {};
     const precision = Number(item.precision) || 0;
     const recall = Number(item.recall) || 0;
@@ -286,16 +289,17 @@ function renderBenchmark(data) {
       </div>
       <small>${integer(item.events)} sealed hidden-test events · ${precisePct(1 - (Number(item.false_positive_rate) || 0), 1)} legitimate users protected</small>
     </div>`;
-  }).join('');
-  $('#familyResults').innerHTML = Object.entries(defense.family_results || {}).sort().map(([family, item]) => `<tr><td>${escapeHtml(family)}</td><td>${integer(item.events)}</td><td>${precisePct(item.recall, 1)}</td><td>${precisePct(item.value_weighted_recall, 1)}</td><td>${precisePct(item.mean_risk_score, 1)}</td></tr>`).join('');
-  $('#benchmarkGenerated').textContent = `${integer(detectedAttacks)} of ${integer(detectedAttacks + missedAttacks)} attacks caught · ${integer(falseAlerts)} of ${integer(legitimatePassed + falseAlerts)} legitimate events flagged`;
+  }).join(''));
+  _setHtml('#familyResults', Object.entries(defense.family_results || {}).sort().map(([family, item]) => `<tr><td>${escapeHtml(family)}</td><td>${integer(item.events)}</td><td>${precisePct(item.recall, 1)}</td><td>${precisePct(item.value_weighted_recall, 1)}</td><td>${precisePct(item.mean_risk_score, 1)}</td></tr>`).join(''));
+  _set('#benchmarkGenerated', `${integer(detectedAttacks)} of ${integer(detectedAttacks + missedAttacks)} attacks caught · ${integer(falseAlerts)} of ${integer(legitimatePassed + falseAlerts)} legitimate events flagged`);
 
-  $('#criteriaDiversity').textContent = `${integer((data.threat_atlas || {}).vector_count)} vectors`;
-  $('#criteriaDiversityNote').textContent = `${integer((data.threat_atlas || {}).attack_family_count)} families · ${integer((data.threat_atlas || {}).rail_count)} rails · ${integer((data.threat_atlas || {}).source_count)} authoritative sources.`;
-  $('#criteriaFidelity').textContent = `${score(fidelity.score)} / 100`;
-  $('#criteriaFidelityNote').textContent = `Measured against declared priors · ${quality.status === 'passed' ? 'all quality gates passed' : 'quality review required'}.`;
-  $('#criteriaDetection').textContent = `${precisePct(metrics.f1, 1)} F1`;
-  $('#criteriaDetectionNote').textContent = `${precisePct(novel.recall, 1)} novel-vector recall · ${precisePct(metrics.hard_false_positive_rate ?? metrics.false_positive_rate, 2)} hard false positives.`;
+  // These criteria elements remain on lab.html — always present.
+  _set('#criteriaDiversity', `${integer((data.threat_atlas || {}).vector_count)} vectors`);
+  _set('#criteriaDiversityNote', `${integer((data.threat_atlas || {}).attack_family_count)} families · ${integer((data.threat_atlas || {}).rail_count)} rails · ${integer((data.threat_atlas || {}).source_count)} authoritative sources.`);
+  _set('#criteriaFidelity', `${score(fidelity.score)} / 100`);
+  _set('#criteriaFidelityNote', `Measured against declared priors · ${quality.status === 'passed' ? 'all quality gates passed' : 'quality review required'}.`);
+  _set('#criteriaDetection', `${precisePct(metrics.f1, 1)} F1`);
+  _set('#criteriaDetectionNote', `${precisePct(novel.recall, 1)} novel-vector recall · ${precisePct(metrics.hard_false_positive_rate ?? metrics.false_positive_rate, 2)} hard false positives.`);
 }
 
 async function loadBenchmark() {
@@ -397,6 +401,18 @@ async function loadStatus() {
   if (!response.ok) throw new Error(`status endpoint returned ${response.status}`);
   const data = await response.json();
   state.status = data;
+  // If the server restarted (new token), wipe all session battle state so stale reports
+  // and in-progress battle state from the previous process are not shown.
+  if (data.server_token) {
+    try {
+      const storedToken = sessionStorage.getItem('masterguard_server_token');
+      if (storedToken && storedToken !== data.server_token) {
+        clearBattleSession();
+        sessionStorage.removeItem('masterguard_has_report');
+      }
+      sessionStorage.setItem('masterguard_server_token', data.server_token);
+    } catch (_) {}
+  }
   renderSubmissionProfile(data.submission_profile);
   const learningLoop = data.learning_loop || {};
   if (learningLoop.auto_retrain_enabled) {
@@ -470,20 +486,27 @@ async function loadStatus() {
     $('#architectureMode').textContent = 'LIVE ARCHITECTURE';
     $('#heroStage').classList.remove('replay');
   }
-  if (data.latest_run_available) await loadLatest();
 }
 
-async function loadLatest() {
+// A run is "current version" only if its Referee report carries the fields this UI expects.
+function isCurrentVersionRun(run) {
+  const rep = run && run.rounds && run.rounds[0] && run.rounds[0].referee;
+  return !!(rep && ('loss_avoided_inr' in rep || 'no_defense_loss_inr' in rep));
+}
+
+async function loadLatest(provenance = 'saved') {
   const response = await fetch('/api/v2/latest');
-  if (!response.ok) return;
+  if (!response.ok) return false;
   const savedRun = await response.json();
   const latestRound = savedRun.rounds && savedRun.rounds[savedRun.rounds.length - 1];
-  if (!savedRun.submission_profile || !latestRound || !latestRound.submission_evaluation) return;
+  if (!savedRun.submission_profile || !latestRound || !latestRound.submission_evaluation) return false;
+  if (!isCurrentVersionRun(savedRun)) return false;  // never show a pre-redesign report
   state.run = savedRun;
   state.roundIndex = Math.max(0, state.run.rounds.length - 1);
   state.turnIndex = 0;
   updateLatencyEstimate();
-  renderRun(false, 'saved');
+  renderRun(false, provenance);
+  return true;
 }
 
 function renderTimeline(turns) {
@@ -499,7 +522,7 @@ function renderTimeline(turns) {
     const action = actionClasses.has(decision.action) ? decision.action : 'monitor';
     return `<button type="button" class="event" data-turn-index="${index}">
       <span class="event-index">${String(index + 1).padStart(2, '0')}</span>
-      <span><span class="event-title">${escapeHtml(pretty(event.event_type))}</span><span class="event-phase">${escapeHtml(pretty(event.lifecycle_phase || 'phase not recorded'))}</span></span>
+      <span class="event-main"><span class="event-title">${escapeHtml(pretty(event.event_type))}</span><span class="event-phase">${escapeHtml(pretty(event.lifecycle_phase || 'phase not recorded'))}</span></span>
       <span class="action ${action}">${escapeHtml(pretty(decision.action))}</span>
     </button>`;
   }).join('');
@@ -614,16 +637,270 @@ function renderLifecycle(report) {
       </div>
       <div class="phase-opportunity"><b>First chance to act: ${escapeHtml(pretty(item.first_actionable_event))}</b><span>${metricTitle('Detection latency', metricDefinitions.responseLatency)}<strong>${escapeHtml(response)}</strong></span></div>
       <div class="phase-quality-grid">
-        ${phaseQualityMetric('Precision', hasClassification ? classification.precision : null, metricDefinitions.precision, sampleNote)}
-        ${phaseQualityMetric('Recall', hasClassification ? classification.recall : null, metricDefinitions.recall, sampleNote)}
-        ${phaseQualityMetric('F1', hasClassification ? classification.f1 : null, metricDefinitions.f1, sampleNote)}
+        ${phaseQualityMetric('Precision', hasClassification ? classification.precision : null, metricDefinitions.precision)}
+        ${phaseQualityMetric('Recall', hasClassification ? classification.recall : null, metricDefinitions.recall)}
+        ${phaseQualityMetric('F1', hasClassification ? classification.f1 : null, metricDefinitions.f1)}
       </div>
+      <div class="phase-quality-note">${escapeHtml(sampleNote)}</div>
       ${metricBar('Response speed', item.response_score, metricDefinitions.responseSpeed)}
       ${metricBar('Potential harm stopped', item.consequence_control_ratio, metricDefinitions.consequenceControl)}
       ${metricBar('Legitimate customer safety', item.legitimate_safety_rate, metricDefinitions.legitimateSafety)}
       <div class="phase-foot"><span>${Number(item.evaluated_event_count) || 0} of ${Number(item.event_count) || 0} events reviewed</span><span>${transition}</span></div>
     </article>`;
   }).join('');
+}
+
+const INTERVENTION_BY_PHASE = {
+  pre_transaction: { point: 'PREVENT', money: 'stopped before any money moved' },
+  transaction: { point: 'DECIDE', money: 'stopped as the money was moving' },
+  post_transaction: { point: 'CONTAIN', money: 'caught after money had moved' },
+};
+const ACTION_ORDER = ['allow', 'monitor', 'step_up', 'hold', 'block'];
+const VERDICT = {
+  prevented: { badge: 'PREVENTED', cls: 'v-prevented', money: 'the attack was stopped before any money moved' },
+  contained: { badge: 'CONTAINED', cls: 'v-contained', money: 'some loss occurred but was limited' },
+  detected: { badge: 'DETECTED', cls: 'v-detected', money: 'a warning was raised without proven value protection' },
+  missed: { badge: 'MISSED', cls: 'v-missed', money: 'no warning was raised' },
+};
+
+function relTime(sec) {
+  sec = Math.max(0, Math.round(Number(sec) || 0));
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.round(sec / 60)}m`;
+  const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
+// One shared breakdown of legitimate-customer impact used across the report.
+function legitStats(round) {
+  const controls = (round.blue && round.blue.control_summaries) || [];
+  const ambient = (round.blue && round.blue.ambient_summaries) || [];
+  const BLOCK = new Set(['hold', 'block']);
+  const blocked = s => (s.decisions || []).some(d => BLOCK.has(d.action));
+  const stepUpOnly = s => !blocked(s) && (s.decisions || []).some(d => d.action === 'step_up');
+  return {
+    controlCount: controls.length, ambientCount: ambient.length,
+    total: controls.length + ambient.length,
+    falseBlocks: controls.filter(blocked).length + ambient.filter(blocked).length,
+    extraChecks: controls.filter(stepUpOnly).length + ambient.filter(stepUpOnly).length,
+  };
+}
+
+function stageIndexOf(stageId, round) {
+  if (!stageId) return 0;
+  const events = (round.simulation && round.simulation.attack_case && round.simulation.attack_case.events) || [];
+  const idx = events.findIndex(e => e.stage_id === stageId || e.event_id === stageId);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
+// Render EVERY attribute that has a value, as "Label value" chips (ids and internals included,
+// per the requirement to show all populated attributes for the event).
+const _ATTR_HIDE = new Set(['event_id']);
+// Attributes that carry a risk signal get a coloured tint; neutral ones stay quiet.
+function _isRiskyAttr(key, raw) {
+  const k = key.toLowerCase();
+  if (typeof raw === 'boolean') {
+    if (/(passed|complete|verified|authorized|authorised)$/.test(k)) return raw === false; // safety flag off
+    return raw === true; // suspicion flag on (is_new, suspected, accelerated…)
+  }
+  const n = Number(raw);
+  if (!Number.isNaN(n) && raw !== '' && raw !== null) {
+    if (k.includes('ratio') || k.includes('multiplier')) return n >= 2;
+    if (k.includes('novelty')) return n >= 0.6;
+    if (k.includes('risk')) return n >= 3;
+    if (k.includes('drain')) return n >= 0.5;
+    if (/age_days$/.test(k) && !k.includes('binding')) return n <= 14;
+    if (k.includes('inbound') || k.includes('sender_count')) return n >= 20;
+    if (k.includes('dwell')) return n <= 600;
+  }
+  return false;
+}
+function _attrValue(key, raw) {
+  if (typeof raw === 'boolean') return raw ? 'yes' : 'no';
+  if (key === 'amount_inr' || /(_inr)$/.test(key)) return money(Number(raw));
+  if (typeof raw === 'number') return Number.isInteger(raw) ? String(raw) : Number(raw).toFixed(2);
+  return String(raw);
+}
+// Ordered attribute entries — risk-carrying ones first so the cap keeps the most notable.
+function attrEntries(attributes) {
+  const a = attributes || {};
+  const out = [];
+  for (const [key, raw] of Object.entries(a)) {
+    if (_ATTR_HIDE.has(key)) continue;
+    if (raw == null || raw === '') continue;
+    out.push({ label: pretty(key), value: _attrValue(key, raw), risky: _isRiskyAttr(key, raw) });
+  }
+  out.sort((x, y) => (y.risky ? 1 : 0) - (x.risky ? 1 : 0)); // stable: risk-first
+  return out;
+}
+// Each attribute as a vertical row within the card: label (left) + value (right).
+function _attrRow(e) {
+  return `<div class="attr-row${e.risky ? ' risk' : ''}"><em>${escapeHtml(e.label)}</em><span class="attr-v">${escapeHtml(e.value)}</span></div>`;
+}
+// Attributes stacked vertically in the card; cap=5 visible, "+n more" expands downward.
+function attrCardBody(attributes, cap) {
+  const entries = attrEntries(attributes);
+  if (!entries.length) return '<div class="attr-row muted">—</div>';
+  const visible = entries.slice(0, cap).map(_attrRow).join('');
+  const hidden = entries.slice(cap);
+  const more = hidden.length
+    ? `<div class="attr-more hidden">${hidden.map(_attrRow).join('')}</div><button type="button" class="attr-toggle">+${hidden.length} more</button>`
+    : '';
+  return `${visible}${more}`;
+}
+
+// One event as a CARD COLUMN — event name at top, attributes stacked below.
+function eventCard(ev) {
+  const act = actionClasses.has(ev.action) ? ev.action : (ev.action ? 'monitor' : null);
+  const alerted = act && act !== 'allow' && act !== 'monitor';
+  const decision = act
+    ? `<span class="action ${act}">${escapeHtml(pretty(ev.action))}</span>`
+    : '';
+  const phaseTag = ev.lifecycle_phase ? `<span class="feed-phase">${escapeHtml(pretty(ev.lifecycle_phase))}</span>` : '';
+  return `<div class="ev-card${alerted ? ' flagged' : ''}">
+    <div class="ev-card-head"><span class="ev-seq">${String(Number(ev.sequence) || 0).padStart(2, '0')}</span><b>${escapeHtml(pretty(ev.event_type))}</b>${phaseTag}</div>
+    <div class="ev-card-attrs">${attrCardBody(ev.attributes, 5)}</div>
+    <div class="ev-card-foot">${decision}</div>
+  </div>`;
+}
+
+// Tracks which event sequences the user has manually expanded.
+// Persists across re-renders so collapsing is never undone by the next poll cycle.
+const expandedCardSeqs = new Set();
+
+document.addEventListener('click', event => {
+  const btn = event.target.closest && event.target.closest('.attr-toggle');
+  if (!btn) return;
+  const card = btn.closest('.ev-card');
+  const more = card && card.querySelector('.attr-more');
+  if (!more) return;
+  const seqEl = card && card.querySelector('.ev-seq');
+  const seqKey = seqEl ? seqEl.textContent.trim() : null;
+  const expanding = more.classList.contains('hidden');
+  more.classList.toggle('hidden');
+  btn.textContent = expanding ? 'see less' : `+${more.children.length} more`;
+  if (seqKey) {
+    if (expanding) expandedCardSeqs.add(seqKey);
+    else expandedCardSeqs.delete(seqKey);
+  }
+});
+
+// Grouped renderer (attack / look-alike / ambient) — each cycle is a labelled row of cards.
+const GROUP_META = {
+  attack: { label: 'REAL ATTACK', cls: 'grp-attack', note: "Red's fraud campaign" },
+  lookalike: { label: 'LOOK-ALIKE', cls: 'grp-lookalike', note: 'benign — built to resemble the attack' },
+  ambient: { label: 'ORDINARY TRAFFIC', cls: 'grp-ambient', note: 'benign — everyday payments' },
+};
+function renderEventGroups(container, groups) {
+  const sections = (groups || []).filter(g => g && (g.events || []).length).map(g => {
+    const meta = GROUP_META[g.kind] || { label: String(g.kind || '').toUpperCase(), cls: '', note: '' };
+    return `<div class="ev-group ${meta.cls}">
+      <div class="ev-group-head"><span class="grp-badge">${escapeHtml(meta.label)}</span><span class="grp-label">${escapeHtml(pretty(g.label || ''))}</span><span class="grp-note">${escapeHtml(meta.note)}</span></div>
+      <div class="ev-cards">${g.events.map(eventCard).join('')}</div>
+    </div>`;
+  }).join('');
+  container.innerHTML = sections || '';
+
+  // Restore any cards the user expanded — driven by the persistent Set, not DOM state.
+  if (expandedCardSeqs.size) {
+    container.querySelectorAll('.ev-card').forEach(card => {
+      const seqEl = card.querySelector('.ev-seq');
+      if (seqEl && expandedCardSeqs.has(seqEl.textContent.trim())) {
+        const more = card.querySelector('.attr-more');
+        const btn = card.querySelector('.attr-toggle');
+        if (more && btn) {
+          more.classList.remove('hidden');
+          btn.textContent = 'see less';
+        }
+      }
+    });
+  }
+}
+
+function renderVerdict(report, round) {
+  const outcome = String(report.outcome || '').toLowerCase();
+  const v = VERDICT[outcome] || VERDICT.detected;
+  const badge = $('#verdictBadge');
+  badge.textContent = v.badge;
+  badge.className = `verdict-badge ${v.cls}`;
+
+  const atRisk = Number(report.no_defense_loss_inr ?? report.total_value_at_risk_inr) || 0;
+  const avoided = Number(report.loss_avoided_inr ?? report.value_prevented_inr) || 0;
+  const stages = ((round.blue && round.blue.attack_turns) || []).length
+    || ((round.simulation && round.simulation.attack_case && round.simulation.attack_case.events) || []).length;
+  const phase = report.detected_lifecycle_phase;
+  const point = phase ? (INTERVENTION_BY_PHASE[phase] || {}).point : null;
+  const stageNum = stageIndexOf(report.detected_stage_id, round);
+  const seconds = report.time_to_detect_seconds;
+  const stats = legitStats(round);
+
+  $('#heroLossAvoided').textContent = money(avoided);
+  $('#heroLatency').textContent = seconds == null ? 'Not caught' : relTime(seconds);
+  $('#heroLatencyNote').textContent = seconds == null
+    ? 'no warning was raised'
+    : (stageNum ? `at event ${stageNum} of ${stages}${point ? ` · ${point}` : ''}` : (point || ''));
+  $('#heroFalseAlarms').textContent = stats.total ? String(stats.falseBlocks) : 'n/a';
+  $('#heroFalseAlarmsNote').textContent = stats.total
+    ? `of ${stats.total} legit payments${stats.extraChecks ? ` · ${stats.extraChecks} extra checks` : ''}`
+    : '';
+
+  const caughtWhere = point
+    ? `at a ${point} stage${stageNum ? ` (event ${stageNum} of ${stages})` : ''}`
+    : 'not caught';
+  let custClause = '.';
+  if (stats.total) {
+    custClause = stats.falseBlocks === 0
+      ? `, and no legitimate payments were wrongly blocked.`
+      : `, but ${stats.falseBlocks} of ${stats.total} legitimate payments were wrongly blocked.`;
+  }
+  $('#verdictLine').textContent =
+    `${money(avoided)} of ${money(atRisk)} at risk was protected — ${v.money}, caught ${caughtWhere}` + custClause;
+}
+
+function renderMoney(report) {
+  const atRisk = Number(report.no_defense_loss_inr ?? report.total_value_at_risk_inr) || 0;
+  const lost = Number(report.realized_impact_inr) || 0;
+  const avoided = Number(report.loss_avoided_inr ?? report.value_prevented_inr ?? Math.max(0, atRisk - lost)) || 0;
+  const avoidedPct = atRisk ? Math.round((avoided / atRisk) * 100) : 100;
+  $('#moneyAvoided').style.width = `${avoidedPct}%`;
+  $('#moneyLost').style.width = `${100 - avoidedPct}%`;
+  $('#mAvoided').textContent = money(avoided);
+  $('#mLost').textContent = money(lost);
+  $('#mAtRisk').textContent = money(atRisk);
+  $('#moneyHeadline').textContent = atRisk === 0
+    ? 'No synthetic value was at risk in this scenario.'
+    : `${money(avoided)} of ${money(atRisk)} protected · ${money(lost)} lost`;
+}
+
+const scBar = (label, v) =>
+  `<div class="sc-row"><span>${label}</span><div class="bar"><i style="width:${Math.round((Number(v) || 0) * 100)}%"></i></div><b>${pct(v)}</b></div>`;
+const scNote = (label, text) =>
+  `<div class="sc-row"><span>${label}</span><div class="bar-note">${escapeHtml(text)}</div></div>`;
+
+function renderScoreBreakdown(report, round) {
+  $('#scoreWorst').textContent = report.worst_lifecycle_phase
+    ? `${pretty(report.worst_lifecycle_phase)} (${score(report.worst_phase_score)}/100)` : '—';
+  const BLOCK = new Set(['hold', 'block']);
+  const attackBlocked = ((round && round.blue && round.blue.attack_turns) || [])
+    .some(t => BLOCK.has(t.decision && t.decision.action)) ? 1 : 0;
+  const s = legitStats(round || {});
+  const decisiveTotal = attackBlocked + s.falseBlocks;
+  $('#scoreComponents').innerHTML = [
+    scBar('Attacks detected', report.attack_detection_rate),
+    scBar('Value protected', report.value_prevented_ratio),
+    decisiveTotal ? scBar('Precision when blocking', attackBlocked / decisiveTotal)
+      : scNote('Precision when blocking', 'no decisive block taken'),
+    scBar('Investigation coverage', report.evidence_tool_coverage),
+  ].join('');
+  const lifecycleCount = report.lifecycle_metrics
+    ? Object.values(report.lifecycle_metrics).filter(item => item.status !== 'not_in_scenario').length : 0;
+  const ttd = report.time_to_detect_seconds;
+  $('#attackComponents').innerHTML = [
+    scBar('Overall attack strength', (Number(report.red_capability_score ?? report.red_score) || 0) / 100),
+    scBar('Value slipped through', report.realized_impact_ratio),
+    scNote('Payment stages exercised', String(lifecycleCount)),
+    scNote('Evaded detection until', ttd == null ? 'never caught' : `+${relTime(ttd)} (simulated)`),
+  ].join('');
 }
 
 function renderImpact(report, scenario) {
@@ -638,19 +915,13 @@ function renderImpact(report, scenario) {
 
   $('#redCapability').textContent = score(capability);
   $('#redCapabilityNote').textContent = lifecycleCount
-    ? `This attack exercised ${lifecycleCount} payment stage${lifecycleCount === 1 ? '' : 's'}. The score also rewards stealth and deeper event sequences.`
-    : 'Measures how far the attack progressed, how quietly it moved, and how many stages it tested.';
-  $('#realizedImpact').textContent = money(realized);
-  $('#realizedImpactRatio').textContent = `${pct(realizedRatio)} of at-risk synthetic money was lost`;
-  $('#attackPotential').textContent = money(potential);
-  $('#valueProtected').textContent = money(protectedValue);
-  $('#valueAtRisk').textContent = `of ${money(potential)} at risk`;
-  $('#impactAmount').textContent = money(realized);
+    ? `exercised ${lifecycleCount} payment stage${lifecycleCount === 1 ? '' : 's'}, stealth + depth rewarded`
+    : 'how far, how quietly the attack moved';
 
-  let verdict = 'Low-to-moderate capability and contained impact.';
-  if (capability >= 70 && realizedRatio >= .4) verdict = 'High-capability, high-impact: a critical control gap.';
-  else if (capability >= 70 && realizedRatio < .25) verdict = 'High-capability attack, low realized impact: defended well.';
-  else if (capability < 70 && realizedRatio >= .4) verdict = 'Simpler attack, high impact: a structural control gap.';
+  let verdict = 'moderate capability, contained impact';
+  if (capability >= 70 && realizedRatio >= .4) verdict = 'strong attack, high impact — critical gap';
+  else if (capability >= 70 && realizedRatio < .25) verdict = 'strong attack, low impact — defended well';
+  else if (capability < 70 && realizedRatio >= .4) verdict = 'simpler attack, high impact — structural gap';
   $('#impactVerdict').textContent = verdict;
 
   const bubble = $('#impactBubble');
@@ -697,13 +968,12 @@ function renderRound(index) {
   const plan = round.red.plan || {};
   const scenario = round.red.scenario || {};
   const feedback = round.feedback_released_to_red || {};
+  renderVerdict(report, round);
+  renderMoney(report);
+  renderEventStream(round);
   renderLifecycle(report);
   renderImpact(report, scenario);
-  $('#outcome').textContent = pretty(report.outcome);
-  $('#detectionTime').textContent = report.time_to_detect_seconds == null
-    ? 'No warning was detected'
-    : `warning detected at ${report.time_to_detect_seconds}s in simulated time`;
-  $('#falsePositives').textContent = pct(report.hard_false_positive_rate);
+  renderScoreBreakdown(report, round);
   $('#strategyFamily').textContent = `${scenario.attack_family || '—'} · ${pretty(scenario.difficulty)} · ${pretty(plan.target_lifecycle_phase || 'lifecycle not recorded')}`;
   $('#strategyObjective').textContent = plan.objective || 'No objective was recorded.';
   $('#strategyFocus').innerHTML = chips((plan.focus_stage_ids || plan.stage_emphasis || []).map(pretty), 'red');
@@ -715,8 +985,11 @@ function renderRound(index) {
 
   $('#feedbackOutcome').textContent = pretty(feedback.outcome);
   $('#feedbackStage').textContent = pretty(feedback.detected_stage_id);
-  $('#feedbackReasons').innerHTML = chips((feedback.coarse_reason_categories || []).map(pretty), 'blue');
+  $('#feedbackLatency').textContent = feedback.time_to_detect_seconds == null
+    ? 'not caught' : `+${relTime(feedback.time_to_detect_seconds)}`;
   $('#feedbackRatio').textContent = pct(feedback.value_prevented_ratio);
+  $('#feedbackFp').textContent = pct(feedback.false_positive_rate);
+  $('#feedbackReasons').innerHTML = chips((feedback.coarse_reason_categories || []).map(pretty), 'blue');
   document.querySelectorAll('.round-tabs button').forEach((button, buttonIndex) => {
     button.classList.toggle('active', buttonIndex === state.roundIndex);
   });
@@ -807,10 +1080,160 @@ function renderRunProgress(progress) {
   } else {
     $('#runProgressCount').textContent = 'Verified live update from the server orchestration pipeline.';
   }
+  renderLiveEventFeed(progress);
   if (state.activeRun) {
     state.activeRun.progress = progress;
     renderRunEta(progress);
   }
+}
+
+// Live feed: attack + look-alike + ambient events as generated, grouped, with Blue's decision.
+function renderLiveEventFeed(progress) {
+  const feed = $('#runEventFeed');
+  const list = $('#runEventList');
+  if (!feed || !list) return;
+  let groups = progress && progress.event_groups;
+  if ((!groups || !groups.length) && progress && progress.attack_stream) {
+    groups = [{ kind: 'attack', label: 'Attack', events: progress.attack_stream }];
+  }
+  if (!groups || !groups.length) { feed.classList.add('hidden'); return; }
+  feed.classList.remove('hidden');
+  // Only auto-follow to the newest event if the user is already near the bottom; if they've
+  // scrolled up to read earlier events, preserve their position instead of yanking them down.
+  const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 48;
+  const prevTop = list.scrollTop;
+  renderEventGroups(list, groups);
+  list.scrollTop = nearBottom ? list.scrollHeight : prevTop;
+}
+
+// Persisted, grouped event stream in the completed report. Falls back to reconstructing the
+// attack group from the round data for saved runs created before grouped streams existed.
+function renderEventStream(round) {
+  const section = $('#eventStreamSection');
+  const list = $('#eventStreamList');
+  if (!section || !list) return;
+  let groups = (round.event_groups || []).filter(g => (g.events || []).length);
+
+  // Build a sequence→decision map from the completed attack turns so we can fill in
+  // actions that were missing from event_groups (which are populated during streaming,
+  // before Blue finishes deciding).
+  const decBySeq = {};
+  ((round.blue && round.blue.attack_turns) || []).forEach(t => {
+    const s = (t.event || {}).sequence;
+    if (s != null) decBySeq[s] = t.decision || {};
+  });
+
+  if (groups.length) {
+    // Merge completed Blue decisions into attack-group events (other groups have no per-event decision).
+    groups = groups.map(g => {
+      if (g.kind !== 'attack' || !Object.keys(decBySeq).length) return g;
+      return {
+        ...g,
+        events: g.events.map(ev => ({
+          ...ev,
+          action: ev.action || (decBySeq[ev.sequence] || {}).action,
+          risk_level: ev.risk_level || (decBySeq[ev.sequence] || {}).risk_level,
+        })),
+      };
+    });
+  } else {
+    const events = (round.simulation && round.simulation.attack_case
+      && round.simulation.attack_case.events) || [];
+    if (events.length) {
+      groups = [{
+        kind: 'attack',
+        label: (round.red && round.red.scenario && round.red.scenario.attack_family) || 'Attack',
+        events: events.map(ev => ({
+          sequence: ev.sequence, event_type: ev.event_type, lifecycle_phase: ev.lifecycle_phase,
+          attributes: ev.attributes,
+          action: (decBySeq[ev.sequence] || {}).action, risk_level: (decBySeq[ev.sequence] || {}).risk_level,
+        })),
+      }];
+    }
+  }
+  if (!groups.length) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+  renderEventGroups(list, groups);
+}
+
+// ---- Battle session persistence (survives same-tab navigation) ----
+
+const BATTLE_SESSION_KEY = 'masterguard_active_battle';
+
+function saveBattleSession(progressId, startedAt, totalRounds) {
+  try { sessionStorage.setItem(BATTLE_SESSION_KEY, JSON.stringify({ progressId, startedAt, totalRounds })); } catch (_) {}
+}
+
+function clearBattleSession() {
+  try { sessionStorage.removeItem(BATTLE_SESSION_KEY); } catch (_) {}
+}
+
+function loadBattleSession() {
+  try { const raw = sessionStorage.getItem(BATTLE_SESSION_KEY); return raw ? JSON.parse(raw) : null; } catch (_) { return null; }
+}
+
+async function resumeActiveBattle() {
+  const session = loadBattleSession();
+  if (!session || !session.progressId) { clearBattleSession(); return false; }
+  const { progressId, startedAt, totalRounds } = session;
+  let progress;
+  try {
+    const response = await fetch(`/api/v2/run-progress/${encodeURIComponent(progressId)}`, { cache: 'no-store' });
+    if (!response.ok) { clearBattleSession(); return false; }
+    progress = await response.json();
+  } catch (_) { clearBattleSession(); return false; }
+
+  if (progress.stage === 'completed' || progress.status === 'completed') {
+    clearBattleSession();
+    try { sessionStorage.setItem('masterguard_has_report', '1'); } catch (_) {}
+    await loadLatest('current');
+    return true;
+  }
+  if (progress.status === 'error') { clearBattleSession(); return false; }
+
+  // Battle still running on server — restore progress UI
+  $('#results').classList.add('hidden');
+  $('#runState').classList.remove('hidden');
+  $('#runButton').disabled = true;
+  const safeStartedAt = Number(startedAt) || Date.now();
+  const safeTotalRounds = Number(totalRounds) || 1;
+  state.activeRun = {
+    startedAt: safeStartedAt,
+    totalRounds: safeTotalRounds,
+    baselineSeconds: estimatedTotalSeconds(safeTotalRounds),
+    progress: null,
+  };
+  renderRunProgress(progress);
+  const stopPolling = startProgressPolling(progressId);
+  $('#runElapsed').textContent = `Elapsed ${duration(Date.now() - safeStartedAt)}`;
+  const elapsedTimer = setInterval(() => {
+    $('#runElapsed').textContent = `Elapsed ${duration(Date.now() - safeStartedAt)}`;
+    renderRunEta();
+  }, 1000);
+  const completionWatcher = setInterval(async () => {
+    const prog = state.activeRun && state.activeRun.progress;
+    if (!prog) return;
+    if (prog.stage === 'completed' || prog.status === 'completed') {
+      clearInterval(completionWatcher);
+      stopPolling();
+      clearInterval(elapsedTimer);
+      clearBattleSession();
+      try { sessionStorage.setItem('masterguard_has_report', '1'); } catch (_) {}
+      $('#runState').classList.add('hidden');
+      $('#runButton').disabled = false;
+      state.activeRun = null;
+      await loadLatest('current');
+    } else if (prog.status === 'error') {
+      clearInterval(completionWatcher);
+      stopPolling();
+      clearInterval(elapsedTimer);
+      clearBattleSession();
+      $('#runState').classList.add('hidden');
+      $('#runButton').disabled = false;
+      state.activeRun = null;
+    }
+  }, 1500);
+  return true;
 }
 
 function startProgressPolling(progressId) {
@@ -836,29 +1259,31 @@ function startProgressPolling(progressId) {
 $('#previousEvent').addEventListener('click', () => renderSelectedTurn(state.turnIndex - 1));
 $('#nextEvent').addEventListener('click', () => renderSelectedTurn(state.turnIndex + 1));
 $('#rounds').addEventListener('change', updateLatencyEstimate);
-$('#atlasCategory').addEventListener('change', renderThreatAtlas);
-$('#atlasRail').addEventListener('change', renderThreatAtlas);
-
-$('#runFoundry').addEventListener('click', async () => {
-  const button = $('#runFoundry');
-  button.disabled = true;
-  $('#foundryState').textContent = 'Generating population, opening sealed splits and benchmarking candidate defenses…';
-  try {
-    const response = await fetch('/api/v2/benchmark/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ variants_per_vector: 6, legitimate_events: 2400, seed: 20260824 }),
-    });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || `benchmark returned ${response.status}`);
-    renderBenchmark(payload);
-    $('#defenseBenchmark').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (error) {
-    $('#foundryState').textContent = `Benchmark could not complete: ${error.message}`;
-  } finally {
-    button.disabled = false;
-  }
-});
+// These elements only exist on the evidence page — guard so lab.js doesn't crash on the main page.
+$('#atlasCategory') && $('#atlasCategory').addEventListener('change', renderThreatAtlas);
+$('#atlasRail') && $('#atlasRail').addEventListener('change', renderThreatAtlas);
+if ($('#runFoundry')) {
+  $('#runFoundry').addEventListener('click', async () => {
+    const button = $('#runFoundry');
+    button.disabled = true;
+    if ($('#foundryState')) $('#foundryState').textContent = 'Generating population, opening sealed splits and benchmarking candidate defenses…';
+    try {
+      const response = await fetch('/api/v2/benchmark/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variants_per_vector: 6, legitimate_events: 2400, seed: 20260824 }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `benchmark returned ${response.status}`);
+      renderBenchmark(payload);
+      if ($('#defenseBenchmark')) $('#defenseBenchmark').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      if ($('#foundryState')) $('#foundryState').textContent = `Benchmark could not complete: ${error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
 
 $('#runForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -877,6 +1302,7 @@ $('#runForm').addEventListener('submit', async (event) => {
     baselineSeconds: estimatedTotalSeconds(selectedRounds),
     progress: null,
   };
+  saveBattleSession(progressId, startedAt, selectedRounds);
   renderRunProgress({
     status: 'running',
     stage: 'preparing',
@@ -909,14 +1335,22 @@ $('#runForm').addEventListener('submit', async (event) => {
     state.roundIndex = payload.rounds.length - 1;
     state.turnIndex = 0;
     updateLatencyEstimate();
+    try { sessionStorage.setItem('masterguard_has_report', '1'); } catch (_) {}
     renderRun(true, payload.demo_mode === 'precomputed_replay' ? 'replay' : 'current');
   } catch (error) {
     $('#errorState').textContent = `This battle attempt failed and did not create a new report. ${error.message}`;
     $('#errorState').classList.remove('hidden');
-    if (state.run) renderRun(false, 'stale');
+    // Only ever fall back to a report from THIS version.
+    if (state.run && isCurrentVersionRun(state.run)) {
+      renderRun(false, 'stale');
+    } else {
+      const shown = await loadLatest('stale');
+      if (!shown) $('#results').classList.add('hidden');
+    }
   } finally {
     stopProgressPolling();
     clearInterval(elapsedTimer);
+    clearBattleSession();
     $('#runState').classList.add('hidden');
     $('#runButton').disabled = false;
     state.activeRun = null;
@@ -925,7 +1359,13 @@ $('#runForm').addEventListener('submit', async (event) => {
 
 async function initialize() {
   await loadStatus();
-  await Promise.all([loadThreatAtlas(), loadBenchmark(), loadExternalValidation()]);
+  const resumed = await resumeActiveBattle();
+  if (!resumed) {
+    try {
+      if (sessionStorage.getItem('masterguard_has_report')) await loadLatest('saved');
+    } catch (_) {}
+  }
+  await Promise.all([loadBenchmark(), loadExternalValidation()]);
 }
 
 initialize().catch(error => {

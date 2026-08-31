@@ -223,7 +223,7 @@ For your first test, select:
 - Difficulty: `Medium`
 - Feedback rounds: `1 round`
 
-Then choose **Start agent battle**. One round is the fast demonstration path. Blue combines investigation and decision in one Qwen call per unresolved event, resolves independently verified low-risk events without Qwen, and evaluates the isolated attack and look-alike cases with bounded concurrency. Runs with two or more rounds also replay-test a Blue defense candidate between rounds and therefore take longer; use them when demonstrating the learning loop rather than for every development check.
+Then choose **Start battle**. One round is the fast demonstration path. Blue combines investigation and decision in one Qwen call per unresolved event, resolves independently verified low-risk events without Qwen, and evaluates the isolated attack and look-alike cases with bounded concurrency. Runs with two or more rounds also replay-test a Blue defense candidate between rounds and therefore take longer; use them when demonstrating the learning loop rather than for every development check.
 
 After a new battle, the report first shows the five submission criteria, balanced lifecycle defense score and weakest phase, then separate pre-transaction, transaction and post-transaction cards. The capability-versus-consequence view distinguishes a weak attack from a capable attack that Blue successfully contained. Select any replay event to inspect the source stream, live-payment lane, fast-guard risk synthesis, Blue evidence tools, reason codes, action and mitigation.
 

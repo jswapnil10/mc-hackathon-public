@@ -10,7 +10,7 @@
   --guide-blue: #1976d2;
   --guide-green: #16815f;
   --guide-mono: "DM Mono", monospace;
-  --guide-sans: "Manrope", sans-serif;
+  --guide-sans: "IBM Plex Sans", sans-serif;
 }
 
 * { box-sizing: border-box; }

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MasterGuard AI – Evidence: Threat Atlas, Scenario Foundry, Defense Benchmark.">
+  <title>MasterGuard AI · Evidence</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Ccircle cx='24' cy='20' r='18' fill='%23eb001b'/%3E%3Ccircle cx='40' cy='20' r='18' fill='%23f79e1b'/%3E%3Cpath d='M32 5.2a18 18 0 0 1 0 29.6 18 18 0 0 1 0-29.6Z' fill='%23ff5f00'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='lab.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="MasterGuard AI home">
+      <span class="brand-mark"><i></i><i></i></span>
+      <span class="brand-copy"><strong>MasterGuard AI</strong><small>Attack. Adapt. Defend.</small></span>
+    </a>
+    <nav class="topnav" aria-label="Evidence sections">
+      <a href="#threatAtlas">Identify</a>
+      <a href="#scenarioFoundry">Generate</a>
+      <a href="#defenseBenchmark">Defend</a>
+    </nav>
+    <a class="evidence-return" href="/">← Return to the Arena</a>
+  </header>
+
+  <main>
+    <section class="evidence-hero">
+      <div class="section-kicker">MASTERGUARD AI · EVIDENCE PACK</div>
+      <h1>Research, generation, and detection in one place</h1>
+      <p>Three independent layers of evidence: the Threat Atlas that grounds every attack in real research, the Scenario Foundry that turns ideas into reproducible synthetic data, and the Defense Benchmark that proves detection on sealed data the model never trained on.</p>
+    </section>
+
+    <section class="evidence-nav-strip">
+      <a href="#threatAtlas"><small>EVIDENCE 01 · IDENTIFY</small><strong>Threat Atlas</strong><span>Research catalogue and source links →</span></a>
+      <a href="#scenarioFoundry"><small>EVIDENCE 02 · GENERATE</small><strong>Scenario Foundry</strong><span>Latest reproducible synthetic build →</span></a>
+      <a href="#defenseBenchmark"><small>EVIDENCE 03 · DEFEND</small><strong>Defense Benchmark</strong><span>Results on sealed synthetic test data →</span></a>
+    </section>
+
+    <section id="threatAtlas" class="atlas-section">
+      <div class="section-heading">
+        <div><div class="section-kicker">EVIDENCE 01 · IDENTIFY · RESEARCH CATALOGUE</div><h2>Research becomes an executable Threat Atlas</h2><p>These counts describe the curated catalogue—not the latest agent battle. Every vector is mapped to supporting research, payment surfaces and one bounded simulator family.</p></div>
+        <div class="atlas-summary-line">
+          <span><b id="atlasVectorCount">—</b> researched vectors<small>Source · Threat Atlas catalogue</small></span>
+          <span><b id="atlasSourceCount">—</b> unique research sources<small>Source · Threat Atlas bibliography</small></span>
+          <span><b id="atlasRailCount">—</b> payment rails<small>Source · distinct vector mappings</small></span>
+        </div>
+      </div>
+      <div class="atlas-toolbar">
+        <label>Attack category<select id="atlasCategory"><option value="all">All categories</option></select></label>
+        <label>Payment rail<select id="atlasRail"><option value="all">All rails</option></select></label>
+        <span id="atlasResultCount">Loading researched vectors…</span>
+      </div>
+      <div id="atlasVectorGrid" class="atlas-vector-grid"></div>
+      <p class="method-note"><b>Evidence boundary:</b> a cited vector may be emerging or inferred. Research confidence, plausibility, novelty and source links stay visible; no unsupported vector is presented as observed fraud prevalence.</p>
+    </section>
+
+    <section id="scenarioFoundry" class="foundry-section">
+      <div class="foundry-copy">
+        <div class="section-kicker">EVIDENCE 02 · GENERATE · LATEST SYNTHETIC BUILD</div>
+        <h2>Turn every idea into a safe payment population</h2>
+        <p>These numbers come from the latest reproducible Scenario Foundry build—not the current Arena battle. Red compiles bounded variants while the generator creates attack events, ordinary payments and difficult legitimate look-alikes.</p>
+        <div class="foundry-flow" aria-label="Scenario generation flow">
+          <span>Threat vector</span><i>→</i><span>Bounded Red plan</span><i>→</i><span>Observable events</span><i>→</i><span>Sealed split</span>
+        </div>
+      </div>
+      <div class="foundry-console">
+        <header><span>SCENARIO FOUNDRY · LATEST REPRODUCIBLE BUILD</span><b id="foundryQualityState">—</b></header>
+        <div class="foundry-stats">
+          <div><small>SYNTHETIC EVENT ROWS</small><strong id="foundryEvents">—</strong><span>Source · latest Foundry build</span></div>
+          <div><small>ATTACK SCENARIO VARIANTS</small><strong id="foundryCampaigns">—</strong><span>Source · generated vector variants</span></div>
+          <div><small>ATLAS VECTORS COVERED</small><strong id="foundryVectors">—</strong><span>Source · build coverage report</span></div>
+          <div><small>FIDELITY VS DECLARED PRIORS</small><strong id="foundryFidelity">—</strong><span>Source · fidelity calculation</span></div>
+        </div>
+        <div id="splitBars" class="split-bars"></div>
+        <button id="runFoundry" class="foundry-button" type="button"><span>Regenerate &amp; benchmark</span><b>↗</b></button>
+        <p id="foundryState">Uses fixed, reproducible defaults and does not call the Qwen endpoint. No real customer or payment data is used.</p>
+      </div>
+    </section>
+
+    <section id="defenseBenchmark" class="benchmark-section">
+      <div class="section-heading">
+        <div><div class="section-kicker">EVIDENCE 03 · DEFEND · SEALED SYNTHETIC BENCHMARK</div><h2>Prove detection on data the defense never trained on</h2><p>These metrics come from the latest Scenario Foundry benchmark—not a single Arena battle. A detector is selected on validation data, frozen, and then evaluated on sealed known-pattern and withheld-vector events.</p></div>
+        <span id="benchmarkModel" class="proof-badge">NO BENCHMARK YET</span>
+      </div>
+      <div class="benchmark-kpis">
+        <article><small class="metric-title">SEALED SYNTHETIC TEST · PR-AUC <button type="button" class="metric-info" aria-label="PR-AUC definition" data-tooltip="How well the detector ranks fraud above legitimate events across every possible threshold. Higher is better.">i</button></small><strong id="benchmarkPrauc">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkPraucNote">How well fraud ranks above legitimate events when fraud is rare. Higher is better.</p></article>
+        <article><small class="metric-title">WITHHELD VECTORS · ATTACK EVENTS CAUGHT <button type="button" class="metric-info" aria-label="Withheld-vector recall definition" data-tooltip="The share of fraud events caught when their complete attack vector was excluded from training. Higher is better.">i</button></small><strong id="benchmarkNovelRecall">—</strong><span class="metric-source">Source · novel-vector test split</span><p id="benchmarkNovelRecallNote">Share caught when the complete attack vector was excluded from training. Higher is better.</p></article>
+        <article><small class="metric-title">SEALED SYNTHETIC TEST · F1 <button type="button" class="metric-info" aria-label="F1 definition" data-tooltip="A balance of precision and recall. It is high only when alerts are accurate and most fraud is caught.">i</button></small><strong id="benchmarkF1">—</strong><span class="metric-source">Source · latest sealed benchmark</span><p id="benchmarkF1Note">One score balancing attacks caught against incorrect alerts. Higher is better.</p></article>
+        <article><small class="metric-title">HARD LEGITIMATE CONTROLS · FALSE ALERT RATE <button type="button" class="metric-info" aria-label="False alert rate definition" data-tooltip="The share of difficult legitimate look-alikes incorrectly flagged as fraud. Lower is better.">i</button></small><strong id="benchmarkFpr">—</strong><span class="metric-source">Source · hard-control test cases</span><p id="benchmarkFprNote">Difficult legitimate look-alikes incorrectly treated as fraud. Lower is better.</p></article>
+      </div>
+      <div class="benchmark-detail-grid">
+        <article class="confusion-card">
+          <header><div><small>SEALED SYNTHETIC EVENT OUTCOMES</small><h3>What the detector got right and wrong</h3></div><span id="benchmarkThreshold">Technical threshold —</span></header>
+          <div class="confusion-grid">
+            <div class="correct"><small>TRUE NEGATIVE</small><strong id="matrixTn">—</strong><span>legitimate passed</span></div>
+            <div class="wrong"><small>FALSE POSITIVE</small><strong id="matrixFp">—</strong><span>customer friction</span></div>
+            <div class="wrong"><small>FALSE NEGATIVE</small><strong id="matrixFn">—</strong><span>missed attack</span></div>
+            <div class="correct"><small>TRUE POSITIVE</small><strong id="matrixTp">—</strong><span>attack detected</span></div>
+          </div>
+        </article>
+        <article class="phase-benchmark-card">
+          <header><small>PAYMENT-STAGE DEFENSE</small><h3>Fraud caught and legitimate users protected</h3></header>
+          <div id="benchmarkPhases"></div>
+        </article>
+      </div>
+      <div class="family-table-wrap">
+        <div class="family-table-head"><div><small>ATTACK COVERAGE</small><h3>Defense efficacy by family</h3></div><span id="benchmarkGenerated">—</span></div>
+        <div class="family-table-scroll"><table><thead><tr><th>Family</th><th>Attack events</th><th>Fraud caught</th><th>Value protected</th><th>Average risk score</th></tr></thead><tbody id="familyResults"></tbody></table></div>
+      </div>
+      <p class="method-note"><b>Interpretation:</b> these are reproducible synthetic stress-test results, not claims about live Mastercard traffic. Real deployment requires privacy-reviewed calibration, shadow traffic and drift monitoring.</p>
+    </section>
+
+    <div id="errorState" class="error-state hidden" aria-live="assertive"></div>
+  </main>
+
+  <footer>
+    <span>MasterGuard AI - Attack. Adapt. Defend. · fully synthetic events · no real payment rails</span>
+    <span>Hackathon prototype for Mastercard Innovation Challenge 2026 · not an official Mastercard product</span>
+  </footer>
+  <script src="{{ url_for('static', filename='evidence.js') }}"></script>
+</body>
+</html>

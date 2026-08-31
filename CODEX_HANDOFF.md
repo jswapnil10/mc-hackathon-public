@@ -1,6 +1,6 @@
 # MasterGuard AI — Codex Handoff
 
-Last updated: 29 August 2026 (Asia/Kolkata)
+Last updated: 31 August 2026 (Asia/Kolkata)
 
 This file is the starting context for a new Codex instance working on this repository. Read it before changing branches, deleting untracked files, redesigning the UI, changing replay behavior, or publishing a deployment.
 
@@ -29,23 +29,10 @@ The user wants a technically credible GenAI-versus-GenAI system, not a conventio
 
 - Current branch: `codex/offline-replay-deployment`
 - Tracking branch: `origin/codex/offline-replay-deployment`
-- Current committed HEAD at handoff: `6c05e37c863bf65fd1a7ea66959a92f9f513ce05`
-- HEAD commit title: `Complete Claude Opus replay catalog`
 - Remote: `https://github.com/u367403_ual/mc-hackathon.git`
+- Integrated UI source: `origin/new-ui-deployment` (`a53ba25` and `d4a0ef2`)
 
-There are important **uncommitted tracked changes**. Do not reset or discard them:
-
-- `.env.example`
-- `README.md`
-- `app/server.py`
-- `app/static/lab.css`
-- `app/static/lab.js`
-- `app/templates/lab.html`
-- `tests/test_dashboard.py`
-
-Those changes add the public/offline replay disclosure, configurable repository link, more accurate replay-mode labels, improved sticky navigation, the **Start battle** button label, documentation updates, and tests.
-
-`CODEX_HANDOFF.md` is itself a new, uncommitted file at the time of creation. If the laptop transfer will use a fresh Git clone instead of copying/zipping this complete working directory, commit this file and the intended application changes first.
+The branch now combines the offline replay deployment with the `new-ui-deployment` work. The integration preserves the public/offline replay disclosure, configurable repository link, recorded-model provenance, instant one-to-five-round catalog, and **Start battle** button while adding the dedicated Evidence workspace, live grouped event stream, money counterfactual, and revised Arena report.
 
 There are also user-owned/untracked artifacts and temporary directories. Inspect them before deciding what belongs in Git. In particular:
 
@@ -203,7 +190,7 @@ Run tests:
 python -m unittest discover -s tests
 ```
 
-At this handoff, after the final replay-disclosure and button-label changes, the complete deterministic suite passed **89 tests**. Re-run the complete suite after cloning or merging.
+At this handoff, after integrating `new-ui-deployment`, the complete deterministic suite passed **89 tests**. Browser validation also covered the Arena, Evidence page, run guide, Threat Atlas filters, and one- and five-round recorded battles. Re-run the complete suite after cloning or merging.
 
 ## 7. Deployment
 
@@ -222,7 +209,7 @@ For live generation, clear `DEMO_MODE` and provide a private authenticated OpenA
 ## 8. UI/product decisions that should be preserved
 
 - Brand: **MasterGuard AI — Attack. Adapt. Defend.**
-- Arena is the first/primary experience; Identify, Generate, Defend, external proof, and judging evidence follow.
+- Arena is the first/primary experience. Identify, Generate, and Defend live together on the dedicated `/evidence` workspace, with external proof remaining in the Arena.
 - Primary button: **Start battle** in both live and recorded modes.
 - Public replay mode must clearly say **Recorded agent replay** and **Recorded architecture**, not imply a currently connected live model.
 - The replay disclaimer should remain visible, polished, and non-apologetic.
@@ -230,6 +217,7 @@ For live generation, clear `DEMO_MODE` and provide a private authenticated OpenA
 - Actual originating models remain visible as provenance inside a loaded run.
 - Dropdowns remain functional and populated from the server's available catalog.
 - Metrics use plain English, information icons, and visible source labels.
+- The Arena report retains the grouped Red attack event stream, Blue action markings, no-defense loss counterfactual, and event-by-event investigation view.
 - Five-round offline battles must remain instant and reliable.
 - No real customer data, credentials, phishing content, or external attack execution belongs in the demo.
 
@@ -244,28 +232,17 @@ For live generation, clear `DEMO_MODE` and provide a private authenticated OpenA
 
 Do not present catalogue counts, population benchmark metrics, external-validation metrics, and one battle's metrics as if they came from the same dataset or run. The UI currently labels their sources separately.
 
-## 10. Pending integration request
+## 10. Completed UI integration
 
-The user wants the current work combined with:
+`origin/new-ui-deployment` has been merged into `codex/offline-replay-deployment`. The result includes:
 
-```text
-https://github.com/u367403_ual/mc-hackathon/tree/new-ui-deployment
-```
+- `/` — Arena-first battle configuration, external validation, report and offline disclosure.
+- `/evidence` — Threat Atlas, Scenario Foundry and sealed Defense Benchmark.
+- `/run-guide` — plain-English execution stages and output boundaries.
+- Grouped attack/look-alike/ambient event data in live progress and saved round reports.
+- `no_defense_loss_inr` and `loss_avoided_inr` Referee fields for the money counterfactual.
 
-The prior laptop could not fetch that branch because GitHub HTTPS was redirected to a local network setup page, standard SSH was blocked, SSH-over-443 was reset, and the local GitHub CLI token was invalid. These are machine/network conditions, not repository defects.
-
-On the new laptop:
-
-1. Confirm GitHub access and authentication.
-2. Preserve or commit the tracked changes listed in section 2.
-3. Fetch `origin/new-ui-deployment`.
-4. Compare it carefully with `codex/offline-replay-deployment` before merging.
-5. Create an integration branch such as `codex/integrate-new-ui-deployment`.
-6. Preserve the current backend, artifact catalog, offline replay selection, provenance disclosure, metrics, tests, and deployment behavior while incorporating the new UI.
-7. Run the complete test suite and browser-test one- and five-round offline battles.
-8. Create a new GitHub repository only after the user supplies the exact repository name and visibility.
-
-Do not infer that “new repo” means “new branch.” Confirm the final repository name and whether it should be private or public before creating it.
+Keep the Evidence page and Arena contracts synchronized when changing APIs or report fields. Older recorded artifacts do not contain every newly added field, so UI rendering must continue to use safe defaults.
 
 ## 11. Recommended first commands for the next Codex instance
 
@@ -276,10 +253,12 @@ git diff --check
 python -m unittest discover -s tests
 ```
 
-Then inspect:
+Then inspect recent history and the deployment configuration:
 
 ```bash
-git diff -- .env.example README.md app/server.py app/static/lab.css app/static/lab.js app/templates/lab.html tests/test_dashboard.py
+git log -8 --oneline --decorate
+git diff origin/codex/offline-replay-deployment...HEAD --stat
+sed -n '1,180p' render.yaml
 ```
 
 Do not run destructive Git cleanup commands. Do not overwrite user-owned presentation assets. Do not push, create a GitHub repository, or change repository visibility without the user's authorization and the missing repository details.
