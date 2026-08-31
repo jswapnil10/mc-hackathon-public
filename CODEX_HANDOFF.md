@@ -191,7 +191,7 @@ Run tests:
 python -m unittest discover -s tests
 ```
 
-At this handoff, after integrating `new-ui-deployment`, the complete deterministic suite passed **90 tests**. Browser validation covered the Arena, Evidence page, run guide, Threat Atlas filters, one- and five-round recorded battles, report restoration after navigation/reload, mobile layout, and mobile tooltip placement. Re-run the complete suite after cloning or merging.
+At this handoff, after integrating `new-ui-deployment`, the complete deterministic suite passed **91 tests**. Browser validation covered the Arena, Evidence page, run guide, Threat Atlas filters, one- and five-round recorded battles, report restoration after navigation/reload, mobile layout, and mobile tooltip placement. Re-run the complete suite after cloning or merging.
 
 ## 7. Deployment
 
@@ -243,7 +243,7 @@ The Downloads repository's integrated UI branch has been merged into `codex/offl
 - Grouped attack/look-alike/ambient event data in live progress and saved round reports.
 - `no_defense_loss_inr` and `loss_avoided_inr` Referee fields for the money counterfactual.
 - Server-side compatibility enrichment for older replay artifacts, including deterministic legitimate look-alikes, grouped event streams, and counterfactual money fields.
-- Same-tab replay/report recovery using a server restart token so completed reports survive navigation without restoring stale data after a backend restart.
+- Replay/report recovery using browser session storage plus a per-browser HttpOnly replay-selection cookie, with a server restart token preventing stale reports after a backend restart.
 
 Keep the Evidence page and Arena contracts synchronized when changing APIs or report fields. Older recorded artifacts do not contain every newly added field, so UI rendering must continue to use safe defaults.
 

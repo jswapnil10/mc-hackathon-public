@@ -42,6 +42,7 @@ RUN_PROGRESS_LOCK = threading.Lock()
 RUN_PROGRESS: dict[str, dict[str, Any]] = {}
 RUN_PROGRESS_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{8,80}$")
 SERVER_SESSION_TOKEN = str(uuid.uuid4())
+REPLAY_SELECTION_COOKIE = "masterguard_replay_selection"
 BATTLE_COUNT_PATH = PROJECT_ROOT / "data" / "loop" / "battle_count.txt"
 BATTLE_COUNT_LOCK = threading.Lock()
 BACKGROUND_RETRAIN_LOCK = threading.Lock()
@@ -247,6 +248,23 @@ def _select_precomputed_run(
     }
     _upgrade_precomputed_report(selected)
     return selected
+
+
+def _replay_selection_from_cookie() -> tuple[str, str, int, int] | None:
+    raw_selection = request.cookies.get(REPLAY_SELECTION_COOKIE, "")
+    try:
+        family, difficulty, rounds_value, seed_value = raw_selection.split("|", 3)
+        rounds = int(rounds_value)
+        seed = int(seed_value)
+    except (TypeError, ValueError):
+        return None
+    if family not in AttackCatalog().families:
+        return None
+    if difficulty not in {"easy", "medium", "hard"}:
+        return None
+    if not 1 <= rounds <= WEB_MAX_ROUNDS:
+        return None
+    return family, difficulty, rounds, seed
 
 
 def _precomputed_demo_catalog() -> list[dict[str, Any]]:
@@ -692,6 +710,17 @@ def create_app() -> Flask:
 
     @app.get("/api/v2/latest")
     def latest_agent_run() -> Any:
+        if _precomputed_demo_enabled():
+            selection = _replay_selection_from_cookie()
+            if selection:
+                replay = _select_precomputed_run(
+                    attack_family=selection[0],
+                    difficulty=selection[1],
+                    rounds=selection[2],
+                    seed=selection[3],
+                )
+                if replay is not None:
+                    return jsonify(replay)
         if not LATEST_AGENT_RUN_PATH.exists():
             return jsonify({"error": "No agentic run has been completed yet."}), 404
         return jsonify(json.loads(LATEST_AGENT_RUN_PATH.read_text(encoding="utf-8")))
@@ -760,7 +789,15 @@ def create_app() -> Flask:
                             "duration_ms": 0,
                         },
                     )
-                return jsonify(result)
+                response = jsonify(result)
+                response.set_cookie(
+                    REPLAY_SELECTION_COOKIE,
+                    f"{family}|{difficulty}|{rounds}|{seed}",
+                    httponly=True,
+                    secure=request.is_secure,
+                    samesite="Lax",
+                )
+                return response
 
             if progress_id:
                 _set_run_progress(

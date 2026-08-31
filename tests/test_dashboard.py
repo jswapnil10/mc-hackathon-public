@@ -214,6 +214,27 @@ class DashboardTests(unittest.TestCase):
             )
 
     @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
+    def test_precomputed_replay_recovers_from_browser_session_cookie(self):
+        run_response = self.client.post(
+            "/api/v2/run",
+            json={
+                "attack_family": "ATO-01",
+                "difficulty": "medium",
+                "rounds": 1,
+                "seed": 20260831,
+            },
+        )
+        self.assertEqual(run_response.status_code, 200)
+        cookie = run_response.headers.get("Set-Cookie", "")
+        self.assertIn("masterguard_replay_selection=ATO-01|medium|1|20260831", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Lax", cookie)
+
+        latest_response = self.client.get("/api/v2/latest")
+        self.assertEqual(latest_response.status_code, 200)
+        self.assertEqual(latest_response.get_json()["run_id"], run_response.get_json()["run_id"])
+
+    @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
     def test_precomputed_demo_prefers_five_round_adaptive_recording(self):
         response = self.client.post(
             "/api/v2/run",
