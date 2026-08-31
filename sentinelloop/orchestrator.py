@@ -56,6 +56,35 @@ class BlueAdaptationResult:
         }
 
 
+def _clone_groups(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Snapshot the grouped event stream for a progress payload (events copied so later
+    action-fills don't mutate an already-published snapshot)."""
+    return [{**g, "events": [dict(e) for e in g.get("events", [])]} for g in groups]
+
+
+def _case_event_rows(case: Any, turns: list[Any]) -> list[dict[str, Any]]:
+    """Per-event rows (sequence, type, attributes, Blue action) for any case — attack or benign."""
+    action_by_id = {}
+    for turn in turns:
+        event = getattr(turn, "event", None)
+        if event is not None:
+            action_by_id[getattr(event, "event_id", None)] = getattr(turn, "decision", None)
+    rows = []
+    for event in case.events:
+        decision = action_by_id.get(getattr(event, "event_id", None))
+        rows.append(
+            {
+                "sequence": getattr(event, "sequence", len(rows) + 1),
+                "event_type": getattr(event, "event_type", "EVENT"),
+                "lifecycle_phase": getattr(event, "lifecycle_phase", ""),
+                "attributes": dict(getattr(event, "attributes", {}) or {}),
+                "action": getattr(decision, "action", None) if decision else None,
+                "risk_level": getattr(decision, "risk_level", None) if decision else None,
+            }
+        )
+    return rows
+
+
 @dataclass(frozen=True)
 class RoundResult:
     round_number: int
@@ -106,6 +135,31 @@ class RoundResult:
                     for case, turns in self.ambient_results
                 ],
             },
+            # Grouped event view: the real attack, the benign look-alikes, and ordinary traffic —
+            # each with per-event attributes + Blue's action, distinctly labelled for the UI.
+            "event_groups": [
+                {
+                    "kind": "attack",
+                    "label": self.red_turn.scenario.attack_family or "Attack",
+                    "events": _case_event_rows(self.attack_case, self.attack_blue_turns),
+                },
+                *[
+                    {
+                        "kind": "lookalike",
+                        "label": case.control_name or "Legitimate look-alike",
+                        "events": _case_event_rows(case, turns),
+                    }
+                    for case, turns in self.control_results
+                ],
+                *[
+                    {
+                        "kind": "ambient",
+                        "label": case.case_id.split("-")[0].replace("_", " ") or "Ordinary traffic",
+                        "events": _case_event_rows(case, turns),
+                    }
+                    for case, turns in self.ambient_results
+                ],
+            ],
             "referee": self.referee_report.to_dict(),
             "feedback_released_to_red": self.feedback_released_to_red,
             "blue_adaptation": self.blue_adaptation.to_dict() if self.blue_adaptation else None,
@@ -194,6 +248,7 @@ class SentinelLoopOrchestrator:
         round_number: int,
         total_rounds: int,
         replay: bool = False,
+        event_groups: list[dict[str, Any]] | None = None,
     ) -> tuple[list[BlueTurn], list[tuple[SimulationCase, list[BlueTurn]]]]:
         """Evaluate isolated cases concurrently while preserving order within each case."""
         jobs = [
@@ -206,6 +261,15 @@ class SentinelLoopOrchestrator:
 
         total_event_capacity = sum(len(case.events) for case, _ in jobs)
         completed_events = 0
+        # Grouped stream pre-populated by Red (all events + attributes, action=None). Groups align
+        # with jobs order: [attack, *look-alikes]. Blue fills in each event's action as it scores.
+        groups = event_groups if event_groups is not None else []
+        seq_index_by_case = {}
+        for job_index, (case, _seed) in enumerate(jobs):
+            if job_index < len(groups):
+                seq_index_by_case[id(case)] = {
+                    entry.get("sequence"): entry for entry in groups[job_index].get("events", [])
+                }
         progress_lock = Lock()
         stage = "blue_replay" if replay else "blue_investigation"
         headline = (
@@ -230,12 +294,20 @@ class SentinelLoopOrchestrator:
         def evaluate(job: tuple[SimulationCase, int]) -> list[BlueTurn]:
             nonlocal completed_events
             case, case_seed = job
+            case_seq_index = seq_index_by_case.get(id(case))
 
             def event_completed(_event: Any, _turn: Any) -> None:
                 nonlocal completed_events
                 with progress_lock:
                     completed_events += 1
                     current = completed_events
+                    if case_seq_index is not None:
+                        decision = getattr(_turn, "decision", None)
+                        entry = case_seq_index.get(getattr(_event, "sequence", None))
+                        if entry is not None:
+                            entry["action"] = getattr(decision, "action", None)
+                            entry["risk_level"] = getattr(decision, "risk_level", None)
+                    groups_snapshot = _clone_groups(groups)
                 self._progress(
                     stage,
                     headline,
@@ -248,6 +320,7 @@ class SentinelLoopOrchestrator:
                     completed_events=current,
                     total_event_capacity=total_event_capacity,
                     case_count=len(jobs),
+                    event_groups=groups_snapshot,
                 )
 
             return self.blue.run_case(
@@ -409,6 +482,24 @@ class SentinelLoopOrchestrator:
                 if include_legitimate_controls
                 else []
             )
+            # Stream events the moment Red generates them (with ALL attributes) — the real attack
+            # and the benign look-alikes, grouped and labelled. Blue's action per event is filled in
+            # as it scores; ambient traffic is appended after. Shown live and persisted in the report.
+            event_groups: list[dict[str, Any]] = [
+                {
+                    "kind": "attack",
+                    "label": red_turn.scenario.attack_family or "Attack",
+                    "events": _case_event_rows(attack_case, []),
+                }
+            ]
+            for control in controls:
+                event_groups.append(
+                    {
+                        "kind": "lookalike",
+                        "label": getattr(control, "control_name", None) or "Legitimate look-alike",
+                        "events": _case_event_rows(control, []),
+                    }
+                )
             self._progress(
                 "simulation",
                 "The arena built the synthetic payment events",
@@ -420,6 +511,7 @@ class SentinelLoopOrchestrator:
                 total_rounds=rounds,
                 attack_event_count=len(attack_case.events),
                 control_case_count=len(controls),
+                event_groups=_clone_groups(event_groups),
             )
             attack_turns, control_results = self._run_blue_cases(
                 attack_case=attack_case,
@@ -429,6 +521,7 @@ class SentinelLoopOrchestrator:
                 playbook=round_playbook,
                 round_number=index + 1,
                 total_rounds=rounds,
+                event_groups=event_groups,
             )
             trace(
                 "blue.attack_case.completed",
@@ -449,6 +542,14 @@ class SentinelLoopOrchestrator:
                         stop_on_decisive_action=True,
                     )
                     ambient_results.append((ambient_case, turns))
+                    event_groups.append(
+                        {
+                            "kind": "ambient",
+                            "label": ambient_case.case_id.split("-")[0].replace("_", " ")
+                            or "Ordinary traffic",
+                            "events": _case_event_rows(ambient_case, turns),
+                        }
+                    )
                 trace(
                     "ambient.completed",
                     "Blue processed standalone legit + trap traffic (realistic FP denominator).",
@@ -460,6 +561,7 @@ class SentinelLoopOrchestrator:
                 "Blue's decisions are complete. The Referee is measuring detection, value protected, timing, and legitimate-customer harm.",
                 round_number=index + 1,
                 total_rounds=rounds,
+                event_groups=_clone_groups(event_groups),
             )
             report = self.referee.score(
                 attack_case=attack_case,

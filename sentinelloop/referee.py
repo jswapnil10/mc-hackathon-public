@@ -486,6 +486,8 @@ class DeterministicReferee:
             coarse_reason_categories=reason_codes,
             ambient_false_positive_rate=round(ambient_fp_rate, 4),
             ambient_friction_rate=round(ambient_friction_rate, 4),
+            no_defense_loss_inr=total_value,
+            loss_avoided_inr=prevented_value,
             scoring_notes=notes,
         )
 

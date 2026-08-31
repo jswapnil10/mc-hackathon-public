@@ -19,13 +19,15 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"MasterGuard AI", response.data)
         self.assertIn(b"Attack. Adapt. Defend.", response.data)
-        self.assertIn(b"OVERALL DEFENSE SCORE", response.data)
+        self.assertIn(b"DEFENSE SCORE", response.data)
+        self.assertIn(b"LOSS AVOIDED VS NO DEFENSE", response.data)
+        self.assertIn(b"DECISION LATENCY", response.data)
         self.assertIn(b"What happens inside an agent battle?", response.data)
         self.assertIn(b"How to read this report", response.data)
         self.assertIn(b"SINGLE-BATTLE VIEW", response.data)
         self.assertIn(b"metric-info", response.data)
         self.assertIn(b"Precision compares this attack", response.data)
-        self.assertIn(b"ATTACK STRENGTH \xc3\x97 MONEY LOST", response.data)
+        self.assertIn(b"FAIR FIGHT", response.data)
         self.assertIn(b"Threat Atlas", response.data)
         self.assertIn(b"Scenario Foundry", response.data)
         self.assertIn(b"Defense Benchmark", response.data)
@@ -39,6 +41,8 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b'id="runEta"', response.data)
         self.assertIn(b'id="replaySkipButton"', response.data)
         self.assertIn(b"Show full report", response.data)
+        self.assertIn(b'id="runEventFeed"', response.data)
+        self.assertIn(b'id="eventStreamSection"', response.data)
         script = self.client.get("/static/lab.js")
         self.assertEqual(script.status_code, 200)
         self.assertIn(b"CURRENT ATTEMPT FAILED", script.data)
@@ -46,14 +50,30 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(b"presentRecordedReplay", script.data)
         self.assertIn(b"Replaying Red strategy", script.data)
         self.assertIn(b"no live model call", script.data)
+        self.assertIn(b"renderLiveEventFeed", script.data)
+        self.assertIn(b"resumeActiveBattle", script.data)
         self.assertIn(b"calibrated from the latest completed", script.data)
         self.assertIn(b"phase-quality-grid", script.data)
         self.assertIn(b"classification_metrics", script.data)
+
+    def test_evidence_and_run_guide_routes_load_complete_workspaces(self):
+        evidence = self.client.get("/evidence")
+        self.assertEqual(evidence.status_code, 200)
+        self.assertIn(b"EVIDENCE PACK", evidence.data)
+        self.assertIn(b'id="threatAtlas"', evidence.data)
+        self.assertIn(b'id="scenarioFoundry"', evidence.data)
+        self.assertIn(b'id="defenseBenchmark"', evidence.data)
+        self.assertIn(b"evidence.js", evidence.data)
+
+        run_guide = self.client.get("/run-guide")
+        self.assertEqual(run_guide.status_code, 200)
+        self.assertIn(b"What happens after you click", run_guide.data)
 
     def test_run_state_guide_explains_every_output_boundary(self):
         with self.client.get("/static/run-guide.html") as response:
             self.assertEqual(response.status_code, 200)
             self.assertIn(b"What happens after you click", response.data)
+            self.assertIn(b"Start battle?", response.data)
             self.assertIn(b"Red designs a bounded attack plan", response.data)
             self.assertIn(b"The arena materializes payment events", response.data)
             self.assertIn(b"Blue investigates and acts on each event", response.data)
@@ -81,6 +101,7 @@ class DashboardTests(unittest.TestCase):
         payload = response.get_json()
         self.assertNotIn("model_base_url", payload)
         self.assertEqual(payload["model_endpoint"], "server-side and private")
+        self.assertTrue(payload["server_token"])
         self.assertIn("blue_detector_active", payload["models"])
         self.assertEqual(
             payload["latency_profile"]["reasoning_profiles"],
@@ -176,6 +197,21 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(scenario["attack_family"], family)
             self.assertEqual(scenario["difficulty"], difficulty)
             self.assertEqual(payload["demo_mode"], "precomputed_replay")
+            round_payload = payload["rounds"][0]
+            report = round_payload["referee"]
+            self.assertEqual(
+                report["no_defense_loss_inr"], report["total_value_at_risk_inr"]
+            )
+            self.assertEqual(
+                report["loss_avoided_inr"], report["value_prevented_inr"]
+            )
+            groups = round_payload["event_groups"]
+            self.assertEqual(groups[0]["kind"], "attack")
+            self.assertTrue(groups[0]["events"])
+            self.assertEqual(
+                len([group for group in groups if group["kind"] == "lookalike"]),
+                round_payload["simulation"]["legitimate_control_count"],
+            )
 
     @patch.dict(os.environ, {"DEMO_MODE": "precomputed"})
     def test_precomputed_demo_prefers_five_round_adaptive_recording(self):

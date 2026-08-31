@@ -9,6 +9,7 @@ import random
 import re
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -16,9 +17,11 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
 from red_team_agent.catalog import AttackCatalog
+from red_team_agent.models import ScenarioSpec
 from sentinelloop.config import AgentLabConfig
 from sentinelloop.evaluation import catalog_submission_profile
 from sentinelloop.orchestrator import SentinelLoopOrchestrator
+from sentinelloop.simulation import simulate_legitimate_controls
 from sentinelloop.threat_atlas import ThreatAtlas
 from sentinelloop.trace import trace
 
@@ -38,6 +41,7 @@ AGENT_RUN_LOCK = threading.Lock()
 RUN_PROGRESS_LOCK = threading.Lock()
 RUN_PROGRESS: dict[str, dict[str, Any]] = {}
 RUN_PROGRESS_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{8,80}$")
+SERVER_SESSION_TOKEN = str(uuid.uuid4())
 BATTLE_COUNT_PATH = PROJECT_ROOT / "data" / "loop" / "battle_count.txt"
 BATTLE_COUNT_LOCK = threading.Lock()
 BACKGROUND_RETRAIN_LOCK = threading.Lock()
@@ -66,6 +70,90 @@ def _load_precomputed_runs() -> list[dict[str, Any]]:
             payload["_demo_source"] = path.name
             runs.append(payload)
     return runs
+
+
+def _replay_event_rows(
+    events: list[dict[str, Any]], decisions: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    decision_by_event = {
+        str(decision.get("event_id")): decision
+        for decision in decisions
+        if decision.get("event_id")
+    }
+    rows: list[dict[str, Any]] = []
+    for index, event in enumerate(events, start=1):
+        decision = decision_by_event.get(str(event.get("event_id")), {})
+        rows.append(
+            {
+                "sequence": event.get("sequence", index),
+                "event_type": event.get("event_type", "EVENT"),
+                "lifecycle_phase": event.get("lifecycle_phase", ""),
+                "attributes": dict(event.get("attributes") or {}),
+                "action": decision.get("action"),
+                "risk_level": decision.get("risk_level"),
+            }
+        )
+    return rows
+
+
+def _upgrade_precomputed_report(payload: dict[str, Any]) -> None:
+    """Backfill fields added after the immutable replay artifacts were recorded."""
+    for round_payload in payload.get("rounds", []):
+        report = round_payload.get("referee") or {}
+        report.setdefault(
+            "no_defense_loss_inr", report.get("total_value_at_risk_inr", 0.0)
+        )
+        report.setdefault("loss_avoided_inr", report.get("value_prevented_inr", 0.0))
+        round_payload["referee"] = report
+        if round_payload.get("event_groups"):
+            continue
+
+        simulation = round_payload.get("simulation") or {}
+        attack_case = simulation.get("attack_case") or {}
+        blue = round_payload.get("blue") or {}
+        attack_decisions = [
+            turn.get("decision") or {} for turn in blue.get("attack_turns", [])
+        ]
+        groups = [
+            {
+                "kind": "attack",
+                "label": (round_payload.get("red") or {})
+                .get("scenario", {})
+                .get("attack_family", "Attack"),
+                "events": _replay_event_rows(
+                    attack_case.get("events") or [], attack_decisions
+                ),
+            }
+        ]
+
+        scenario_payload = (round_payload.get("red") or {}).get("scenario") or {}
+        summaries = {
+            str(summary.get("case_id")): summary
+            for summary in blue.get("control_summaries", [])
+            if summary.get("case_id")
+        }
+        try:
+            scenario = ScenarioSpec.from_dict(scenario_payload)
+            controls = simulate_legitimate_controls(
+                scenario, list(scenario.legitimate_controls)
+            )
+        except (KeyError, TypeError, ValueError):
+            controls = []
+        for control in controls:
+            summary = summaries.get(control.case_id, {})
+            groups.append(
+                {
+                    "kind": "lookalike",
+                    "label": summary.get("control_name_revealed_after_scoring")
+                    or control.control_name
+                    or "Legitimate look-alike",
+                    "events": _replay_event_rows(
+                        [event.to_dict() for event in control.events],
+                        summary.get("decisions") or [],
+                    ),
+                }
+            )
+        round_payload["event_groups"] = groups
 
 
 def _select_precomputed_run(
@@ -157,6 +245,7 @@ def _select_precomputed_run(
             else "No live model call occurs."
         ),
     }
+    _upgrade_precomputed_report(selected)
     return selected
 
 
@@ -441,6 +530,15 @@ def create_app() -> Flask:
         """Small dependency-free health check for managed web hosts."""
         return jsonify({"status": "ok", "service": "masterguard-ai"})
 
+    @app.get("/evidence")
+    def evidence_page() -> str:
+        return render_template("evidence.html")
+
+    @app.get("/run-guide")
+    def run_guide_page():
+        from flask import send_from_directory
+        return send_from_directory(PROJECT_ROOT / "app" / "static", "run-guide.html")
+
     @app.get("/legacy")
     def legacy_dashboard() -> str:
         return render_template("index.html")
@@ -506,6 +604,7 @@ def create_app() -> Flask:
                     }
                     for card in catalog.list()
                 ],
+                "server_token": SERVER_SESSION_TOKEN,
                 "latest_run_available": LATEST_AGENT_RUN_PATH.exists(),
                 "latest_benchmark_available": LATEST_BENCHMARK_PATH.exists(),
                 "latest_external_validation_available": LATEST_EXTERNAL_VALIDATION_PATH.exists(),

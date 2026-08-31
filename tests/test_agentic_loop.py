@@ -389,6 +389,17 @@ class ClosedLoopTests(unittest.TestCase):
             update for update in updates if update["stage"] == "blue_investigation"
         ]
         self.assertGreater(blue_updates[-1]["completed_events"], 0)
+        simulation = next(update for update in updates if update["stage"] == "simulation")
+        self.assertEqual(simulation["event_groups"][0]["kind"], "attack")
+        self.assertTrue(simulation["event_groups"][0]["events"])
+        self.assertTrue(
+            any(
+                event["action"]
+                for update in blue_updates
+                for group in update.get("event_groups", [])
+                for event in group["events"]
+            )
+        )
 
     def test_policy_guard_promotes_hold_medium_to_high(self) -> None:
         decision = BlueDecision(
@@ -466,6 +477,22 @@ class ClosedLoopTests(unittest.TestCase):
             + round_result.referee_report.value_prevented_inr,
             round_result.referee_report.total_value_at_risk_inr,
         )
+        self.assertEqual(
+            round_result.referee_report.no_defense_loss_inr,
+            round_result.referee_report.total_value_at_risk_inr,
+        )
+        self.assertEqual(
+            round_result.referee_report.loss_avoided_inr,
+            round_result.referee_report.value_prevented_inr,
+        )
+        event_groups = result.to_dict()["rounds"][0]["event_groups"]
+        self.assertEqual(event_groups[0]["kind"], "attack")
+        self.assertEqual(
+            len([group for group in event_groups if group["kind"] == "lookalike"]),
+            3,
+        )
+        self.assertTrue(event_groups[0]["events"])
+        self.assertTrue(any(event["action"] for event in event_groups[0]["events"]))
         self.assertTrue(any(call["agent_name"] == "red_planner" for call in gateway.calls))
         self.assertTrue(any(call["agent_name"] == "blue_event_agent" for call in gateway.calls))
         blue_calls = [call for call in gateway.calls if call["agent_name"] == "blue_event_agent"]
